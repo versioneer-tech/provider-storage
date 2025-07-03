@@ -1,0 +1,5 @@
+.devcontainer
+.vscode
+venv
+cr-*
+docs/apis/*
