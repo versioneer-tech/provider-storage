@@ -34,4 +34,4 @@ jobs:
 
       - name: Publish Configuration Package
         run: |
-          crossplane xpkg push "ghcr.io/versioneer-tech/provider-storage/provider-storage:${{ github.ref_name }}" --domain "https://ghcr.io" --verbose
+          crossplane xpkg push "ghcr.io/versioneer-tech/provider-storage:${{ github.ref_name }}" --domain "https://ghcr.io" --verbose
