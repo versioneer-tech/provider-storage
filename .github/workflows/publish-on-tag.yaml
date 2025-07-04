@@ -1,0 +1,37 @@
+name: Build and Publish Crossplane Configuration Package to GHCR
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  build_and_publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Install Crossplane CLI
+        run: |
+          curl -sL "https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh" | sh
+          sudo mv crossplane /usr/local/bin
+      
+      - name: Build Configuration Package
+        run: |
+          crossplane xpkg build --package-root . --ignore=".github/workflows/*" --verbose
+
+      - name: Publish Configuration Package
+        run: |
+          crossplane xpkg push "ghcr.io/versioneer-tech/provider-storage/provider-storage:${{ github.ref_name }}" --domain "https://ghcr.io" --verbose
