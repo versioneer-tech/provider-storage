@@ -1,0 +1,41 @@
+name: Build Documentation with mkdocs
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build_docs:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.12
+
+      - name: Install mkdocs dependencies
+        run: |
+          pip install mkdocs mkdocs-material
+
+      - name: Set up Go 1.24
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.24
+
+      - name: Install crdoc
+        run: |
+          go install fybrik.io/crdoc@latest
+
+      - name: Generate API docs
+        run: |
+          bash scripts/build_docs.sh
+
+      - name: Publish docs to Github pages
+        run: |
+          mkdocs gh-deploy --force

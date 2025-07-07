@@ -1,6 +1,8 @@
 site_name: provider-storage
+site_url: https://versioneer-tech.github.io/provider-storage/
 nav:
-  - Reference: apis/definition.md
+  - API:
+    - Reference: apis/definition.md
 plugins:
   - search
 theme:
