@@ -30,12 +30,4 @@ spec:
                         type: string
                       owner:
                         type: string
-                      accessReadWrite:
-                        type: array
-                        items:
-                          type: string
-                      accessReadOnly:
-                        type: array
-                        items:
-                          type: string
                   default: []
