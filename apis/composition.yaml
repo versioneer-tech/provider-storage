@@ -1,0 +1,58 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: storage
+spec:
+  compositeTypeRef:
+    apiVersion: epca.eo/v1beta1
+    kind: XStorage
+  mode: Pipeline
+  pipeline:
+    - step: setup-minio
+      functionRef:
+        name: function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            {{- range $i, $bucket := .observed.composite.resource.spec.buckets }}
+            ---
+            apiVersion: minio.crossplane.io/v1
+            kind: Bucket
+            metadata:
+              name: {{ $bucket.name }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: bucket-{{ $i }}
+                gotemplating.fn.crossplane.io/ready: "True"
+            spec:
+              providerConfigRef:
+                name: {{ $.observed.composite.resource.spec.providerConfig }}
+            ---
+            apiVersion: minio.crossplane.io/v1
+            kind: Policy
+            metadata:
+              name: {{ $bucket.owner }}.owner.{{ $bucket.name }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: policy-{{ $bucket.owner }}.owner.{{ $bucket.name }}
+                gotemplating.fn.crossplane.io/ready: "True"
+            spec:
+              forProvider:
+                rawPolicy: |
+                  {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                      {
+                        "Effect": "Allow",
+                        "Action": [ "s3:*" ],
+                        "Resource": [
+                          "arn:aws:s3:::{{ $bucket.name }}",
+                          "arn:aws:s3:::{{ $bucket.name }}/*"
+                        ]
+                      }
+                    ]
+                  }
+              providerConfigRef:
+                name: {{ $.observed.composite.resource.spec.providerConfig }}
+            {{- end }}

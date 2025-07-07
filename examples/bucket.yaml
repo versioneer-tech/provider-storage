@@ -1,0 +1,9 @@
+apiVersion: epca.eo/v1beta1
+kind: XStorage
+metadata:
+  name: test-bucket
+spec:
+  buckets:
+    - name: testeroni
+      owner: alice
+  providerConfig: providerconfig-minio
