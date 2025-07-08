@@ -8,6 +8,7 @@ on:
 env:
   PR_SLUG: "pr-${{ github.event.pull_request.number }}-provider-storage"
   KUBECFG: ${{ secrets.KUBECFG }}
+  NODE_IP: ${{ secrets.NODE_IP }}
 
 jobs:
   create_vcluster:
@@ -19,10 +20,10 @@ jobs:
         run: |
           echo "$KUBECFG" > /tmp/kubeconfig.yaml
           echo "KUBECONFIG=/tmp/kubeconfig.yaml" >> $GITHUB_ENV
-      - name: Replace KUBECONFIG-SECRET in vcluster.yaml
+      - name: Replace KUBECONFIG-SECRET and NODE-IP in vcluster.yaml
         run: |
           sed -i "s/<KUBECONFIG-SECRET>/$PR_SLUG/g" tests/values/vcluster.yaml
-          cat tests/values/vcluster.yaml
+          sed -i "s/<NODE-IP>/$NODE_IP/g" tests/values/vcluster.yaml
       - name: Install vCluster into host cluster
         run: |
           helm repo add loft https://charts.loft.sh
@@ -32,7 +33,8 @@ jobs:
           --repo https://charts.loft.sh/ \
           --namespace $PR_SLUG \
           --create-namespace \
-          --version 0.23.2
+          --version 0.23.2 \
+          --wait
       - name: Read kubeconfig from secret
         run: |
           KUBECFG=$(kubectl get secret "$PR_SLUG" -n "$PR_SLUG" -o jsonpath='{.data.config}')
