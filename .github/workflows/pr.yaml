@@ -34,7 +34,7 @@ jobs:
           --version 0.23.2
       - name: Read kubeconfig from secret
         run: |
-          KUBECFG=$(kubectl get secret $PR_SLUG -n $PR_SLUG -o jsonpath='{.data.config}')
+          KUBECFG=$(kubectl get secret "$PR_SLUG" -n "$PR_SLUG" -o jsonpath='{.data.config}')
           echo "$KUBECFG" | base64 -d > /tmp/vcluster-kubeconfig.yaml
           echo "KUBECONFIG=/tmp/vcluster-kubeconfig.yaml" >> $GITHUB_ENV
   # install_minio_vcluster:
