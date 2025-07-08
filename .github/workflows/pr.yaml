@@ -1,9 +1,7 @@
 name: PR
 on:
   pull_request:
-    types:
-      - opened
-      - synchronized
+    types: [opened, synchronize]
     branches:
       - main
 
