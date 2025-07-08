@@ -21,7 +21,7 @@ jobs:
           echo "KUBECONFIG=/tmp/kubeconfig.yaml" >> $GITHUB_ENV
       - name: Replace KUBECONFIG-SECRET in vcluster.yaml
         run: |
-          sed -i 's/<KUBECONFIG-SECRET>/$PR_SLUG/g' tests/vcluster.yaml
+          sed -i 's/<KUBECONFIG-SECRET>/$PR_SLUG/g' tests/values/vcluster.yaml
       - name: Install vCluster into host cluster
         run: |
           helm repo add loft https://charts.loft.sh
@@ -91,6 +91,6 @@ jobs:
           crossplane xpkg build --package-root . --ignore=".github/workflows/*,tests/values/*,tests/manifests/*" --verbose
       - name: Publish Configuration Package
         run: |
-          crossplane xpkg push "ghcr.io/versioneer-tech/provider-storage:${{ github.ref_name }}" --domain "https://ghcr.io" --verbose
+          crossplane xpkg push "ghcr.io/versioneer-tech/provider-storage:$PR_SLUG" --domain "https://ghcr.io" --verbose
 
 
