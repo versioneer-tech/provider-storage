@@ -22,6 +22,7 @@ jobs:
       - name: Replace KUBECONFIG-SECRET in vcluster.yaml
         run: |
           sed -i 's/<KUBECONFIG-SECRET>/$PR_SLUG/g' tests/values/vcluster.yaml
+          cat tests/values/vcluster.yaml
       - name: Install vCluster into host cluster
         run: |
           helm repo add loft https://charts.loft.sh
