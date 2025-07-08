@@ -21,7 +21,7 @@ jobs:
           echo "KUBECONFIG=/tmp/kubeconfig.yaml" >> $GITHUB_ENV
       - name: Replace KUBECONFIG-SECRET in vcluster.yaml
         run: |
-          sed -i 's/<KUBECONFIG-SECRET>/$PR_SLUG/g' tests/values/vcluster.yaml
+          sed -i "s/<KUBECONFIG-SECRET>/$PR_SLUG/g" tests/values/vcluster.yaml
           cat tests/values/vcluster.yaml
       - name: Install vCluster into host cluster
         run: |
