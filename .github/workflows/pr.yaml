@@ -6,7 +6,7 @@ on:
       - main
 
 env:
-  PR_SLUG: pr-{{ github.event.pull_request.number }}-provider-storage
+  PR_SLUG: "pr-${{ github.event.pull_request.number }}-provider-storage"
   KUBECFG: ${{ secrets.KUBECFG }}
 
 jobs:
