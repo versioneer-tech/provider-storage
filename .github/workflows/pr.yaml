@@ -76,10 +76,11 @@ jobs:
           echo "$KUBECFG" | base64 -d > /tmp/vcluster-kubeconfig.yaml
           echo "KUBECONFIG=/tmp/vcluster-kubeconfig.yaml" >> $GITHUB_ENV
       - name: Install crossplane into vCluster
+        # if: github.event.action != 'synchronize'
         run: |
           helm repo add crossplane-stable https://charts.crossplane.io/stable
           helm repo update
-          helm install crossplane crossplane-stable/crossplane \
+          helm install crossplane crossplane \
           --repo https://charts.crossplane.io/stable \
           --namespace crossplane-system \
           --create-namespace \
