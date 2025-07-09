@@ -45,7 +45,7 @@ jobs:
           echo "$KUBECFG" > /tmp/kubeconfig.yaml
           echo "KUBECONFIG=/tmp/kubeconfig.yaml" >> $GITHUB_ENV
       - name: Install vCluster into host cluster
-        # if: github.event.action != 'synchronize'
+        if: github.event.action != 'synchronize'
         run: |
           cat <<EOF > vcluster.yaml
           controlPlane:
@@ -69,7 +69,7 @@ jobs:
           --wait
       - name: Port forward the vCluster API server
         run: |
-          kubectl port-forward service/$PR_SLUG 8443:443 pn $PR_SLUG &
+          kubectl port-forward service/$PR_SLUG 8443:443 -n $PR_SLUG &
       - name: Read kubeconfig from secret
         run: |
           KUBECFG=$(kubectl get secret "vc-$PR_SLUG" -n "$PR_SLUG" -o jsonpath='{.data.config}')
