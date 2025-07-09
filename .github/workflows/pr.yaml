@@ -41,7 +41,7 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Read kubeconfig from secrets
+      - name: Read kubeconfig from Github secret
         run: |
           echo "${{ secrets.KUBECFG }}" > /tmp/kubeconfig.yaml
           echo "KUBECONFIG=/tmp/kubeconfig.yaml" >> $GITHUB_ENV
@@ -71,7 +71,7 @@ jobs:
       - name: Port forward the vCluster API server
         run: |
           kubectl port-forward service/$PR_SLUG 8443:443 -n $PR_SLUG &
-      - name: Read kubeconfig from secret
+      - name: Read kubeconfig from k8s secret
         run: |
           KUBECFG=$(kubectl get secret "vc-$PR_SLUG" -n "$PR_SLUG" -o jsonpath='{.data.config}')
           echo "$KUBECFG" | base64 -d > /tmp/vcluster-kubeconfig.yaml
@@ -104,10 +104,11 @@ jobs:
     if: github.event.action == 'closed'
     runs-on: ubuntu-latest
     steps:
-      - name: Read kubeconfig from secrets
+      - name: Read kubeconfig from Github secret
         run: |
           echo "${{ secrets.KUBECFG }}" > /tmp/kubeconfig.yaml
           echo "KUBECONFIG=/tmp/kubeconfig.yaml" >> $GITHUB_ENV
-      - name: Delete vCluster
+      - name: Delete vCluster and namespace
         run: |
           helm uninstall $PR_SLUG -n $PR_SLUG
+          kubectl delete ns $PR_SLUG
