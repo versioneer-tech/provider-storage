@@ -6,7 +6,12 @@ Whenever a new PR against `main` is created, a new vCluster is automatically pro
 
 The secret with the `kubeconfig` of the vCluster is also named `pr-<pr-number>-provider-storage` and can be found in the namespace with the same name.
 
-In order to use the vCluster with the installed Configuration Package there still a few things you need to install yourself:
+In order to use the vCluster with the installed Configuration Package you need to do the following:
 
-1. **MinIO instance(s)** - It was an intentional decision not to install a MinIO instance by default to best mimic an actual deployment where it is expected that the underlying infrastructure (which could also be outside the cluster) is provisioned independently.
-1. **ProviderConfig** - Since we don't assume any standard configuration, the `ProviderConfig` for the `provider-minio` provider needs to be supplied as well as the corresponding connection secret.
+1. Copy the `kubeconfig` of the vCluster with `kubectl get secret vc-pr-6-provider-storage -n pr-6-provider-storage -o jsonpath='{.data.config}' | base64 -d > kubeconfig.yaml`
+1. Export the file for `kubectl` to use `export KUBECONFIG=<path-to-kubeconfig.yaml>`
+1. Forward the port of the vCluster service in the background `kubectl port-forward service/pr-6-provider-storage 8443:443 -n pr-6-provider-storage &`
+1. Install a `ProviderConfig` as described [here](https://marketplace.upbound.io/providers/vshn/provider-minio/v0.4.4/resources/minio.crossplane.io/ProviderConfig/v1) to the `crossplane-system` namespace.
+1. Happy testing!
+
+After the PR has been merged or closed, the vCluster is automatically deleted.
