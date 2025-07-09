@@ -96,6 +96,7 @@ jobs:
             name: provider-storage
             namespace: crossplane-system
           spec:
+            packagePullPolicy: Always
             package: ghcr.io/versioneer-tech/provider-storage:$PR_SLUG
           EOF
           kubectl apply -f configuration.yaml
