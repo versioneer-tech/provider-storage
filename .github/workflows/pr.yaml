@@ -92,6 +92,7 @@ jobs:
           kind: Configuration
           metadata:
             name: provider-storage
+            namespace: crossplane
           spec:
             package: ghcr.io/versioneer-tech/provider-storage:$PR_SLUG
           EOF
