@@ -76,7 +76,6 @@ jobs:
           echo "$KUBECFG" | base64 -d > /tmp/vcluster-kubeconfig.yaml
           echo "KUBECONFIG=/tmp/vcluster-kubeconfig.yaml" >> $GITHUB_ENV
       - name: Install crossplane into vCluster
-        if: github.event.action != 'synchronize'
         run: |
           helm repo add crossplane-stable https://charts.crossplane.io/stable
           helm repo update
@@ -88,7 +87,7 @@ jobs:
       - name: Install provider-storage Configuration Package
         run: |
           cat <<EOF > configuration.yaml
-          apiVersion: pkg.crossplane.io/v1
+          apiVersion: pkg.crossplane.io/v1beta1
           kind: Configuration
           metadata:
             name: provider-storage
