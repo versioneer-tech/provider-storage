@@ -45,7 +45,7 @@ jobs:
           echo "$KUBECFG" > /tmp/kubeconfig.yaml
           echo "KUBECONFIG=/tmp/kubeconfig.yaml" >> $GITHUB_ENV
       - name: Install vCluster into host cluster
-        if: github.event.action != 'synchronize'
+        # if: github.event.action != 'synchronize'
         run: |
           cat <<EOF > vcluster.yaml
           controlPlane:
