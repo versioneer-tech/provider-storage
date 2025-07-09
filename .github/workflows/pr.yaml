@@ -10,65 +10,6 @@ env:
   KUBECFG: ${{ secrets.KUBECFG }}
 
 jobs:
-  create_vcluster:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      - name: Read kubeconfig from secrets
-        run: |
-          echo "$KUBECFG" > /tmp/kubeconfig.yaml
-          echo "KUBECONFIG=/tmp/kubeconfig.yaml" >> $GITHUB_ENV
-      - name: Replace KUBECONFIG-SECRET in vcluster.yaml
-        run: |
-          sed -i "s/<KUBECONFIG-SECRET>/$PR_SLUG/g" tests/values/vcluster.yaml
-      - name: Install vCluster into host cluster
-        run: |
-          helm repo add loft https://charts.loft.sh
-          helm repo update
-          helm install $PR_SLUG vcluster \
-          --values tests/values/vcluster.yaml \
-          --repo https://charts.loft.sh/ \
-          --namespace $PR_SLUG \
-          --create-namespace \
-          --version 0.23.2 \
-          --wait
-      - name: Read kubeconfig from secret
-        run: |
-          KUBECFG=$(kubectl get secret "$PR_SLUG" -n "$PR_SLUG" -o jsonpath='{.data.config}')
-          echo "$KUBECFG" | base64 -d > /tmp/vcluster-kubeconfig.yaml
-          echo "KUBECONFIG=/tmp/vcluster-kubeconfig.yaml" >> $GITHUB_ENV
-  # install_minio_vcluster:
-  #   runs-on: ubuntu-latest
-  #   needs: create_vcluster
-  #   steps:
-  #     # - name: Install crossplane into vCluster
-  #     #   run: |
-  #     #     helm repo add crossplane-stable https://charts.crossplane.io/stable
-  #     #     helm repo update
-  #     #     helm install crossplane crossplane-stable/crossplane \
-  #     #     --repo https://charts.crossplane.io/stable \
-  #     #     --namespace crossplane-system \
-  #     #     --create-namespace \
-  #     #     --version 1.20.0
-  #     - name: Install MinIO operator into vCluster
-  #       run: |
-  #         helm repo add minio-operator https://operator.min.io
-  #         helm repo update
-  #         helm install minio-operator minio-operator/operator \
-  #         --repo https://operator.min.io \
-  #         --namespace minio \
-  #         --create-namespace \
-  #         --version 7.1.1 
-  #     - name: Install MinIO tenant into vCluster
-  #       run: |
-  #         helm install minio-tenant minio-operator/tenant \
-  #         --values tests/values/minio-tenant.yaml \
-  #         --repo https://operator.min.io \
-  #         --namespace minio \
-  #         --create-namespace \
-  #         --version 7.1.1 
-
   build_and_publish:
     runs-on: ubuntu-latest
     permissions:
@@ -89,9 +30,90 @@ jobs:
           sudo mv crossplane /usr/local/bin
       - name: Build Configuration Package
         run: |
-          crossplane xpkg build --package-root . --ignore=".github/workflows/*,tests/values/*,tests/manifests/*" --verbose
+          crossplane xpkg build --package-root . --ignore=".github/workflows/*" --verbose
       - name: Publish Configuration Package
         run: |
           crossplane xpkg push "ghcr.io/versioneer-tech/provider-storage:$PR_SLUG" --domain "https://ghcr.io" --verbose
+  create_vcluster:
+    runs-on: ubuntu-latest
+    needs: build_and_publish
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Read kubeconfig from secrets
+        run: |
+          echo "$KUBECFG" > /tmp/kubeconfig.yaml
+          echo "KUBECONFIG=/tmp/kubeconfig.yaml" >> $GITHUB_ENV
+      - name: Install vCluster into host cluster
+        if: github.event.action != 'synchronize'
+        run: |
+          cat <<EOF > vcluster.yaml
+          controlPlane:
+            distro:
+              k0s:
+                enabled: true
+          exportKubeConfig:
+            context: vcluster-context
+          integrations:
+            metricsServer:
+              enabled: true
+          EOF
+          helm repo add loft https://charts.loft.sh
+          helm repo update
+          helm install $PR_SLUG vcluster \
+          --values vcluster.yaml \
+          --repo https://charts.loft.sh/ \
+          --namespace $PR_SLUG \
+          --create-namespace \
+          --version 0.23.2 \
+          --wait
+      - name: Port forward the vCluster API server
+        run: |
+          kubectl port-forward service/$PR_SLUG 8443:443 pn $PR_SLUG &
+      - name: Read kubeconfig from secret
+        run: |
+          KUBECFG=$(kubectl get secret "vc-$PR_SLUG" -n "$PR_SLUG" -o jsonpath='{.data.config}')
+          echo "$KUBECFG" | base64 -d > /tmp/vcluster-kubeconfig.yaml
+          echo "KUBECONFIG=/tmp/vcluster-kubeconfig.yaml" >> $GITHUB_ENV
+      - name: Install crossplane into vCluster
+        if: github.event.action != 'synchronize'
+        run: |
+          helm repo add crossplane-stable https://charts.crossplane.io/stable
+          helm repo update
+          helm install crossplane crossplane-stable/crossplane \
+          --repo https://charts.crossplane.io/stable \
+          --namespace crossplane-system \
+          --create-namespace \
+          --version 1.20.0
+      - name: Install provider-storage Configuration Package
+        run: |
+          cat <<EOF > configuration.yaml
+          apiVersion: pkg.crossplane.io/v1
+          kind: Configuration
+          metadata:
+            name: provider-storage
+          spec:
+            package: ghcr.io/versioneer-tech/provider-storage:$PR_SLUG
+          EOF
+          kubectl apply -f configuration.yaml
+
+  #     - name: Install MinIO operator into vCluster
+  #       run: |
+  #         helm repo add minio-operator https://operator.min.io
+  #         helm repo update
+  #         helm install minio-operator minio-operator/operator \
+  #         --repo https://operator.min.io \
+  #         --namespace minio \
+  #         --create-namespace \
+  #         --version 7.1.1 
+  #     - name: Install MinIO tenant into vCluster
+  #       run: |
+  #         helm install minio-tenant minio-operator/tenant \
+  #         --values tests/values/minio-tenant.yaml \
+  #         --repo https://operator.min.io \
+  #         --namespace minio \
+  #         --create-namespace \
+  #         --version 7.1.1 
+
 
 
