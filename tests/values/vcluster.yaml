@@ -2,9 +2,6 @@ controlPlane:
   distro:
     k0s:
       enabled: true
-  proxy:
-    extraSANs:
-      - <NODE-IP>
 exportKubeConfig:
   context: vcluster-context
   secret:
