@@ -1,0 +1,216 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: provider-storage
+spec:
+  compositeTypeRef:
+    apiVersion: epca.eo/v1beta1
+    kind: XStorage
+  mode: Pipeline
+  pipeline:
+    - step: create-buckets
+      functionRef:
+        name: function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            {{ $providerConfigRef := .observed.composite.resource.spec.providerConfigRef }}
+            {{ $owner := .observed.composite.resource.spec.owner }}
+            {{- range $i, $bucket := .observed.composite.resource.spec.buckets }}
+            ---
+            apiVersion: minio.crossplane.io/v1
+            kind: Bucket
+            metadata:
+              name: {{ $bucket.bucketName }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: bucket-{{ $owner }}-{{ $bucket.bucketName }}
+                xstorages.epca.eo/discoverable: "{{ printf "%t" $bucket.discoverable }}"
+            spec:
+              providerConfigRef:
+                name: {{ $providerConfigRef }}
+            {{- end }}
+    - step: create-owner-policies
+      functionRef:
+        name: function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            {{ $providerConfigRef := .observed.composite.resource.spec.providerConfigRef }}
+            {{ $owner := .observed.composite.resource.spec.owner }}
+            {{- range $i, $bucket := .observed.composite.resource.spec.buckets }}
+            ---
+            apiVersion: minio.crossplane.io/v1
+            kind: Policy
+            metadata:
+              name: {{ $owner }}.owner.{{ $bucket.bucketName }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: policy-{{ $owner }}.owner.{{ $bucket.bucketName }}
+            spec:
+              forProvider:
+                rawPolicy: |
+                  {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                      {
+                        "Effect": "Allow",
+                        "Action": [ "s3:*" ],
+                        "Resource": [
+                          "arn:aws:s3:::{{ $bucket.bucketName }}",
+                          "arn:aws:s3:::{{ $bucket.bucketName }}/*"
+                        ]
+                      }
+                    ]
+                  }
+              providerConfigRef:
+                name: {{ $providerConfigRef }}
+            {{- end }}
+    - step: create-grant-bucket-access-policies
+      functionRef:
+        name: function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            {{ $providerConfigRef := .observed.composite.resource.spec.providerConfigRef }}
+            {{- range $i, $bucket := .observed.composite.resource.spec.bucketAccessGrants }}
+              {{- range $j, $grantee := $bucket.grantees }}
+            ---
+            apiVersion: minio.crossplane.io/v1
+            kind: Policy
+            metadata:
+              name: {{ $grantee }}.{{ $bucket.permission | lower }}.{{ $bucket.bucketName }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: policy-{{ $grantee }}.{{ $bucket.permission | lower }}.{{ $bucket.bucketName }}
+            spec:
+              forProvider:
+                {{- if eq $bucket.permission "ReadWrite"}}
+                rawPolicy: |
+                  {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                      {
+                        "Effect": "Allow",
+                        "Action": [
+                          "s3:GetBucketLocation",
+                          "s3:ListBucket",
+                          "s3:GetObject",
+                          "s3:PutObject",
+                          "s3:DeleteObject"
+                        ],
+                        "Resource": [
+                          "arn:aws:s3:::{{ $bucket.bucketName }}",
+                          "arn:aws:s3:::{{ $bucket.bucketName }}/*"
+                        ]
+                      }
+                    ]
+                  }
+                {{- end }}
+                {{- if eq $bucket.permission "ReadOnly"}}
+                rawPolicy: |
+                  {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                      {
+                        "Effect": "Allow",
+                        "Action": [
+                          "s3:GetBucketLocation",
+                          "s3:ListBucket"
+                        ],
+                        "Resource": [
+                          "arn:aws:s3:::{{ $bucket.bucketName }}"
+                        ]
+                      },
+                      {
+                        "Effect": "Allow",
+                        "Action": [
+                          "s3:GetObject"
+                        ],
+                        "Resource": [
+                          "arn:aws:s3:::{{ $bucket.bucketName }}/*"
+                        ]
+                      }
+                    ]
+                  }
+                {{- end }}
+              providerConfigRef:
+                name: {{ $providerConfigRef }}
+              {{- end }}
+            {{- end }}
+    - step: check-if-requested-policies-exist
+      functionRef:
+        name: function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            {{ $owner := .observed.composite.resource.spec.owner }}
+            {{- range $i, $bucket := .observed.composite.resource.spec.bucketAccessRequests }}
+            ---
+            apiVersion: kubernetes.crossplane.io/v1alpha2
+            kind: Object
+            metadata:
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: check-policy-{{ $owner }}.{{ $bucket.permission | lower }}.{{ $bucket.bucketName }}
+              name: policy-observer-{{ $owner}}.{{ $bucket.permission | lower }}.{{ $bucket.bucketName }}
+            spec:
+              managementPolicies: ["Observe"]
+              forProvider:
+                manifest:
+                  apiVersion: minio.crossplane.io/v1
+                  kind: Policy
+                  metadata:
+                    name: {{ $owner}}.{{ $bucket.permission | lower }}.{{ $bucket.bucketName }}
+              providerConfigRef:
+                name: provider-kubernetes
+            {{- end }}
+    - step: create-user-with-policies
+      functionRef:
+        name: function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            {{ $owner := .observed.composite.resource.spec.owner }}
+            {{ $providerConfigRef := .observed.composite.resource.spec.providerConfigRef }}
+            {{ $root := . }}
+            ---
+            apiVersion: minio.crossplane.io/v1
+            kind: User
+            metadata:
+              name: {{ $owner }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: user-{{ $owner }}
+            spec:
+              forProvider:
+                userName: {{ $owner }}
+                policies:
+                {{- range $i, $bucket := .observed.composite.resource.spec.buckets }}
+                  - {{ $owner }}.owner.{{ $bucket.bucketName }}
+                {{- end }}
+                {{- range $i, $bucket := .observed.composite.resource.spec.bucketAccessRequests }}
+                  {{ $policyCheckName := printf "check-policy-%s.%s.%s" $owner ($bucket.permission | lower) $bucket.bucketName }}
+                  {{ $policyCheck := get $root.observed.resources $policyCheckName | default dict }}
+                  {{- if $policyCheck.resource.status.atProvider }}
+                  - {{ $owner }}.{{ $bucket.permission | lower }}.{{ $bucket.bucketName }}
+                  {{- end }}
+                {{- end }}
+              providerConfigRef:
+                name: {{ $providerConfigRef }}
+              writeConnectionSecretToRef:
+                name: {{ $owner }}
+                namespace: {{ .observed.composite.resource.spec.claimRef.namespace }}
+    - step: automatically-detect-ready-composed-resources
+      functionRef:
+        name: function-auto-ready
