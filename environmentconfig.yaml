@@ -1,0 +1,7 @@
+apiVersion: apiextensions.crossplane.io/v1alpha1 # Or v1beta1 in newer versions
+kind: EnvironmentConfig
+metadata:
+  name: test-environment-config
+data:
+  storage.region: us-west-2
+  storage.endpoint: https://my-endpoint.org

@@ -1,0 +1,57 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: storage
+spec:
+  compositeTypeRef:
+    apiVersion: epca.eo/v1beta1
+    kind: XStorage
+  writeConnectionSecretsToNamespace: default
+  mode: Pipeline
+  pipeline:
+    - step: load-environment-config
+      functionRef:
+        name: function-environment-configs
+      input:
+        apiVersion: environmentconfigs.fn.crossplane.io/v1beta1
+        kind: Input
+        spec:
+          environmentConfigs:
+            - type: Reference
+              ref:
+                name: test-environment-config
+    - step: setup-minio
+      functionRef:
+        name: function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            {{ $owner := .observed.composite.resource.spec.owner }}
+            ---
+            apiVersion: minio.crossplane.io/v1
+            kind: User
+            metadata:
+              name: {{ $owner }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: {{ $owner }}
+                gotemplating.fn.crossplane.io/ready: "True"
+            spec:
+              forProvider:
+                userName: {{ $owner }}
+              providerConfigRef:
+                name: provider-minio
+              writeConnectionSecretToRef:
+                name: {{ $owner }}
+                namespace: default
+            ---
+            {{ $user := get .observed.resources (printf "%s" $owner) | default dict }}
+            apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
+            kind: CompositeConnectionDetails
+            data:
+              AWS_ACCESS_KEY_ID: {{ $user.connectionDetails.AWS_ACCESS_KEY_ID }}
+              AWS_SECRET_ACCESS_KEY: {{ $user.connectionDetails.AWS_SECRET_ACCESS_KEY }}
+              AWS_ENDPOINT_URL: {{ index .context "apiextensions.crossplane.io/environment" "storage.endpoint" | b64enc }}
+              AWS_REGION: {{ index .context "apiextensions.crossplane.io/environment" "storage.region" | b64enc }}

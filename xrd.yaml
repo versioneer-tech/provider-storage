@@ -1,0 +1,26 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xstorages.epca.eo
+spec:
+  group: epca.eo
+  names:
+    kind: XStorage
+    plural: xstorages
+  claimNames:
+    kind: Storage
+    plural: storages
+  versions:
+    - name: v1beta1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                owner:
+                  type: string
+

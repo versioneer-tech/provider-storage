@@ -1,0 +1,8 @@
+apiVersion: epca.eo/v1beta1
+kind: Storage
+metadata:
+  name: test-bucket
+spec:
+  owner: alice
+  writeConnectionSecretToRef:
+    name: connection-secret-alice
