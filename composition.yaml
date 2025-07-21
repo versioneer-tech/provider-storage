@@ -20,7 +20,7 @@ spec:
             - type: Reference
               ref:
                 name: test-environment-config
-    - step: setup-minio
+    - step: setup-minio-user
       functionRef:
         name: function-go-templating
       input:
@@ -46,7 +46,17 @@ spec:
               writeConnectionSecretToRef:
                 name: {{ $owner }}
                 namespace: default
+    - step: create-composite-connection-details
+      functionRef:
+        name: function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
             ---
+            {{ $owner := .observed.composite.resource.spec.owner }}
             {{ $user := get .observed.resources (printf "%s" $owner) | default dict }}
             apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
             kind: CompositeConnectionDetails
