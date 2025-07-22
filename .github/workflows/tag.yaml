@@ -1,0 +1,59 @@
+name: Tag
+on:
+  push:
+    tags:
+      - 'v*'
+jobs:
+  build_and_publish_configuration_package:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: Install Crossplane CLI
+        run: |
+          curl -sL "https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh" | sh
+          sudo mv crossplane /usr/local/bin
+      - name: Build Configuration Package
+        run: |
+          crossplane xpkg build --package-root . --ignore=".github/workflows/*" --verbose
+      - name: Publish Configuration Package
+        run: |
+          crossplane xpkg push "ghcr.io/versioneer-tech/provider-storage:${{ github.ref_name }}" --domain "https://ghcr.io" --verbose
+  build_docs:
+    runs-on: ubuntu-latest
+    needs: build_and_publish_configuration_package
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.12
+      - name: Install mkdocs dependencies
+        run: |
+          pip install mkdocs mkdocs-material mike
+      - name: Set up Go 1.24
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.24
+      - name: Install crdoc
+        run: |
+          go install fybrik.io/crdoc@latest
+      - name: Generate API docs
+        run: |
+          bash scripts/build_docs.sh
+      - name: Publish docs to Github pages
+        run: |
+          mike set-default latest --allow-undefined
+          mike deploy ${{ github.ref_name }} latest --update-alias --push
