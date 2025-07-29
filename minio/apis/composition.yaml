@@ -12,7 +12,7 @@ spec:
   pipeline:
     - step: create-buckets
       functionRef:
-        name: function-go-templating
+        name: crossplane-contrib-function-go-templating
       input:
         apiVersion: gotemplating.fn.crossplane.io/v1beta1
         kind: GoTemplate
@@ -35,7 +35,7 @@ spec:
             {{- end }}
     - step: create-owner-policies
       functionRef:
-        name: function-go-templating
+        name: crossplane-contrib-function-go-templating
       input:
         apiVersion: gotemplating.fn.crossplane.io/v1beta1
         kind: GoTemplate
@@ -72,7 +72,7 @@ spec:
             {{- end }}
     - step: create-grant-bucket-access-policies
       functionRef:
-        name: function-go-templating
+        name: crossplane-contrib-function-go-templating
       input:
         apiVersion: gotemplating.fn.crossplane.io/v1beta1
         kind: GoTemplate
@@ -145,7 +145,7 @@ spec:
             {{- end }}
     - step: check-if-requested-policies-exist
       functionRef:
-        name: function-go-templating
+        name: crossplane-contrib-function-go-templating
       input:
         apiVersion: gotemplating.fn.crossplane.io/v1beta1
         kind: GoTemplate
@@ -174,7 +174,7 @@ spec:
             {{- end }}
     - step: create-user-with-policies
       functionRef:
-        name: function-go-templating
+        name: crossplane-contrib-function-go-templating
       input:
         apiVersion: gotemplating.fn.crossplane.io/v1beta1
         kind: GoTemplate
@@ -211,4 +211,4 @@ spec:
                 namespace: {{ .observed.composite.resource.spec.claimRef.namespace }}
     - step: automatically-detect-ready-composed-resources
       functionRef:
-        name: function-auto-ready
+        name: crossplane-contrib-function-auto-ready
