@@ -17,7 +17,6 @@ spec:
         source: Inline
         inline:
           template: |
-            {{ $providerConfigRef := .observed.composite.resource.spec.providerConfigRef }}
             {{ $owner := .observed.composite.resource.spec.owner }}
             {{- range $i, $bucket := .observed.composite.resource.spec.buckets }}
             ---
@@ -30,7 +29,7 @@ spec:
                 xstorages.epca.eo/discoverable: "{{ printf "%t" $bucket.discoverable }}"
             spec:
               providerConfigRef:
-                name: {{ $providerConfigRef }}
+                name: storage-minio
             {{- end }}
     - step: create-owner-policies
       functionRef:
@@ -41,7 +40,6 @@ spec:
         source: Inline
         inline:
           template: |
-            {{ $providerConfigRef := .observed.composite.resource.spec.providerConfigRef }}
             {{ $owner := .observed.composite.resource.spec.owner }}
             {{- range $i, $bucket := .observed.composite.resource.spec.buckets }}
             ---
@@ -68,7 +66,7 @@ spec:
                     ]
                   }
               providerConfigRef:
-                name: {{ $providerConfigRef }}
+                name: storage-minio
             {{- end }}
     - step: create-grant-bucket-access-policies
       functionRef:
@@ -79,7 +77,6 @@ spec:
         source: Inline
         inline:
           template: |
-            {{ $providerConfigRef := .observed.composite.resource.spec.providerConfigRef }}
             {{- range $i, $bucket := .observed.composite.resource.spec.bucketAccessGrants }}
               {{- range $j, $grantee := $bucket.grantees }}
             ---
@@ -141,7 +138,7 @@ spec:
                   }
                 {{- end }}
               providerConfigRef:
-                name: {{ $providerConfigRef }}
+                name: storage-minio
               {{- end }}
             {{- end }}
     - step: check-if-requested-policies-exist
@@ -171,7 +168,7 @@ spec:
                   metadata:
                     name: {{ $owner}}.{{ $bucket.permission | lower }}.{{ $bucket.bucketName }}
               providerConfigRef:
-                name: provider-kubernetes
+                name: storage-kubernetes
             {{- end }}
     - step: create-user-with-policies
       functionRef:
@@ -183,7 +180,6 @@ spec:
         inline:
           template: |
             {{ $owner := .observed.composite.resource.spec.owner }}
-            {{ $providerConfigRef := .observed.composite.resource.spec.providerConfigRef }}
             {{ $root := . }}
             ---
             apiVersion: minio.crossplane.io/v1
@@ -207,7 +203,7 @@ spec:
                   {{- end }}
                 {{- end }}
               providerConfigRef:
-                name: {{ $providerConfigRef }}
+                name: storage-minio
               writeConnectionSecretToRef:
                 name: {{ $owner }}
                 namespace: {{ .observed.composite.resource.spec.claimRef.namespace }}
