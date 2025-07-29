@@ -81,12 +81,8 @@ spec:
                       - bucketName
                       - permission
                       - grantees
-                providerConfigRef:
-                  description: Name of the `ProviderConfig` to use.
-                  type: string
               required:
                 - owner
                 - buckets
-                - providerConfigRef
           required:
             - spec
