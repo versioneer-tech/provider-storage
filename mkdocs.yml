@@ -1,0 +1,15 @@
+site_name: provider-storage
+site_url: https://versioneer-tech.github.io/provider-storage/
+nav:
+  - Home: index.md
+  - Tutorials: tutorials.md
+  - How-to guides:
+    - storage-minio: how-to-guides/storage-minio.md
+  - Reference guides:
+    - API: api.md
+plugins:
+  - search
+markdown_extensions:
+  - admonition
+theme:
+  name: material
