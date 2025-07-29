@@ -182,6 +182,7 @@ spec:
         inline:
           template: |
             {{ $owner := .observed.composite.resource.spec.owner }}
+            {{ $namespace := index .observed.composite.resource.metadata.labels "crossplane.io/claim-namespace" }}
             {{ $root := . }}
             ---
             apiVersion: minio.crossplane.io/v1
@@ -208,7 +209,7 @@ spec:
                 name: storage-minio
               writeConnectionSecretToRef:
                 name: {{ $owner }}
-                namespace: {{ .observed.composite.resource.spec.claimRef.namespace }}
+                namespace: {{ $namespace }}
     - step: automatically-detect-ready-composed-resources
       functionRef:
         name: crossplane-contrib-function-auto-ready
