@@ -1,0 +1,88 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xstorages.epca.eo
+spec:
+  group: epca.eo
+  names:
+    kind: XStorage
+    plural: xstorages
+  claimNames:
+    kind: Storage
+    plural: storages
+  versions:
+    - name: v1beta1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                owner:
+                  description: Owner of the buckets to create.
+                  type: string
+                buckets:
+                  description: List of buckets to create and which are owned by the `owner`.
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      bucketName:
+                        description: Name of the bucket to create.
+                        type: string
+                      discoverable:
+                        description: Whether this bucket should be discoverable through the catalog by other `owners` (defined in separate `Storage` claims).
+                        type: boolean
+                        default: false
+                    required:
+                      - bucketName
+                bucketAccessRequests:
+                  description: List of buckets where the `owner` requests either ReadWrite or ReadOnly permissions from other `owners` (defined in separate `Storage` claims).
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      bucketName:
+                        description: Name of the bucket to request permissions to.
+                        type: string
+                      permission:
+                        description: Permission that is requested.
+                        type: string
+                        enum:
+                          - ReadWrite
+                          - ReadOnly
+                    required:
+                      - bucketName
+                      - permission
+                bucketAccessGrants:
+                  description: List of buckets where the `owner` grants either ReadWrite or ReadOnly permissions to other `owners` (defined in separate `Storage` claims).
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      bucketName:
+                        description: Name of the bucket to grant permissions to.
+                        type: string
+                      permission:
+                        description: Permission that is granted.
+                        type: string
+                        enum:
+                          - ReadWrite
+                          - ReadOnly
+                      grantees:
+                        description: List of `owners` (defined in separate `Storage` claims) that the permission is granted to.
+                        type: array
+                        items:
+                          type: string
+                    required:
+                      - bucketName
+                      - permission
+                      - grantees
+              required:
+                - owner
+                - buckets
+          required:
+            - spec
