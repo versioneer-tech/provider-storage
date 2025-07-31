@@ -1,4 +1,4 @@
-# storage-minio
+# How-to guides: storage-minio
 
 The `storage-minio` configuration package allows the creation of `buckets` on a [MinIO](https://min.io/) backend and automatically creates [Policies](https://min.io/docs/minio/linux/administration/identity-access-management/policy-based-access-control.html) for permission control. Furthermore, `storage-minio` includes a workflow to request/grant access t o `buckets` from other `owners`.
 

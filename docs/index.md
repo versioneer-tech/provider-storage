@@ -20,10 +20,10 @@ You can either follow a tutorial to set up everything from scratch to deploy you
 
 The documentation is organized in four distinct parts:
 
-- [Tutorials](tutorials.md) invite you to follow a series of steps to install, run and deploy your first [Claim](https://docs.crossplane.io/latest/concepts/claims/) for each configuration package.
+- **Tutorials** invite you to follow a series of steps to install, run and deploy your first [Claim](https://docs.crossplane.io/latest/concepts/claims/) for each configuration package.
 - **How-to guides** are more advanced than tutorials and guide you through specific problems and use-cases.
-- [Reference guides](reference-guides.md) contain the API definitions for the [Composite Resource Definitions](https://docs.crossplane.io/latest/concepts/composite-resource-definitions/) of the configuration packages.
-- [Discussions](discussions.md) provide some insight in the inner workings of the [Compositions](https://docs.crossplane.io/latest/concepts/compositions/) and some reasoning behind their implementation.
+- **Reference guides** contain the API definitions for the [Composite Resource Definitions](https://docs.crossplane.io/latest/concepts/composite-resource-definitions/) of the configuration packages.
+- **Discussions** provide some insight in the inner workings of the [Compositions](https://docs.crossplane.io/latest/concepts/compositions/) and some reasoning behind their implementation.
 
 !!! note
 
