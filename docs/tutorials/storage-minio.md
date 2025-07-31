@@ -1,6 +1,6 @@
 # Tutorials: storage-minio
 
-These tutorials offer a series of steps to install, run and deploy your first `Claim` for the `storage-minio` configuration package.
+These tutorials offer a series of steps to install, run and deploy your first `Claim` for the `storage-minio` configuration package. We are going to create buckets for Alice and Bob, two imaginary users. Then, Alice is going to request access to a bucket which is owned by Bob and in the last step Bob is going to grant access to Alice for this bucket.
 
 ## Prerequisites
 
