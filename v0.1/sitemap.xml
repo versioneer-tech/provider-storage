@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+         <loc>https://versioneer-tech.github.io/provider-storage/v0.1/</loc>
+         <lastmod>2025-08-01</lastmod>
+    </url>
+    <url>
+         <loc>https://versioneer-tech.github.io/provider-storage/v0.1/how-to-guides/storage-minio/</loc>
+         <lastmod>2025-08-01</lastmod>
+    </url>
+    <url>
+         <loc>https://versioneer-tech.github.io/provider-storage/v0.1/reference-guides/api/</loc>
+         <lastmod>2025-08-01</lastmod>
+    </url>
+    <url>
+         <loc>https://versioneer-tech.github.io/provider-storage/v0.1/tutorials/storage-minio/</loc>
+         <lastmod>2025-08-01</lastmod>
+    </url>
+</urlset>
