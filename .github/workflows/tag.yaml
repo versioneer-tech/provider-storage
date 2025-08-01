@@ -4,7 +4,7 @@ on:
     tags:
       - 'v*'
 jobs:
-  build_and_publish_configuration_package:
+  build_and_publish_configuration_packages:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -22,15 +22,15 @@ jobs:
         run: |
           curl -sL "https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh" | sh
           sudo mv crossplane /usr/local/bin
-      - name: Build Configuration Package
+      - name: Build and publish storage-minio Configuration Package
         run: |
-          crossplane xpkg build --package-root . --ignore=".github/workflows/*" --verbose
-      - name: Publish Configuration Package
-        run: |
-          crossplane xpkg push "ghcr.io/versioneer-tech/provider-storage:${{ github.ref_name }}" --domain "https://ghcr.io" --verbose
+          cp xrd.yaml minio/xrd.yaml
+          cd minio/
+          crossplane xpkg build --package-root . --verbose
+          crossplane xpkg push "ghcr.io/versioneer-tech/provider-storage:${{ github.ref_name }}-minio" --domain "https://ghcr.io" --verbose
   build_docs:
     runs-on: ubuntu-latest
-    needs: build_and_publish_configuration_package
+    needs: build_and_publish_configuration_packages
     permissions:
       contents: write
     steps:
@@ -52,8 +52,15 @@ jobs:
           go install fybrik.io/crdoc@latest
       - name: Generate API docs
         run: |
-          bash scripts/build_docs.sh
+          sed -i 's/CompositeResourceDefinition/CustomResourceDefinition/' xrd.yaml
+          sed -i 's/apiextensions.crossplane.io\/v1/apiextensions.k8s.io\/v1/g' xrd.yaml 
+          crdoc -r xrd.yaml -o docs/reference-guides/api.md
+      - name: Set up GitHub Actions user
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "github-actions@versioneer.at"
       - name: Publish docs to Github pages
         run: |
-          mike set-default latest --allow-undefined
+          git fetch origin gh-pages --depth=1
           mike deploy ${{ github.ref_name }} latest --update-alias --push
+          mike set-default latest --push
