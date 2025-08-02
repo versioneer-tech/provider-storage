@@ -1,0 +1,114 @@
+name: PR
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, closed]
+    branches:
+      - main
+
+env:
+  PR_SLUG: "pr-${{ github.event.pull_request.number }}-provider-storage"
+
+jobs:
+  build_and_publish:
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: Install Crossplane CLI
+        run: |
+          curl -sL "https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh" | sh
+          sudo mv crossplane /usr/local/bin
+      - name: Build Configuration Package
+        run: |
+          crossplane xpkg build --package-root . --ignore=".github/workflows/*" --verbose
+      - name: Publish Configuration Package
+        run: |
+          crossplane xpkg push "ghcr.io/versioneer-tech/provider-storage:$PR_SLUG" --domain "https://ghcr.io" --verbose
+  create_vcluster:
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    needs: build_and_publish
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Read kubeconfig from Github secret
+        run: |
+          echo "${{ secrets.KUBECFG }}" > /tmp/kubeconfig.yaml
+          echo "KUBECONFIG=/tmp/kubeconfig.yaml" >> $GITHUB_ENV
+      - name: Install vCluster into host cluster
+        if: github.event.action != 'synchronize'
+        run: |
+          cat <<EOF > vcluster.yaml
+          controlPlane:
+            distro:
+              k0s:
+                enabled: true
+          exportKubeConfig:
+            context: vcluster-context
+          integrations:
+            metricsServer:
+              enabled: true
+          EOF
+          helm repo add loft https://charts.loft.sh
+          helm repo update
+          helm install $PR_SLUG vcluster \
+          --values vcluster.yaml \
+          --repo https://charts.loft.sh/ \
+          --namespace $PR_SLUG \
+          --create-namespace \
+          --version 0.23.2 \
+          --wait
+      - name: Port forward the vCluster API server
+        run: |
+          kubectl port-forward service/$PR_SLUG 8443:443 -n $PR_SLUG &
+      - name: Read kubeconfig from k8s secret
+        run: |
+          KUBECFG=$(kubectl get secret "vc-$PR_SLUG" -n "$PR_SLUG" -o jsonpath='{.data.config}')
+          echo "$KUBECFG" | base64 -d > /tmp/vcluster-kubeconfig.yaml
+          echo "KUBECONFIG=/tmp/vcluster-kubeconfig.yaml" >> $GITHUB_ENV
+      - name: Install crossplane into vCluster
+        if: github.event.action != 'synchronize'
+        run: |
+          helm repo add crossplane-stable https://charts.crossplane.io/stable
+          helm repo update
+          helm install crossplane crossplane \
+          --repo https://charts.crossplane.io/stable \
+          --namespace crossplane-system \
+          --create-namespace \
+          --version 1.20.0 \
+          --wait
+      - name: Install provider-storage Configuration Package
+        run: |
+          cat <<EOF > configuration.yaml
+          apiVersion: pkg.crossplane.io/v1
+          kind: Configuration
+          metadata:
+            name: provider-storage
+            namespace: crossplane-system
+          spec:
+            packagePullPolicy: Always
+            package: ghcr.io/versioneer-tech/provider-storage:$PR_SLUG
+          EOF
+          kubectl apply -f configuration.yaml
+  delete_vcluster:
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Read kubeconfig from Github secret
+        run: |
+          echo "${{ secrets.KUBECFG }}" > /tmp/kubeconfig.yaml
+          echo "KUBECONFIG=/tmp/kubeconfig.yaml" >> $GITHUB_ENV
+      - name: Delete vCluster and namespace
+        run: |
+          helm uninstall $PR_SLUG -n $PR_SLUG
+          kubectl delete ns $PR_SLUG
