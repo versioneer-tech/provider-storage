@@ -1,6 +1,6 @@
 # Test if XR is ready since the request has been granted
 # Test if XR creates expected resource manifests (buckets, policies, user)
-apiVersion: epca.eo/v1beta1
+apiVersion: pkg.internal/v1beta1
 kind: XStorage
 metadata:
   labels:

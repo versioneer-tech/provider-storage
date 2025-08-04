@@ -1,8 +1,18 @@
 ---
-apiVersion: epca.eo/v1beta1
+apiVersion: pkg.internal/v1beta1
 kind: XStorage
 metadata:
+  labels:
+    crossplane.io/claim-name: alice-002
+    crossplane.io/claim-namespace: default
   name: alice-002
+spec:
+  buckets:
+  - bucketName: alice-002
+    discoverable: false
+  - bucketName: alice-shared-002
+    discoverable: true
+  owner: alice-002
 status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
@@ -15,12 +25,12 @@ kind: Bucket
 metadata:
   annotations:
     crossplane.io/composition-resource-name: bucket-alice-002-alice-002
-    xstorages.epca.eo/discoverable: "false"
+    xstorages.pkg.internal/discoverable: "false"
   generateName: alice-002-
   labels:
     crossplane.io/composite: alice-002
   ownerReferences:
-  - apiVersion: epca.eo/v1beta1
+  - apiVersion: pkg.internal/v1beta1
     blockOwnerDeletion: true
     controller: true
     kind: XStorage
@@ -35,12 +45,12 @@ kind: Bucket
 metadata:
   annotations:
     crossplane.io/composition-resource-name: bucket-alice-002-alice-shared-002
-    xstorages.epca.eo/discoverable: "true"
+    xstorages.pkg.internal/discoverable: "true"
   generateName: alice-002-
   labels:
     crossplane.io/composite: alice-002
   ownerReferences:
-  - apiVersion: epca.eo/v1beta1
+  - apiVersion: pkg.internal/v1beta1
     blockOwnerDeletion: true
     controller: true
     kind: XStorage
@@ -59,7 +69,7 @@ metadata:
   labels:
     crossplane.io/composite: alice-002
   ownerReferences:
-  - apiVersion: epca.eo/v1beta1
+  - apiVersion: pkg.internal/v1beta1
     blockOwnerDeletion: true
     controller: true
     kind: XStorage
@@ -93,7 +103,7 @@ metadata:
   labels:
     crossplane.io/composite: alice-002
   ownerReferences:
-  - apiVersion: epca.eo/v1beta1
+  - apiVersion: pkg.internal/v1beta1
     blockOwnerDeletion: true
     controller: true
     kind: XStorage
@@ -127,7 +137,7 @@ metadata:
   labels:
     crossplane.io/composite: alice-002
   ownerReferences:
-  - apiVersion: epca.eo/v1beta1
+  - apiVersion: pkg.internal/v1beta1
     blockOwnerDeletion: true
     controller: true
     kind: XStorage

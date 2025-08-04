@@ -1,7 +1,7 @@
 # Test if XR is not ready since the resources (buckets, policies, user) are not yet ready
 # (examples/observed/001-buckets is empty)
 # Test if XR creates expected resource manifests (buckets, policies, user)
-apiVersion: epca.eo/v1beta1
+apiVersion: pkg.internal/v1beta1
 kind: XStorage
 metadata:
   labels:
