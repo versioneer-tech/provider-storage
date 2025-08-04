@@ -158,10 +158,10 @@ This is everything that is needed for the `storage-minio` configuration package 
 
 ### How to create `Buckets` with `storage-minio`
 
-In order to create buckets you need to specify the `owner` and the `bucketName`. Additionally, you can set the flag `discoverable` to true which adds an annotation `xstorages.epca.eo/discoverable` to the bucket resource.
+In order to create buckets you need to specify the `owner` and the `bucketName`. Additionally, you can set the flag `discoverable` to true which adds an annotation `xstorages.pkg.internal/discoverable` to the bucket resource.
 
 ```yaml
-apiVersion: epca.eo/v1beta1
+apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
   name: <name>
@@ -179,7 +179,7 @@ spec:
 If an `owner` wants to request access to a bucket from another `owner` it can just be added to a claim by specifying the `bucketAccessRequests`. The permission can either be `ReadWrite` or `ReadOnly`.
 
 ```yaml
-apiVersion: epca.eo/v1beta1
+apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
   name: <name>
@@ -202,7 +202,7 @@ If access is granted to the bucket, the policy is created and attached to the `U
 It is possible to grant `owners` access to a bucket without them first requesting access. However, it is only attached to the user role if the user has requested access to it as well. Similarly to the requests, the claim can include `bucketAccessGrants` that grant permissions (`ReadWrite` or `ReadOnly`) to a bucket to a list of `grantees`.
 
 ```yaml
-apiVersion: epca.eo/v1beta1
+apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
   name: <name>
