@@ -1,0 +1,19 @@
+# Test if XR is ready since the request has been granted
+# Test if XR creates expected resource manifests (buckets, policies, user)
+apiVersion: epca.eo/v1beta1
+kind: XStorage
+metadata:
+  labels:
+    crossplane.io/claim-name: alice-004
+    crossplane.io/claim-namespace: default
+  name: alice-004
+spec:
+  owner: alice-004
+  buckets:
+  - bucketName: alice-004
+    discoverable: false
+  - bucketName: alice-shared-004
+    discoverable: true
+  bucketAccessRequests:
+  - bucketName: bob-shared-004
+    permission: ReadWrite

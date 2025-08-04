@@ -1,0 +1,41 @@
+---
+apiVersion: epca.eo/v1beta1
+kind: Storage
+metadata:
+  name: alice
+  namespace: default
+spec:
+  owner: alice
+  buckets:
+  - bucketName: alice
+  - bucketName: alice-shared
+    discoverable: true
+  bucketAccessRequests:
+  - bucketName: bob-shared
+    permission: ReadWrite
+  bucketAccessGrants:
+  - bucketName: alice-shared
+    permission: ReadOnly
+    grantees:
+    - bob
+---
+apiVersion: epca.eo/v1beta1
+kind: Storage
+metadata:
+  name: bob
+  namespace: default
+spec:
+  owner: bob
+  buckets:
+  - bucketName: bob
+  - bucketName: bob-shared
+    discoverable: true
+  bucketAccessRequests:
+  - bucketName: alice-shared
+    permission: ReadOnly
+  bucketAccessGrants:
+  - bucketName: bob-shared
+    permission: ReadWrite
+    grantees:
+    - alice
+

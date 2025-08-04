@@ -1,0 +1,163 @@
+---
+apiVersion: epca.eo/v1beta1
+kind: XStorage
+metadata:
+  labels:
+    crossplane.io/claim-name: alice-001
+    crossplane.io/claim-namespace: default
+  name: alice-001
+spec:
+  buckets:
+  - bucketName: alice-001
+    discoverable: false
+  - bucketName: alice-shared-001
+    discoverable: true
+  owner: alice-001
+status:
+  conditions:
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    message: 'Unready resources: bucket-alice-001-alice-001, bucket-alice-001-alice-shared-001, policy-alice-001.owner.alice-001,
+      and 2 more'
+    reason: Creating
+    status: "False"
+    type: Ready
+---
+apiVersion: minio.crossplane.io/v1
+kind: Bucket
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: bucket-alice-001-alice-001
+    xstorages.epca.eo/discoverable: "false"
+  generateName: alice-001-
+  labels:
+    crossplane.io/composite: alice-001
+  name: alice-001
+  ownerReferences:
+  - apiVersion: epca.eo/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: XStorage
+    name: alice-001
+    uid: ""
+spec:
+  providerConfigRef:
+    name: storage-minio
+---
+apiVersion: minio.crossplane.io/v1
+kind: Bucket
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: bucket-alice-001-alice-shared-001
+    xstorages.epca.eo/discoverable: "true"
+  generateName: alice-001-
+  labels:
+    crossplane.io/composite: alice-001
+  name: alice-shared-001
+  ownerReferences:
+  - apiVersion: epca.eo/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: XStorage
+    name: alice-001
+    uid: ""
+spec:
+  providerConfigRef:
+    name: storage-minio
+---
+apiVersion: minio.crossplane.io/v1
+kind: Policy
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: policy-alice-001.owner.alice-001
+  generateName: alice-001-
+  labels:
+    crossplane.io/composite: alice-001
+  name: alice-001.owner.alice-001
+  ownerReferences:
+  - apiVersion: epca.eo/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: XStorage
+    name: alice-001
+    uid: ""
+spec:
+  forProvider:
+    rawPolicy: |
+      {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Action": [ "s3:*" ],
+            "Resource": [
+              "arn:aws:s3:::alice-001",
+              "arn:aws:s3:::alice-001/*"
+            ]
+          }
+        ]
+      }
+  providerConfigRef:
+    name: storage-minio
+---
+apiVersion: minio.crossplane.io/v1
+kind: Policy
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: policy-alice-001.owner.alice-shared-001
+  generateName: alice-001-
+  labels:
+    crossplane.io/composite: alice-001
+  name: alice-001.owner.alice-shared-001
+  ownerReferences:
+  - apiVersion: epca.eo/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: XStorage
+    name: alice-001
+    uid: ""
+spec:
+  forProvider:
+    rawPolicy: |
+      {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Action": [ "s3:*" ],
+            "Resource": [
+              "arn:aws:s3:::alice-shared-001",
+              "arn:aws:s3:::alice-shared-001/*"
+            ]
+          }
+        ]
+      }
+  providerConfigRef:
+    name: storage-minio
+---
+apiVersion: minio.crossplane.io/v1
+kind: User
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: user-alice-001
+  generateName: alice-001-
+  labels:
+    crossplane.io/composite: alice-001
+  name: alice-001
+  ownerReferences:
+  - apiVersion: epca.eo/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: XStorage
+    name: alice-001
+    uid: ""
+spec:
+  forProvider:
+    policies:
+    - alice-001.owner.alice-001
+    - alice-001.owner.alice-shared-001
+    userName: alice-001
+  providerConfigRef:
+    name: storage-minio
+  writeConnectionSecretToRef:
+    name: alice-001
+    namespace: default
