@@ -6,7 +6,7 @@ metadata:
     storage: minio
 spec:
   compositeTypeRef:
-    apiVersion: epca.eo/v1beta1
+    apiVersion: pkg.internal/v1beta1
     kind: XStorage
   mode: Pipeline
   pipeline:
@@ -28,7 +28,7 @@ spec:
               name: {{ $bucket.bucketName }}
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: bucket-{{ $owner }}-{{ $bucket.bucketName }}
-                xstorages.epca.eo/discoverable: "{{ printf "%t" $bucket.discoverable }}"
+                xstorages.pkg.internal/discoverable: "{{ printf "%t" $bucket.discoverable }}"
             spec:
               providerConfigRef:
                 name: storage-minio

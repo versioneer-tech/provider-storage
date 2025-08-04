@@ -301,7 +301,7 @@ Everything is up and running and we can create our first claim - or rather, our 
 # claims.yaml
 
 ---
-apiVersion: epca.eo/v1beta1
+apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
   name: alice
@@ -311,7 +311,7 @@ spec:
     - bucketName: alice
     - bucketName: alice-shared
 ---
-apiVersion: epca.eo/v1beta1
+apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
   name: bob
@@ -334,7 +334,7 @@ Now that everyone has their buckets, Alice wants to have access to `bob-shared` 
 # claims.yaml
 
 ---
-apiVersion: epca.eo/v1beta1
+apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
   name: alice
@@ -347,7 +347,7 @@ spec:
     - bucketName: bob-shared
       permission: ReadWrite
 ---
-apiVersion: epca.eo/v1beta1
+apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
   name: bob
@@ -395,7 +395,7 @@ Bob is the `owner` of `bob-shared` so he needs to grant Alice the `ReadWrite` pe
 # claims.yaml
 
 ---
-apiVersion: epca.eo/v1beta1
+apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
   name: alice
@@ -408,7 +408,7 @@ spec:
     - bucketName: bob-shared
       permission: ReadWrite
 ---
-apiVersion: epca.eo/v1beta1
+apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
   name: bob

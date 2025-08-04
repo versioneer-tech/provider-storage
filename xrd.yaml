@@ -1,9 +1,9 @@
 apiVersion: apiextensions.crossplane.io/v1
 kind: CompositeResourceDefinition
 metadata:
-  name: xstorages.epca.eo
+  name: xstorages.pkg.internal
 spec:
-  group: epca.eo
+  group: pkg.internal
   names:
     kind: XStorage
     plural: xstorages
