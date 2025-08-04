@@ -1,0 +1,156 @@
+---
+apiVersion: pkg.internal/v1beta1
+kind: XStorage
+metadata:
+  labels:
+    crossplane.io/claim-name: alice-002
+    crossplane.io/claim-namespace: default
+  name: alice-002
+spec:
+  buckets:
+  - bucketName: alice-002
+    discoverable: false
+  - bucketName: alice-shared-002
+    discoverable: true
+  owner: alice-002
+status:
+  conditions:
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    reason: Available
+    status: "True"
+    type: Ready
+---
+apiVersion: minio.crossplane.io/v1
+kind: Bucket
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: bucket-alice-002-alice-002
+    xstorages.pkg.internal/discoverable: "false"
+  generateName: alice-002-
+  labels:
+    crossplane.io/composite: alice-002
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: XStorage
+    name: alice-002
+    uid: ""
+spec:
+  providerConfigRef:
+    name: storage-minio
+---
+apiVersion: minio.crossplane.io/v1
+kind: Bucket
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: bucket-alice-002-alice-shared-002
+    xstorages.pkg.internal/discoverable: "true"
+  generateName: alice-002-
+  labels:
+    crossplane.io/composite: alice-002
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: XStorage
+    name: alice-002
+    uid: ""
+spec:
+  providerConfigRef:
+    name: storage-minio
+---
+apiVersion: minio.crossplane.io/v1
+kind: Policy
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: policy-alice-002.owner.alice-002
+  generateName: alice-002-
+  labels:
+    crossplane.io/composite: alice-002
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: XStorage
+    name: alice-002
+    uid: ""
+spec:
+  forProvider:
+    rawPolicy: |
+      {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Action": [ "s3:*" ],
+            "Resource": [
+              "arn:aws:s3:::alice-002",
+              "arn:aws:s3:::alice-002/*"
+            ]
+          }
+        ]
+      }
+  providerConfigRef:
+    name: storage-minio
+---
+apiVersion: minio.crossplane.io/v1
+kind: Policy
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: policy-alice-002.owner.alice-shared-002
+  generateName: alice-002-
+  labels:
+    crossplane.io/composite: alice-002
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: XStorage
+    name: alice-002
+    uid: ""
+spec:
+  forProvider:
+    rawPolicy: |
+      {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Action": [ "s3:*" ],
+            "Resource": [
+              "arn:aws:s3:::alice-shared-002",
+              "arn:aws:s3:::alice-shared-002/*"
+            ]
+          }
+        ]
+      }
+  providerConfigRef:
+    name: storage-minio
+---
+apiVersion: minio.crossplane.io/v1
+kind: User
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: user-alice-002
+  generateName: alice-002-
+  labels:
+    crossplane.io/composite: alice-002
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: XStorage
+    name: alice-002
+    uid: ""
+spec:
+  forProvider:
+    policies:
+    - alice-002.owner.alice-002
+    - alice-002.owner.alice-shared-002
+    userName: alice-002
+  providerConfigRef:
+    name: storage-minio
+  writeConnectionSecretToRef:
+    name: alice-002
+    namespace: default

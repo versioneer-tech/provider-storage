@@ -26,8 +26,8 @@ jobs:
         run: |
           cp xrd.yaml minio/xrd.yaml
           cd minio/
-          crossplane xpkg build --package-root . --verbose
-          crossplane xpkg push "ghcr.io/versioneer-tech/provider-storage:${{ github.ref_name }}-minio" --domain "https://ghcr.io" --verbose
+          crossplane xpkg build --package-root=. --ignore="examples/*,tests/*,tests/expected/*,tests/observed/*" --verbose
+          crossplane xpkg push "ghcr.io/versioneer-tech/provider-storage:${{ github.ref_name }}-minio" --domain="https://ghcr.io" --verbose
   build_docs:
     runs-on: ubuntu-latest
     needs: build_and_publish_configuration_packages

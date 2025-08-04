@@ -1,0 +1,29 @@
+name: PR
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+    branches:
+    - main
+
+jobs:
+  unit_tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Install Crossplane CLI
+        run: |
+          curl -sL "https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh" | sh
+          sudo mv crossplane /usr/local/bin
+      - name: Set up Homebrew
+        uses: Homebrew/actions/setup-homebrew@main
+      - name: Install dyff
+        run: |
+          brew install dyff
+      - name: Run unit tests
+        run: |
+          cd minio/
+          for i in {1..5}; do
+            crossplane render tests/00"${i}"-buckets.yaml composition.yaml tests/functions.yaml --observed-resources tests/observed/00"${i}"-buckets.yaml -x > 00"${i}"-buckets.yaml
+            dyff between 00"${i}"-buckets.yaml tests/expected/00"${i}"-buckets.yaml
+          done
