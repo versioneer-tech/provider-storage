@@ -938,7 +938,7 @@ spec:
 <pre><code class="language-yaml"># claims.yaml
 
 ---
-apiVersion: epca.eo/v1beta1
+apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
   name: alice
@@ -948,7 +948,7 @@ spec:
     - bucketName: alice
     - bucketName: alice-shared
 ---
-apiVersion: epca.eo/v1beta1
+apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
   name: bob
@@ -965,7 +965,7 @@ spec:
 <pre><code class="language-yaml"># claims.yaml
 
 ---
-apiVersion: epca.eo/v1beta1
+apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
   name: alice
@@ -978,7 +978,7 @@ spec:
     - bucketName: bob-shared
       permission: ReadWrite
 ---
-apiVersion: epca.eo/v1beta1
+apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
   name: bob
@@ -1015,7 +1015,7 @@ Status:
 <pre><code class="language-yaml"># claims.yaml
 
 ---
-apiVersion: epca.eo/v1beta1
+apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
   name: alice
@@ -1028,7 +1028,7 @@ spec:
     - bucketName: bob-shared
       permission: ReadWrite
 ---
-apiVersion: epca.eo/v1beta1
+apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
   name: bob

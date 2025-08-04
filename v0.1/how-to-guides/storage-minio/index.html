@@ -749,8 +749,8 @@ spec:
 </code></pre>
 <p>This is everything that is needed for the <code>storage-minio</code> configuration package to function properly.</p>
 <h3 id="how-to-create-buckets-with-storage-minio">How to create <code>Buckets</code> with <code>storage-minio</code></h3>
-<p>In order to create buckets you need to specify the <code>owner</code> and the <code>bucketName</code>. Additionally, you can set the flag <code>discoverable</code> to true which adds an annotation <code>xstorages.epca.eo/discoverable</code> to the bucket resource.</p>
-<pre><code class="language-yaml">apiVersion: epca.eo/v1beta1
+<p>In order to create buckets you need to specify the <code>owner</code> and the <code>bucketName</code>. Additionally, you can set the flag <code>discoverable</code> to true which adds an annotation <code>xstorages.pkg.internal/discoverable</code> to the bucket resource.</p>
+<pre><code class="language-yaml">apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
   name: &lt;name&gt;
@@ -764,7 +764,7 @@ spec:
 </code></pre>
 <h3 id="how-to-request-access-to-buckets-from-other-owners">How to request access to <code>Buckets</code> from other <code>owners</code></h3>
 <p>If an <code>owner</code> wants to request access to a bucket from another <code>owner</code> it can just be added to a claim by specifying the <code>bucketAccessRequests</code>. The permission can either be <code>ReadWrite</code> or <code>ReadOnly</code>.</p>
-<pre><code class="language-yaml">apiVersion: epca.eo/v1beta1
+<pre><code class="language-yaml">apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
   name: &lt;name&gt;
@@ -781,7 +781,7 @@ spec:
 <p>If access is granted to the bucket, the policy is created and attached to the <code>User</code> object of the <code>owner</code>. This switches the status of the <code>XStorage</code> object back to <code>READY: True</code>.</p>
 <h3 id="how-to-grant-access-to-buckets-to-other-owners">How to grant access to <code>Buckets</code> to other <code>owners</code></h3>
 <p>It is possible to grant <code>owners</code> access to a bucket without them first requesting access. However, it is only attached to the user role if the user has requested access to it as well. Similarly to the requests, the claim can include <code>bucketAccessGrants</code> that grant permissions (<code>ReadWrite</code> or <code>ReadOnly</code>) to a bucket to a list of <code>grantees</code>.</p>
-<pre><code class="language-yaml">apiVersion: epca.eo/v1beta1
+<pre><code class="language-yaml">apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
   name: &lt;name&gt;
