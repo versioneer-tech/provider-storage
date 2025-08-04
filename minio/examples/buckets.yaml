@@ -1,5 +1,5 @@
 ---
-apiVersion: epca.eo/v1beta1
+apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
   name: alice
@@ -19,7 +19,7 @@ spec:
     grantees:
     - bob
 ---
-apiVersion: epca.eo/v1beta1
+apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
   name: bob
