@@ -30,7 +30,7 @@ jobs:
   minio_e2e_tests:
     runs-on: ubuntu-latest
     env:
-      CHAINSAW:
+      CHAINSAW: /home/runner/.chainsaw/chainsaw
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -38,7 +38,7 @@ jobs:
         run: |
           curl -OL https://github.com/crossplane/uptest/releases/download/v1.4.0/uptest_linux-amd64
           chmod +x uptest_linux-amd64
-          sudo mv uptest_linux-amd64 /usr/local/bin
+          sudo mv uptest_linux-amd64 /usr/local/bin/uptest
       - name: Install chainsaw CLI
         uses: kyverno/action-install-chainsaw@v0.2.12
         with:
