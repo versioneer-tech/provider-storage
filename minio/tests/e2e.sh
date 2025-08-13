@@ -9,13 +9,15 @@ helm repo update
 helm install crossplane \
 --namespace crossplane-system \
 --create-namespace crossplane-stable/crossplane \
---version 1.20.0
+--version 1.20.0 \
+--wait
 
 # Install the MinIO operator
 helm install \
   --namespace minio-operator \
   --create-namespace \
-  operator minio-operator/operator
+  operator minio-operator/operator \
+  --wait
 
 # Install the MinIO tenant
 cat > values.yaml << EOF
@@ -33,10 +35,11 @@ helm install \
   --values values.yaml \
   --namespace minio-tenant \
   --create-namespace \
-  minio-tenant minio-operator/tenant
+  minio-tenant minio-operator/tenant \
+  --wait
 
 # Install the storage-minio configuration package
-kubectl wait --for=condition=Ready -f - << EOF
+kubectl apply -f - << EOF
 apiVersion: pkg.crossplane.io/v1
 kind: Configuration
 metadata:
@@ -44,6 +47,9 @@ metadata:
 spec:
   package: ghcr.io/versioneer-tech/provider-storage:v0.1-minio
 EOF
+
+# Wait for the configuration to be healthy
+kubectl wait --for=condition=Healthy configuration.pkg.crossplane.io/storage-minio --timeout=2m
 
 # Configure the connection secret for provider-minio
 kubectl apply -f - << EOF
