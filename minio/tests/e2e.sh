@@ -8,7 +8,8 @@ helm repo update
 # Install Crossplane
 helm install crossplane \
 --namespace crossplane-system \
---create-namespace crossplane-stable/crossplane
+--create-namespace crossplane-stable/crossplane \
+--version 1.20.0
 
 # Install the MinIO operator
 helm install \
