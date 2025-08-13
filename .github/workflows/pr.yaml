@@ -31,7 +31,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CHAINSAW: /home/runner/.chainsaw/chainsaw
-      KUBECTL:
+      KUBECTL: /usr/bin/kubectl
       CROSSPLANE_NAMESPACE: crossplane-system
     steps:
       - name: Checkout code
@@ -45,8 +45,6 @@ jobs:
         uses: kyverno/action-install-chainsaw@v0.2.12
         with:
           release: v0.2.12
-      - name: Check chainsaw path
-        run: which kubectl
       - name: Create kind cluster
         uses: helm/kind-action@v1
       - name: Run e2e tests
