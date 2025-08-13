@@ -35,7 +35,7 @@ helm install \
   minio-tenant minio-operator/tenant
 
 # Install the storage-minio configuration package
-kubectl apply -f - << EOF
+kubectl wait --for=condition=Ready -f - << EOF
 apiVersion: pkg.crossplane.io/v1
 kind: Configuration
 metadata:
