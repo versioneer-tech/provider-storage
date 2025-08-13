@@ -3,7 +3,7 @@ apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
   name: alice
-  namespace: default
+  namespace: alice
 spec:
   owner: alice
   buckets:
@@ -23,7 +23,7 @@ apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
   name: bob
-  namespace: default
+  namespace: bob
 spec:
   owner: bob
   buckets:
