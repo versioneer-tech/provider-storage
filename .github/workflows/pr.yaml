@@ -31,6 +31,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CHAINSAW: /home/runner/.chainsaw/chainsaw
+      KUBECTL:
+      CROSSPLANE_NAMESPACE: crossplane-system
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -44,10 +46,10 @@ jobs:
         with:
           release: v0.2.12
       - name: Check chainsaw path
-        run: which chainsaw
+        run: which kubectl
       - name: Create kind cluster
         uses: helm/kind-action@v1
       - name: Run e2e tests
         run: |
           cd minio/
-          uptest e2e examples/buckets.yaml
+          uptest e2e --setup-script tests/e2e.sh examples/buckets.yaml
