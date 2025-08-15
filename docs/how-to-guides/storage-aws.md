@@ -1,73 +1,77 @@
-# How-to guides: storage-minio
+# How-to guides: storage-aws
 
-The `storage-minio` configuration package allows the creation of `buckets` on a [MinIO](https://min.io/) backend and automatically creates [Policies](https://min.io/docs/minio/linux/administration/identity-access-management/policy-based-access-control.html) for permission control. Furthermore, `storage-minio` includes a workflow to request/grant access to `buckets` from other `owners`.
+The `storage-aws` configuration package allows the creation of S3-compatible `Buckets` on AWS and automatically creates `Policies` for permission control. Furthermore, `storage-aws` includes a workflow to request/grant access to `Buckets` from other `owners`.
 
 ## How-to guides
 
-- [How to install the `storage-minio` configuration package](#how-to-install-the-storage-minio-configuration-package)
+- [How to install the `storage-aws` configuration package](#how-to-install-the-storage-aws-configuration-package)
 
-### How to install the `storage-minio` configuration package
+### How to install the `storage-aws` configuration package
 
-The `storage-minio` configuration package can be installed like any other configuration package with
+The `storage-aws` configuration package can be installed like any other configuration package with
 
 ```yaml
 apiVersion: pkg.crossplane.io/v1
 kind: Configuration
 metadata:
-  name: storage-minio
+  name: storage-aws
 spec:
-  package: ghcr.io/versioneer-tech/provider-storage:v0.1-minio
+  package: ghcr.io/versioneer-tech/provider-storage:<!version!>-aws
 ```
 
 This automatically installs the necessary dependencies:
 
-- [provider-minio](https://github.com/vshn/provider-minio) >= v0.4.4
+- [provider-aws-s3](https://github.com/crossplane-contrib/provider-upjet-aws) >= v2.0.0
+- [provider-aws-iam](https://github.com/crossplane-contrib/provider-upjet-aws) >= v2.0.0
 - [provider-kubernetes](https://github.com/crossplane-contrib/provider-kubernetes) >= v0.18.0
 - [function-auto-ready](https://github.com/crossplane-contrib/function-auto-ready) >= 0.5.0
 - [function-go-templating](https://github.com/crossplane-contrib/function-go-templating) >= v0.10.0
 
-However, it does not install the necessary `ProviderConfigs`, `ServiceAccounts` and `Secrets` that are actually needed for the `storage-minio` to work.
+However, it does not install the necessary `ProviderConfigs`, `ServiceAccounts` and `Secrets` that are actually needed for the `storage-aws` to work.
 
-The `provider-minio` needs to know how to access the MinIO instance and also needs credentials for it. Therefore, it needs a `Secret` which includes the access key and secret key.
+The `provider-aws` needs credentials for AWS. Therefore, it needs a `Secret` which includes the access key and secret key which need to be `base64` encoded.
+
+```bash
+echo -n "[default]\naws_access_key_id = <your-access-key-id>\naws_secret_access_key = <your-secret-access-key>" | base64
+```
 
 ```yaml
 apiVersion: v1
 kind: Secret
 metadata:
-  name: <name>
-  namespace: <namespace>
-stringData:
-  AWS_ACCESS_KEY_ID: <Access Key>
-  AWS_SECRET_ACCESS_KEY: <Secret Key>
+  name: storage-aws
+  namespace: crossplane-system
+data:
+  creds: |
+    <base64-encoded-string>
 ```
 
-Furthermore, the `ProviderConfig` needs to reference this secret and also provide the URL for the MinIO instance.
+Furthermore, the `ProviderConfig` needs to reference this secret.
 
 !!! warning
-    The name of the `ProviderConfig` needs to be `storage-minio`! The composition will not work with any other name and will not be able to create resources!
+    The name of the `ProviderConfig` needs to be `storage-aws`! The composition will not work with any other name and will not be able to create resources!
 
 ```yaml
-apiVersion: minio.crossplane.io/v1
+apiVersion: aws.upbound.io/v1beta1
 kind: ProviderConfig
 metadata:
-  name: storage-minio
-  namespace: crossplane-system
+  name: storage-aws
 spec:
   credentials:
-    apiSecretRef:
-      name: <secretName>
-      namespace: <secretNamespace>
-    source: InjectedIdentity
-  minioURL: <url>
+    source: Secret
+    secretRef:
+      name: storage-aws
+      namespace: crossplane-system
+      key: creds
 ```
 
-The `provider-kubernetes` needs a `ServiceAccount` that can observe resources from `policies.minio.crossplane.io`. Below is an example `ClusterRole` which expands the default `ClusterRole` created by `crossplane-rbac`.
+The `provider-kubernetes` needs a `ServiceAccount` that can observe resources from `policies.iam.aws.upbound.io`. Below is an example `ClusterRole` which expands the default `ClusterRole` created by `crossplane-rbac`.
 
 ```yaml
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: <name>
+  name: storage-kubernetes
 rules:
 - apiGroups:
   - kubernetes.crossplane.io
@@ -103,7 +107,7 @@ rules:
   verbs:
   - '*'
 - apiGroups:
-  - minio.crossplane.io
+  - iam.aws.upbound.io
   resources:
   - policies
   verbs:
@@ -151,4 +155,4 @@ spec:
     source: InjectedIdentity
 ```
 
-This is everything that is needed for the `storage-minio` configuration package to function properly.
+This is everything that is needed for the `storage-aws` configuration package to function properly.
