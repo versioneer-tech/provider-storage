@@ -32,13 +32,13 @@ jobs:
           cp xrd.yaml minio/xrd.yaml
           cd minio/
           crossplane xpkg build --package-root=. --ignore="examples/*,tests/*,tests/expected/*,tests/observed/*" --verbose
-          crossplane xpkg push "ghcr.io/versioneer-tech/provider-storage:${PR_SLUG}-minio" --domain="https://ghcr.io" --verbose
+          crossplane xpkg push "ghcr.io/versioneer-tech/provider-storage:${PR_SLUG}-minio" --verbose
       - name: Build and publish storage-aws Configuration Package
         run: |
           cp xrd.yaml aws/xrd.yaml
           cd aws/
           crossplane xpkg build --package-root=. --ignore="examples/*,tests/*,tests/expected/*,tests/observed/*" --verbose
-          crossplane xpkg push "ghcr.io/versioneer-tech/provider-storage:${PR_SLUG}-aws" --domain="https://ghcr.io" --verbose
+          crossplane xpkg push "ghcr.io/versioneer-tech/provider-storage:${PR_SLUG}-aws" --verbose
   minio_unit_tests:
     runs-on: ubuntu-latest
     steps:
