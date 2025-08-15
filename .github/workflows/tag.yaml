@@ -55,6 +55,9 @@ jobs:
           sed -i 's/CompositeResourceDefinition/CustomResourceDefinition/' xrd.yaml
           sed -i 's/apiextensions.crossplane.io\/v1/apiextensions.k8s.io\/v1/g' xrd.yaml 
           crdoc -r xrd.yaml -o docs/reference-guides/api.md
+      - name: Replace Crossplane Configuration version with tag
+        run: |
+          find docs -type f -name "*.md" -exec sed -i "s/<!version!>/${{ github.ref_name }}/g" {} +
       - name: Set up GitHub Actions user
         run: |
           git config --global user.name "GitHub Actions"
