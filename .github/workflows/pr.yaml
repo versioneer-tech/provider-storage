@@ -88,7 +88,7 @@ jobs:
       - name: Delete Configuration Package
         run: |
           echo "${{ github.token }}" | gh auth login --with-token
-          gh package delete-container-version "ghcr.io/versioneer-tech/provider-storage:${PR_SLUG}-minio" --yes
+          gh api --method DELETE --silent /orgs/versioneer-tech/packages/container/provider-storage/versions/${PR_SLUG}-minio
   aws_e2e_tests:
     runs-on: ubuntu-latest
     needs: build_and_publish_configuration_packages
@@ -113,8 +113,8 @@ jobs:
       - name: Run e2e tests
         run: |
           cd aws/
-          uptest e2e --setup-script tests/e2e.sh examples/buckets.yaml
+          uptest e2e --setup-script tests/e2e.bash examples/buckets.yaml
       - name: Delete Configuration Package
         run: |
           echo "${{ github.token }}" | gh auth login --with-token
-          gh package delete-container-version "ghcr.io/versioneer-tech/provider-storage:${PR_SLUG}-aws" --yes
+          gh api --method DELETE --silent /orgs/versioneer-tech/packages/container/provider-storage/versions/${PR_SLUG}-aws
