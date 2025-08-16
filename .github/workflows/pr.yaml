@@ -58,7 +58,7 @@ jobs:
           cd minio/
           for i in {1..5}; do
             crossplane render tests/00"${i}"-buckets.yaml composition.yaml tests/functions.yaml --observed-resources tests/observed/00"${i}"-buckets.yaml -x > 00"${i}"-buckets.yaml
-            dyff between 00"${i}"-buckets.yaml tests/expected/00"${i}"-buckets.yaml
+            dyff between 00"${i}"-buckets.yaml tests/expected/00"${i}"-buckets.yaml -s
           done
   aws_unit_tests:
     runs-on: ubuntu-latest
@@ -79,7 +79,7 @@ jobs:
           cd aws/
           for i in {1..5}; do
             crossplane render ../tests/00"${i}"-buckets.yaml composition.yaml ../tests/functions.yaml --observed-resources tests/observed/00"${i}"-buckets.yaml -x > 00"${i}"-buckets.yaml
-            dyff between 00"${i}"-buckets.yaml tests/expected/00"${i}"-buckets.yaml
+            dyff between 00"${i}"-buckets.yaml tests/expected/00"${i}"-buckets.yaml -s
           done
   minio_e2e_tests:
     runs-on: ubuntu-latest

@@ -21,8 +21,8 @@ spec:
 status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: access-key-alice-005, bucket-alice-005-alice-005,
-      bucket-alice-005-alice-shared-005, and 6 more'
+    message: 'Unready resources: access-key-alice-005, policy-alice-005.owner.alice-005,
+      policy-alice-005.owner.alice-shared-005, and 4 more'
     reason: Creating
     status: "False"
     type: Ready
@@ -62,7 +62,6 @@ metadata:
   generateName: alice-005-
   labels:
     crossplane.io/composite: alice-005
-  name: alice-005-nkqdd-xehpn
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
     blockOwnerDeletion: true
@@ -85,7 +84,6 @@ metadata:
   generateName: alice-005-
   labels:
     crossplane.io/composite: alice-005
-  name: alice-shared-005-5dwwd-bftoc
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
     blockOwnerDeletion: true
