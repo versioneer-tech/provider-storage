@@ -1,0 +1,17 @@
+# Test if XR is not ready since the resources (buckets, policies, user) are not yet ready
+# (examples/observed/001-buckets is empty)
+# Test if XR creates expected resource manifests (buckets, policies, user)
+apiVersion: pkg.internal/v1beta1
+kind: XStorage
+metadata:
+  labels:
+    crossplane.io/claim-name: alice-001
+    crossplane.io/claim-namespace: default
+  name: alice-001
+spec:
+  owner: alice-001
+  buckets:
+  - bucketName: alice-001
+    discoverable: false
+  - bucketName: alice-shared-001
+    discoverable: true

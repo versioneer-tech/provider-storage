@@ -1,0 +1,287 @@
+---
+apiVersion: pkg.internal/v1beta1
+kind: XStorage
+metadata:
+  labels:
+    crossplane.io/claim-name: alice-005
+    crossplane.io/claim-namespace: default
+  name: alice-005
+spec:
+  bucketAccessGrants:
+  - bucketName: alice-shared-005
+    grantees:
+    - bob-005
+    permission: ReadOnly
+  buckets:
+  - bucketName: alice-005
+    discoverable: false
+  - bucketName: alice-shared-005
+    discoverable: true
+  owner: alice-005
+status:
+  conditions:
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    message: 'Unready resources: access-key-alice-005, bucket-alice-005-alice-005,
+      bucket-alice-005-alice-shared-005, and 6 more'
+    reason: Creating
+    status: "False"
+    type: Ready
+---
+apiVersion: iam.aws.upbound.io/v1beta1
+kind: AccessKey
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: access-key-alice-005
+  generateName: alice-005-
+  labels:
+    crossplane.io/composite: alice-005
+  name: alice-005
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: XStorage
+    name: alice-005
+    uid: ""
+spec:
+  forProvider:
+    userRef:
+      name: alice-005
+  providerConfigRef:
+    name: storage-aws
+  writeConnectionSecretToRef:
+    name: alice-005
+    namespace: default
+---
+apiVersion: s3.aws.upbound.io/v1beta2
+kind: Bucket
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: bucket-alice-005-alice-005
+    xstorages.pkg.internal/discoverable: "false"
+  generateName: alice-005-
+  labels:
+    crossplane.io/composite: alice-005
+  name: alice-005-nkqdd-xehpn
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: XStorage
+    name: alice-005
+    uid: ""
+spec:
+  forProvider:
+    region: eu-central-1
+  providerConfigRef:
+    name: storage-aws
+---
+apiVersion: s3.aws.upbound.io/v1beta2
+kind: Bucket
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: bucket-alice-005-alice-shared-005
+    xstorages.pkg.internal/discoverable: "true"
+  generateName: alice-005-
+  labels:
+    crossplane.io/composite: alice-005
+  name: alice-shared-005-5dwwd-bftoc
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: XStorage
+    name: alice-005
+    uid: ""
+spec:
+  forProvider:
+    region: eu-central-1
+  providerConfigRef:
+    name: storage-aws
+---
+apiVersion: iam.aws.upbound.io/v1beta1
+kind: Policy
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: policy-alice-005.owner.alice-005
+  generateName: alice-005-
+  labels:
+    crossplane.io/composite: alice-005
+  name: alice-005.owner.alice-005
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: XStorage
+    name: alice-005
+    uid: ""
+spec:
+  forProvider:
+    policy: |
+      {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Action": [ "s3:*" ],
+            "Resource": [
+              "arn:aws:s3:::<no value>",
+              "arn:aws:s3:::<no value>/*"
+            ]
+          }
+        ]
+      }
+  providerConfigRef:
+    name: storage-aws
+---
+apiVersion: iam.aws.upbound.io/v1beta1
+kind: Policy
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: policy-alice-005.owner.alice-shared-005
+  generateName: alice-005-
+  labels:
+    crossplane.io/composite: alice-005
+  name: alice-005.owner.alice-shared-005
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: XStorage
+    name: alice-005
+    uid: ""
+spec:
+  forProvider:
+    policy: |
+      {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Action": [ "s3:*" ],
+            "Resource": [
+              "arn:aws:s3:::<no value>",
+              "arn:aws:s3:::<no value>/*"
+            ]
+          }
+        ]
+      }
+  providerConfigRef:
+    name: storage-aws
+---
+apiVersion: iam.aws.upbound.io/v1beta1
+kind: Policy
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: policy-bob-005.readonly.alice-shared-005
+  generateName: alice-005-
+  labels:
+    crossplane.io/composite: alice-005
+  name: bob-005.readonly.alice-shared-005
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: XStorage
+    name: alice-005
+    uid: ""
+spec:
+  forProvider:
+    policy: |
+      {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Action": [
+              "s3:GetBucketLocation",
+              "s3:ListBucket"
+            ],
+            "Resource": [
+              "arn:aws:s3:::<no value>"
+            ]
+          },
+          {
+            "Effect": "Allow",
+            "Action": [
+              "s3:GetObject"
+            ],
+            "Resource": [
+              "arn:aws:s3:::<no value>/*"
+            ]
+          }
+        ]
+      }
+  providerConfigRef:
+    name: storage-aws
+---
+apiVersion: iam.aws.upbound.io/v1beta1
+kind: User
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: user-alice-005
+  generateName: alice-005-
+  labels:
+    crossplane.io/composite: alice-005
+  name: alice-005
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: XStorage
+    name: alice-005
+    uid: ""
+spec:
+  forProvider: {}
+  providerConfigRef:
+    name: storage-aws
+---
+apiVersion: iam.aws.upbound.io/v1beta1
+kind: UserPolicyAttachment
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: user-policy-attachement-alice-005.owner.alice-005
+  generateName: alice-005-
+  labels:
+    crossplane.io/composite: alice-005
+  name: alice-005.owner.alice-005
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: XStorage
+    name: alice-005
+    uid: ""
+spec:
+  forProvider:
+    policyArnRef:
+      name: alice-005.owner.alice-005
+    userRef:
+      name: alice-005
+  providerConfigRef:
+    name: storage-aws
+---
+apiVersion: iam.aws.upbound.io/v1beta1
+kind: UserPolicyAttachment
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: user-policy-attachement-alice-005.owner.alice-shared-005
+  generateName: alice-005-
+  labels:
+    crossplane.io/composite: alice-005
+  name: alice-005.owner.alice-shared-005
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: XStorage
+    name: alice-005
+    uid: ""
+spec:
+  forProvider:
+    policyArnRef:
+      name: alice-005.owner.alice-shared-005
+    userRef:
+      name: alice-005
+  providerConfigRef:
+    name: storage-aws
