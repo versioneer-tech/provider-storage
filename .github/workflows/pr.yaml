@@ -78,7 +78,7 @@ jobs:
         run: |
           for i in {1..5}; do
             crossplane render "tests/00${i}-buckets.yaml" aws/composition.yaml tests/functions.yaml --observed-resources "aws/tests/observed/00${i}-buckets.yaml" -x > "aws/00${i}-buckets.yaml"
-            dyff between "aws/00${i}-buckets-aws.yaml" "aws/tests/expected/00${i}-buckets.yaml" -s
+            dyff between "aws/00${i}-buckets.yaml" "aws/tests/expected/00${i}-buckets.yaml" -s
           done
   minio_e2e_tests:
     runs-on: ubuntu-latest
