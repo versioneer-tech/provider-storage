@@ -89,7 +89,7 @@ jobs:
         run: |
           echo "${{ github.token }}" | gh auth login --with-token
           package_id=$(gh api /orgs/versioneer-tech/packages/container/provider-storage/versions | jq --arg PR_SLUG ${PR_SLUG} -r '.[] | select(.metadata.container.tags==[$PR_SLUG]) | .id')
-          gh api --method DELETE --silent /orgs/versioneer-tech/packages/container/provider-storage/versions/${package_id}
+          gh api --method DELETE --silent "/orgs/versioneer-tech/packages/container/provider-storage/versions/${package_id}"
   aws_e2e_tests:
     runs-on: ubuntu-latest
     needs: build_and_publish_configuration_packages
@@ -119,4 +119,4 @@ jobs:
         run: |
           echo "${{ github.token }}" | gh auth login --with-token
           package_id=$(gh api /orgs/versioneer-tech/packages/container/provider-storage/versions | jq --arg PR_SLUG ${PR_SLUG} -r '.[] | select(.metadata.container.tags==[$PR_SLUG]) | .id')
-          gh api --method DELETE --silent /orgs/versioneer-tech/packages/container/provider-storage/versions/${package_id}
+          gh api --method DELETE --silent "/orgs/versioneer-tech/packages/container/provider-storage/versions/${package_id}"
