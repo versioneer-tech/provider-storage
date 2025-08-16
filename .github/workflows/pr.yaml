@@ -60,6 +60,27 @@ jobs:
             crossplane render tests/00"${i}"-buckets.yaml composition.yaml tests/functions.yaml --observed-resources tests/observed/00"${i}"-buckets.yaml -x > 00"${i}"-buckets.yaml
             dyff between 00"${i}"-buckets.yaml tests/expected/00"${i}"-buckets.yaml
           done
+  aws_unit_tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Install Crossplane CLI
+        run: |
+          curl -sL "https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh" | sh
+          sudo mv crossplane /usr/local/bin
+      - name: Set up Homebrew
+        uses: Homebrew/actions/setup-homebrew@main
+      - name: Install dyff
+        run: |
+          brew install dyff
+      - name: Run unit tests
+        run: |
+          cd aws/
+          for i in {1..5}; do
+            crossplane render ../tests/00"${i}"-buckets.yaml composition.yaml ../tests/functions.yaml --observed-resources tests/observed/00"${i}"-buckets.yaml -x > 00"${i}"-buckets.yaml
+            dyff between 00"${i}"-buckets.yaml tests/expected/00"${i}"-buckets.yaml
+          done
   minio_e2e_tests:
     runs-on: ubuntu-latest
     needs: build_and_publish_configuration_packages
