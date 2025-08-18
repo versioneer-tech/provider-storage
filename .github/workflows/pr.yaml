@@ -25,7 +25,7 @@ jobs:
           password: ${{ github.token }}
       - name: Install Crossplane CLI
         run: |
-          curl -sL "https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh" | sh
+          curl -sL "https://raw.githubusercontent.com/crossplane/crossplane/main/install.sh" | XP_VERSION=v1.20.0 sh
           sudo mv crossplane /usr/local/bin
       # - name: Build and publish storage-minio Configuration Package
       #   run: |
@@ -46,7 +46,7 @@ jobs:
         uses: actions/checkout@v4
       - name: Install Crossplane CLI
         run: |
-          curl -sL "https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh" | sh
+          curl -sL "https://raw.githubusercontent.com/crossplane/crossplane/main/install.sh" | XP_VERSION=v1.20.0 sh
           sudo mv crossplane /usr/local/bin
       - name: Set up Homebrew
         uses: Homebrew/actions/setup-homebrew@main
@@ -138,7 +138,7 @@ jobs:
       - name: Delete Configuration Package
         run: |
           echo "${{ github.token }}" | gh auth login --with-token
-          package_id=$(gh api /orgs/versioneer-tech/packages/container/provider-storage/versions | jq --arg PR_SLUG ${PR_SLUG} -r '.[] | select(.metadata.container.tags==["$PR_SLUG-aws"]) | .id')
+          package_id=$(gh api /orgs/versioneer-tech/packages/container/provider-storage/versions | jq --arg PR_SLUG "${PR_SLUG}" -r '.[] | select(.metadata.container.tags | contains(["\($PR_SLUG)-aws"])) | .id')
           echo $package_id
           gh api "/orgs/versioneer-tech/packages/container/provider-storage/versions/${package_id}"
           gh api --method DELETE --silent "/orgs/versioneer-tech/packages/container/provider-storage/versions/${package_id}"

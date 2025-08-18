@@ -32,6 +32,7 @@ kind: AccessKey
 metadata:
   annotations:
     crossplane.io/composition-resource-name: access-key-alice-005
+  generateName: alice-005-
   labels:
     crossplane.io/composite: alice-005
   name: alice-005
@@ -101,6 +102,7 @@ kind: Policy
 metadata:
   annotations:
     crossplane.io/composition-resource-name: policy-alice-005.owner.alice-005
+  generateName: alice-005-
   labels:
     crossplane.io/composite: alice-005
   name: alice-005.owner.alice-005
@@ -135,6 +137,7 @@ kind: Policy
 metadata:
   annotations:
     crossplane.io/composition-resource-name: policy-alice-005.owner.alice-shared-005
+  generateName: alice-005-
   labels:
     crossplane.io/composite: alice-005
   name: alice-005.owner.alice-shared-005
@@ -169,6 +172,7 @@ kind: Policy
 metadata:
   annotations:
     crossplane.io/composition-resource-name: policy-bob-005.readonly.alice-shared-005
+  generateName: alice-005-
   labels:
     crossplane.io/composite: alice-005
   name: bob-005.readonly.alice-shared-005
@@ -214,6 +218,7 @@ kind: User
 metadata:
   annotations:
     crossplane.io/composition-resource-name: user-alice-005
+  generateName: alice-005-
   labels:
     crossplane.io/composite: alice-005
   name: alice-005
@@ -234,6 +239,7 @@ kind: UserPolicyAttachment
 metadata:
   annotations:
     crossplane.io/composition-resource-name: user-policy-attachement-alice-005.owner.alice-005
+  generateName: alice-005-
   labels:
     crossplane.io/composite: alice-005
   name: alice-005.owner.alice-005
@@ -258,6 +264,7 @@ kind: UserPolicyAttachment
 metadata:
   annotations:
     crossplane.io/composition-resource-name: user-policy-attachement-alice-005.owner.alice-shared-005
+  generateName: alice-005-
   labels:
     crossplane.io/composite: alice-005
   name: alice-005.owner.alice-shared-005
