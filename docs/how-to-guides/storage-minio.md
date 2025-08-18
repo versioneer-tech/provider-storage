@@ -130,7 +130,7 @@ kind: Provider
 metadata:
   name: <name>
 spec:
-  package: xpkg.upbound.io/crossplane-contrib/provider-kubernetes:<version>
+  package: xpkg.crossplane.io/crossplane-contrib/provider-kubernetes:<version>
   runtimeConfigRef:
     apiVersion: pkg.crossplane.io/v1beta1
     kind: DeploymentRuntimeConfig

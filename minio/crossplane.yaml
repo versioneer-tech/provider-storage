@@ -16,15 +16,15 @@ spec:
       version: ">=v0.4.4"
     - apiVersion: pkg.crossplane.io/v1
       kind: Provider
-      package: xpkg.upbound.io/crossplane-contrib/provider-kubernetes
+      package: xpkg.crossplane.io/crossplane-contrib/provider-kubernetes
       version: ">=v0.18.0"
     - apiVersion: pkg.crossplane.io/v1
       kind: Function
-      package: xpkg.upbound.io/crossplane-contrib/function-auto-ready
+      package: xpkg.crossplane.io/crossplane-contrib/function-auto-ready
       version: ">=v0.5.0"
     - apiVersion: pkg.crossplane.io/v1
       kind: Function
-      package: xpkg.upbound.io/crossplane-contrib/function-go-templating
+      package: xpkg.crossplane.io/crossplane-contrib/function-go-templating
       version: ">=v0.10.0"
   crossplane:
     version: ">=v1.20.0"
