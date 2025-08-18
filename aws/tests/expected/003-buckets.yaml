@@ -29,7 +29,6 @@ kind: AccessKey
 metadata:
   annotations:
     crossplane.io/composition-resource-name: access-key-alice-003
-  generateName: alice-003-
   labels:
     crossplane.io/composite: alice-003
   ownerReferences:
@@ -98,7 +97,6 @@ kind: Object
 metadata:
   annotations:
     crossplane.io/composition-resource-name: check-policy-alice-003.readwrite.bob-shared-003
-  generateName: alice-003-
   labels:
     crossplane.io/composite: alice-003
   name: policy-observer-alice-003.readwrite.bob-shared-003
@@ -126,7 +124,6 @@ kind: Policy
 metadata:
   annotations:
     crossplane.io/composition-resource-name: policy-alice-003.owner.alice-003
-  generateName: alice-003-
   labels:
     crossplane.io/composite: alice-003
   ownerReferences:
@@ -160,7 +157,6 @@ kind: Policy
 metadata:
   annotations:
     crossplane.io/composition-resource-name: policy-alice-003.owner.alice-shared-003
-  generateName: alice-003-
   labels:
     crossplane.io/composite: alice-003
   ownerReferences:
@@ -194,7 +190,6 @@ kind: User
 metadata:
   annotations:
     crossplane.io/composition-resource-name: user-alice-003
-  generateName: alice-003-
   labels:
     crossplane.io/composite: alice-003
   ownerReferences:
@@ -214,7 +209,6 @@ kind: UserPolicyAttachment
 metadata:
   annotations:
     crossplane.io/composition-resource-name: user-policy-attachement-alice-003.owner.alice-003
-  generateName: alice-003-
   labels:
     crossplane.io/composite: alice-003
   ownerReferences:
@@ -238,7 +232,6 @@ kind: UserPolicyAttachment
 metadata:
   annotations:
     crossplane.io/composition-resource-name: user-policy-attachement-alice-003.owner.alice-shared-003
-  generateName: alice-003-
   labels:
     crossplane.io/composite: alice-003
   ownerReferences:
