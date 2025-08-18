@@ -98,7 +98,6 @@ kind: Object
 metadata:
   annotations:
     crossplane.io/composition-resource-name: check-policy-alice-003.readwrite.bob-shared-003
-  generateName: alice-003-
   labels:
     crossplane.io/composite: alice-003
   name: policy-observer-alice-003.readwrite.bob-shared-003
