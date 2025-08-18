@@ -120,8 +120,6 @@ jobs:
           release: v0.2.12
       - name: Create kind cluster
         uses: helm/kind-action@v1
-        with:
-          config: tests/kind.yaml
       - name: Run e2e tests
         run: |
           uptest e2e --setup-script aws/tests/e2e.bash examples/buckets.yaml
