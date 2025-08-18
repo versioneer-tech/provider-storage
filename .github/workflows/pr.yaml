@@ -52,7 +52,7 @@ jobs:
           cd minio/
           for i in {1..5}; do
             crossplane render tests/00"${i}"-buckets.yaml composition.yaml tests/functions.yaml --observed-resources tests/observed/00"${i}"-buckets.yaml -x > 00"${i}"-buckets.yaml
-            dyff between 00"${i}"-buckets.yaml tests/expected/00"${i}"-buckets.yaml -s
+            dyff between 00"${i}"-buckets.yaml tests/expected/00"${i}"-buckets.yaml
           done
   aws_unit_tests:
     runs-on: ubuntu-latest
@@ -76,7 +76,6 @@ jobs:
           done
   minio_e2e_tests:
     runs-on: ubuntu-latest
-    needs: build_and_publish_configuration_packages
     env:
       CHAINSAW: /home/runner/.chainsaw/chainsaw
       KUBECTL: /usr/bin/kubectl
@@ -99,11 +98,6 @@ jobs:
         run: |
           cd minio/
           uptest e2e --setup-script tests/e2e.sh examples/buckets.yaml
-      - name: Delete Configuration Package
-        run: |
-          echo "${{ github.token }}" | gh auth login --with-token
-          package_id=$(gh api /orgs/versioneer-tech/packages/container/provider-storage/versions | jq --arg PR_SLUG "${PR_SLUG}" -r '.[] | select(.metadata.container.tags | contains(["\($PR_SLUG)-minio"])) | .id')
-          gh api --method DELETE --silent "/orgs/versioneer-tech/packages/container/provider-storage/versions/${package_id}"
   aws_e2e_tests:
     runs-on: ubuntu-latest
     permissions:

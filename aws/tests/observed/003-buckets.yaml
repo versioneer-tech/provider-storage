@@ -6,6 +6,7 @@ metadata:
     crossplane.io/claim-name: alice-003
     crossplane.io/claim-namespace: default
     crossplane.io/composition-resource-name: bucket-alice-003-alice-003
+  name: alice-003
 spec: {}
 status:
   conditions:
@@ -25,6 +26,7 @@ metadata:
     crossplane.io/claim-name: alice-003
     crossplane.io/claim-namespace: default
     crossplane.io/composition-resource-name: bucket-alice-003-alice-shared-003
+  name: alice-shared-003
 spec: {}
 status:
   conditions:
@@ -44,6 +46,7 @@ metadata:
     crossplane.io/claim-name: alice-003
     crossplane.io/claim-namespace: default
     crossplane.io/composition-resource-name: policy-alice-003.owner.alice-003
+  name: alice-003.owner.alice-003
 spec: {}
 status:
   conditions:
@@ -63,6 +66,7 @@ metadata:
     crossplane.io/claim-name: alice-003
     crossplane.io/claim-namespace: default
     crossplane.io/composition-resource-name: policy-alice-003.owner.alice-shared-003
+  name: alice-003.owner.alice-shared-003
 spec: {}
 status:
   conditions:
@@ -82,6 +86,7 @@ metadata:
     crossplane.io/claim-name: alice-003
     crossplane.io/claim-namespace: default
     crossplane.io/composition-resource-name: user-alice-003
+  name: alice-003
 spec: {}
 status:
   conditions:
@@ -101,6 +106,7 @@ metadata:
     crossplane.io/claim-name: alice-003
     crossplane.io/claim-namespace: default
     crossplane.io/composition-resource-name: user-policy-attachement-alice-003.owner.alice-003
+  name: alice-003.owner.alice-003
 spec: {}
 status:
   conditions:
@@ -120,6 +126,7 @@ metadata:
     crossplane.io/claim-name: alice-003
     crossplane.io/claim-namespace: default
     crossplane.io/composition-resource-name: user-policy-attachement-alice-003.owner.alice-shared-003
+  name: alice-003.owner.alice-shared-003
 spec: {}
 status:
   conditions:
@@ -139,6 +146,7 @@ metadata:
     crossplane.io/claim-name: alice-003
     crossplane.io/claim-namespace: default
     crossplane.io/composition-resource-name: access-key-alice-003
+  name: alice-003
 spec: {}
 status:
   conditions:

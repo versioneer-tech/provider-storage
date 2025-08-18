@@ -28,6 +28,7 @@ metadata:
   generateName: alice-002-
   labels:
     crossplane.io/composite: alice-002
+  name: alice-002
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
     blockOwnerDeletion: true
@@ -54,6 +55,7 @@ metadata:
   generateName: alice-002-
   labels:
     crossplane.io/composite: alice-002
+  name: alice-002
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
     blockOwnerDeletion: true
@@ -76,6 +78,7 @@ metadata:
   generateName: alice-002-
   labels:
     crossplane.io/composite: alice-002
+  name: alice-shared-002
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
     blockOwnerDeletion: true
@@ -97,6 +100,7 @@ metadata:
   generateName: alice-002-
   labels:
     crossplane.io/composite: alice-002
+  name: alice-002.owner.alice-002
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
     blockOwnerDeletion: true
@@ -114,8 +118,8 @@ spec:
             "Effect": "Allow",
             "Action": [ "s3:*" ],
             "Resource": [
-              "arn:aws:s3:::<no value>",
-              "arn:aws:s3:::<no value>/*"
+              "arn:aws:s3:::alice-002",
+              "arn:aws:s3:::alice-002/*"
             ]
           }
         ]
@@ -131,6 +135,7 @@ metadata:
   generateName: alice-002-
   labels:
     crossplane.io/composite: alice-002
+  name: alice-002.owner.alice-shared-002
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
     blockOwnerDeletion: true
@@ -148,8 +153,8 @@ spec:
             "Effect": "Allow",
             "Action": [ "s3:*" ],
             "Resource": [
-              "arn:aws:s3:::<no value>",
-              "arn:aws:s3:::<no value>/*"
+              "arn:aws:s3:::alice-shared-002",
+              "arn:aws:s3:::alice-shared-002/*"
             ]
           }
         ]
@@ -165,6 +170,7 @@ metadata:
   generateName: alice-002-
   labels:
     crossplane.io/composite: alice-002
+  name: alice-002
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
     blockOwnerDeletion: true
@@ -185,6 +191,7 @@ metadata:
   generateName: alice-002-
   labels:
     crossplane.io/composite: alice-002
+  name: alice-002.owner.alice-002
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
     blockOwnerDeletion: true
@@ -209,6 +216,7 @@ metadata:
   generateName: alice-002-
   labels:
     crossplane.io/composite: alice-002
+  name: alice-002.owner.alice-shared-002
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
     blockOwnerDeletion: true

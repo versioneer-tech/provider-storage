@@ -8,6 +8,7 @@ metadata:
     crossplane.io/claim-name: alice-001
     crossplane.io/claim-namespace: default
     crossplane.io/composition-resource-name: bucket-alice-001-alice-001
+  name: alice-001
 spec: {}
 status:
   conditions:
@@ -27,6 +28,7 @@ metadata:
     crossplane.io/claim-name: alice-001
     crossplane.io/claim-namespace: default
     crossplane.io/composition-resource-name: bucket-alice-001-alice-shared-001
+  name: alice-shared-001
 spec: {}
 status:
   conditions:
