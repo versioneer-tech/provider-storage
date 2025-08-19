@@ -29,7 +29,7 @@ jobs:
       - name: Build and publish storage-minio Configuration Package
         run: |
           cp xrd.yaml minio/xrd.yaml
-          crossplane xpkg build --package-root=minio --ignore="tests/observed/*,tests/expected/*" --package-file=aws/storage-minio.xpkg --verbose
+          crossplane xpkg build --package-root=minio --ignore="tests/*,tests/examples/*,tests/observed/*,tests/expected/*" --package-file=minio/storage-minio.xpkg --verbose
           crossplane xpkg push --package-files=minio/storage-minio.xpkg "ghcr.io/versioneer-tech/provider-storage:${PR_SLUG}-minio" --domain="https://ghcr.io" --verbose
   minio_unit_tests:
     runs-on: ubuntu-latest
