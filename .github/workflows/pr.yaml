@@ -53,6 +53,8 @@ jobs:
           done
   minio_e2e_tests:
     runs-on: ubuntu-latest
+    permissions:
+      packages: write
     needs: build_and_publish_configuration_packages
     env:
       CHAINSAW: /home/runner/.chainsaw/chainsaw
