@@ -7,9 +7,6 @@ on:
 env:
   PR_SLUG: "pr-${{ github.event.pull_request.number }}"
 
-env:
-  PR_SLUG: "pr-${{ github.event.pull_request.number }}"
-
 jobs:
   build_and_publish_configuration_packages:
     runs-on: ubuntu-latest
