@@ -128,12 +128,8 @@ jobs:
       # - name: Run e2e tests
       #   run: |
       #     uptest e2e --setup-script aws/tests/e2e.bash examples/buckets.yaml
-      # - name: Delete Configuration Package
-      #   run: |
-      #     echo "${{ github.token }}" | gh auth login --with-token
-      #     package_id=$(gh api /orgs/versioneer-tech/packages/container/provider-storage/versions | jq --arg PR_SLUG "${PR_SLUG}" -r '.[] | select(.metadata.container.tags | contains(["\($PR_SLUG)-aws"])) | .id')
       - name: Delete Configuration Package
         run: |
           echo "${{ github.token }}" | gh auth login --with-token
-          package_id=$(gh api /orgs/versioneer-tech/packages/container/provider-storage/versions | jq --arg PR_SLUG "${PR_SLUG}" -r '.[] | select(.metadata.container.tags | contains(["\($PR_SLUG)-minio"])) | .id')
+          package_id=$(gh api /orgs/versioneer-tech/packages/container/provider-storage/versions | jq --arg PR_SLUG "${PR_SLUG}" -r '.[] | select(.metadata.container.tags | contains(["\($PR_SLUG)-aws"])) | .id')
           gh api --method DELETE --silent "/orgs/versioneer-tech/packages/container/provider-storage/versions/${package_id}"
