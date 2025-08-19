@@ -19,7 +19,7 @@ kind: Configuration
 metadata:
   name: storage-minio
 spec:
-  package: ghcr.io/versioneer-tech/provider-storage:v0.1-minio
+  package: ghcr.io/versioneer-tech/provider-storage:<!version!>-minio
 ```
 
 This automatically installs the necessary dependencies:
@@ -130,7 +130,7 @@ kind: Provider
 metadata:
   name: <name>
 spec:
-  package: xpkg.upbound.io/crossplane-contrib/provider-kubernetes:<version>
+  package: xpkg.crossplane.io/crossplane-contrib/provider-kubernetes:<version>
   runtimeConfigRef:
     apiVersion: pkg.crossplane.io/v1beta1
     kind: DeploymentRuntimeConfig

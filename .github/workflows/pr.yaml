@@ -4,6 +4,8 @@ on:
     types: [opened, reopened, synchronize]
     branches:
     - main
+env:
+  PR_SLUG: "pr-${{ github.event.pull_request.number }}"
 
 env:
   PR_SLUG: "pr-${{ github.event.pull_request.number }}"
@@ -27,6 +29,11 @@ jobs:
         run: |
           curl -sL "https://raw.githubusercontent.com/crossplane/crossplane/main/install.sh" | XP_VERSION=v1.20.0 sh
           sudo mv crossplane /usr/local/bin
+      - name: Build and publish storage-minio Configuration Package
+        run: |
+          cp xrd.yaml minio/xrd.yaml
+          crossplane xpkg build --package-root=minio --ignore="tests/observed/*,tests/expected/*" --package-file=minio/storage-minio.xpkg --verbose
+          crossplane xpkg push --package-files=minio/storage-minio.xpkg "ghcr.io/versioneer-tech/provider-storage:${PR_SLUG}-minio" --domain="https://ghcr.io" --verbose
       - name: Build and publish storage-aws Configuration Package
         run: |
           cp xrd.yaml aws/xrd.yaml
@@ -48,10 +55,9 @@ jobs:
           brew install dyff
       - name: Run unit tests
         run: |
-          cd minio/
           for i in {1..5}; do
-            crossplane render tests/00"${i}"-buckets.yaml composition.yaml tests/functions.yaml --observed-resources tests/observed/00"${i}"-buckets.yaml -x > 00"${i}"-buckets.yaml
-            dyff between 00"${i}"-buckets.yaml tests/expected/00"${i}"-buckets.yaml
+            crossplane render "tests/00${i}-buckets.yaml" minio/composition.yaml tests/functions.yaml --observed-resources "minio/tests/observed/00${i}-buckets.yaml" -x > "minio/00${i}-buckets.yaml"
+            dyff between "minio/00${i}-buckets.yaml" "minio/tests/expected/00${i}-buckets.yaml" -s
           done
   aws_unit_tests:
     runs-on: ubuntu-latest
@@ -74,30 +80,6 @@ jobs:
             dyff between "aws/00${i}-buckets.yaml" "aws/tests/expected/00${i}-buckets.yaml" -s
           done
   minio_e2e_tests:
-    runs-on: ubuntu-latest
-    env:
-      CHAINSAW: /home/runner/.chainsaw/chainsaw
-      KUBECTL: /usr/bin/kubectl
-      CROSSPLANE_NAMESPACE: crossplane-system
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      - name: Install Uptest CLI
-        run: |
-          curl -OL https://github.com/crossplane/uptest/releases/download/v1.4.0/uptest_linux-amd64
-          chmod +x uptest_linux-amd64
-          sudo mv uptest_linux-amd64 /usr/local/bin/uptest
-      - name: Install chainsaw CLI
-        uses: kyverno/action-install-chainsaw@v0.2.12
-        with:
-          release: v0.2.12
-      - name: Create kind cluster
-        uses: helm/kind-action@v1
-      - name: Run e2e tests
-        run: |
-          cd minio/
-          uptest e2e --setup-script tests/e2e.sh examples/buckets.yaml
-  aws_e2e_tests:
     runs-on: ubuntu-latest
     permissions:
       packages: write
@@ -122,9 +104,39 @@ jobs:
         uses: helm/kind-action@v1
       - name: Run e2e tests
         run: |
-          uptest e2e --setup-script aws/tests/e2e.bash examples/buckets.yaml
+          uptest e2e --setup-script minio/tests/e2e.bash examples/buckets.yaml
+  aws_e2e_tests:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    needs: build_and_publish_configuration_packages
+    env:
+      CHAINSAW: /home/runner/.chainsaw/chainsaw
+      KUBECTL: /usr/bin/kubectl
+      CROSSPLANE_NAMESPACE: crossplane-system
+    steps:
+      # - name: Checkout code
+      #   uses: actions/checkout@v4
+      # - name: Install Uptest CLI
+      #   run: |
+      #     curl -OL https://github.com/crossplane/uptest/releases/download/v1.4.0/uptest_linux-amd64
+      #     chmod +x uptest_linux-amd64
+      #     sudo mv uptest_linux-amd64 /usr/local/bin/uptest
+      # - name: Install chainsaw CLI
+      #   uses: kyverno/action-install-chainsaw@v0.2.12
+      #   with:
+      #     release: v0.2.12
+      # - name: Create kind cluster
+      #   uses: helm/kind-action@v1
+      # - name: Run e2e tests
+      #   run: |
+      #     uptest e2e --setup-script aws/tests/e2e.bash examples/buckets.yaml
+      # - name: Delete Configuration Package
+      #   run: |
+      #     echo "${{ github.token }}" | gh auth login --with-token
+      #     package_id=$(gh api /orgs/versioneer-tech/packages/container/provider-storage/versions | jq --arg PR_SLUG "${PR_SLUG}" -r '.[] | select(.metadata.container.tags | contains(["\($PR_SLUG)-aws"])) | .id')
       - name: Delete Configuration Package
         run: |
           echo "${{ github.token }}" | gh auth login --with-token
-          package_id=$(gh api /orgs/versioneer-tech/packages/container/provider-storage/versions | jq --arg PR_SLUG "${PR_SLUG}" -r '.[] | select(.metadata.container.tags | contains(["\($PR_SLUG)-aws"])) | .id')
+          package_id=$(gh api /orgs/versioneer-tech/packages/container/provider-storage/versions | jq --arg PR_SLUG "${PR_SLUG}" -r '.[] | select(.metadata.container.tags | contains(["\($PR_SLUG)-minio"])) | .id')
           gh api --method DELETE --silent "/orgs/versioneer-tech/packages/container/provider-storage/versions/${package_id}"

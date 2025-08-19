@@ -27,7 +27,8 @@ helm repo add crossplane-stable https://charts.crossplane.io/stable
 helm repo update
 helm install crossplane \
 --namespace crossplane-system \
---create-namespace crossplane-stable/crossplane
+--create-namespace crossplane-stable/crossplane \
+--version 1.20.0
 ```
 
 ### MinIO installation
@@ -83,7 +84,7 @@ kind: Configuration
 metadata:
   name: storage-minio
 spec:
-  package: ghcr.io/versioneer-tech/provider-storage:v0.1-minio
+  package: ghcr.io/versioneer-tech/provider-storage:<!version!>-minio
 ```
 
 Then, we need to apply it to the cluster with
@@ -263,7 +264,7 @@ kind: Provider
 metadata:
   name: crossplane-contrib-provider-kubernetes
 spec:
-  package: xpkg.upbound.io/crossplane-contrib/provider-kubernetes:v0.18.0
+  package: xpkg.crossplane.io/crossplane-contrib/provider-kubernetes:v0.18.0
   runtimeConfigRef:
     apiVersion: pkg.crossplane.io/v1beta1
     kind: DeploymentRuntimeConfig

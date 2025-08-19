@@ -45,7 +45,7 @@ kind: Configuration
 metadata:
   name: storage-minio
 spec:
-  package: ghcr.io/versioneer-tech/provider-storage:v0.1-minio
+  package: ghcr.io/versioneer-tech/provider-storage:${PR_SLUG}-minio
 EOF
 
 # Wait for the configuration to be healthy
