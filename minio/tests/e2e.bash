@@ -48,8 +48,9 @@ spec:
   package: ghcr.io/versioneer-tech/provider-storage:${PR_SLUG}-minio
 EOF
 
-# Wait for the configuration to be healthy
-kubectl wait --for=condition=Healthy configuration.pkg.crossplane.io/storage-minio --timeout=2m
+# Wait for the configuration and providers to be healthy
+kubectl wait --for=condition=Healthy configuration.pkg.crossplane.io/storage-aws --timeout=15m
+kubectl wait --for=condition=Healthy providers.pkg.crossplane.io --all --timeout=15m
 
 # Configure the connection secret for provider-minio
 kubectl apply -f - << EOF
