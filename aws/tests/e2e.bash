@@ -25,14 +25,6 @@ EOF
 kubectl wait --for=condition=Healthy configuration.pkg.crossplane.io/storage-aws --timeout=15m
 kubectl wait --for=condition=Healthy providers.pkg.crossplane.io --all --timeout=15m
 
-# Create base64 encoded credentials
-base64_encoded_creds=$(base64 <<EOF
-[default]
-aws_access_key_id = ${AWS_ACCESS_KEY_ID}
-aws_secret_access_key = ${AWS_SECRET_ACCESS_KEY}
-EOF
-)
-
 # Configure the connection secret for provider-aws-s3 and provider-aws-iam
 kubectl apply -f - << EOF
 apiVersion: v1
@@ -40,9 +32,11 @@ kind: Secret
 metadata:
   name: storage-aws
   namespace: crossplane-system
-data:
+stringData:
   creds: |
-    ${base64_encoded_creds}
+    [default]
+    aws_access_key_id = ${AWS_ACCESS_KEY_ID}
+    aws_secret_access_key = ${AWS_SECRET_ACCESS_KEY}
 EOF
 
 # Apply the ProviderConfig for provider-aws-s3 and provider-aws-iam
