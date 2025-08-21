@@ -18,7 +18,7 @@ kind: Configuration
 metadata:
   name: storage-aws
 spec:
-  package: ghcr.io/chrstphfrtz/testeroni-meloni/test:${PR_SLUG}
+  package: ghcr.io/versioneer-tech/provider-storage:${PR_SLUG}-aws
 EOF
 
 # Wait for the configuration and providers to be healthy
