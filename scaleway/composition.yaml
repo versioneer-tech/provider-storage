@@ -35,45 +35,171 @@ spec:
               providerConfigRef:
                 name: storage-scaleway
             {{- end }}
-    # - step: create-owner-policies
-    #   functionRef:
-    #     name: crossplane-contrib-function-go-templating
-    #   input:
-    #     apiVersion: gotemplating.fn.crossplane.io/v1beta1
-    #     kind: GoTemplate
-    #     source: Inline
-    #     inline:
-    #       template: |
-    #         {{ $owner := .observed.composite.resource.spec.owner }}
-    #         {{ $root := . }}
-    #         {{- range $i, $bucket := .observed.composite.resource.spec.buckets }}
-    #           {{ $bucketObject := get $root.observed.resources (printf "bucket-%s-%s" $owner $bucket.bucketName) | default dict }}
-    #         ---
-    #         apiVersion: iam.aws.upbound.io/v1beta1
-    #         kind: Policy
-    #         metadata:
-    #           name: {{ $owner }}.owner.{{ $bucket.bucketName }}
-    #           annotations:
-    #             gotemplating.fn.crossplane.io/composition-resource-name: policy-{{ $owner }}.owner.{{ $bucket.bucketName }}
-    #         spec:
-    #           forProvider:
-    #             policy: |
-    #               {
-    #                 "Version": "2012-10-17",
-    #                 "Statement": [
-    #                   {
-    #                     "Effect": "Allow",
-    #                     "Action": [ "s3:*" ],
-    #                     "Resource": [
-    #                       "arn:aws:s3:::{{ $bucketObject.resource.metadata.name }}",
-    #                       "arn:aws:s3:::{{ $bucketObject.resource.metadata.name }}/*"
-    #                     ]
-    #                   }
-    #                 ]
-    #               }
-    #           providerConfigRef:
-    #             name: storage-aws
-    #         {{- end }}
+    - step: create-application
+      functionRef:
+        name: crossplane-contrib-function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            {{ $owner := .observed.composite.resource.spec.owner }}
+            ---
+            apiVersion: iam.scaleway.upbound.io/v1alpha1
+            kind: Application
+            metadata:
+              name: {{ $owner }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: application-{{ $owner }}
+            spec:
+              forProvider:
+                name: {{ $owner }}
+              providerConfigRef:
+                name: storage-scaleway
+    - step: create-iam-policies
+      functionRef:
+        name: crossplane-contrib-function-python
+      requirements:
+        requiredResources:
+        - requirementName: provider-config-secret
+          apiVersion: v1
+          kind: Secret
+          name: storage-scaleway
+          namespace: crossplane-system
+      input:
+        apiVersion: python.fn.crossplane.io/v1beta1
+        kind: Script
+        script: |
+          import base64
+          import json
+
+          from crossplane.function import request, response
+
+          def compose(req, rsp):
+            observed_xr = req.observed.composite.resource
+
+            secret = request.get_required_resource(req, "provider-config-secret")
+            credentials = json.loads(base64.b64decode(secret["data"]["credentials"]))
+            organization_id = credentials["organization_id"]
+
+            owner = observed_xr["spec"]["owner"]
+
+            rsp.desired.resources[f"iam-policy-{owner}"].resource.update({
+              "apiVersion": "iam.scaleway.upbound.io/v1alpha1",
+              "kind": "Policy",
+              "metadata": {
+                "name": f"{owner}",
+                "annotations": {
+                  "gotemplating.fn.crossplane.io/composition-resource-name": f"iam-policy-{owner}"
+                }
+              },
+              "spec": {
+                "forProvider": {
+                  "applicationIdRef": {
+                    "name": owner
+                  },
+                  "name": f"object-storage-full-access-{owner}",
+                  "rule": [
+                    {
+                      "organizationId": organization_id,
+                      "permissionSetNames": [
+                        "ObjectStorageFullAccess"
+                      ]
+                    }
+                  ]
+                },
+                "providerConfigRef": {
+                  "name": "storage-scaleway"
+                }
+              }
+            })
+    - step: create-bucket-policies
+      functionRef:
+        name: crossplane-contrib-function-python
+      requirements:
+        requiredResources:
+        - requirementName: provider-config-secret
+          apiVersion: v1
+          kind: Secret
+          name: storage-scaleway
+          namespace: crossplane-system
+      input:
+        apiVersion: python.fn.crossplane.io/v1beta1
+        kind: Script
+        script: |
+          import base64
+          import json
+
+          from crossplane.function import request, response
+
+          def compose(req, rsp):
+            observed_xr = req.observed.composite.resource
+
+            secret = request.get_required_resource(req, "provider-config-secret")
+            credentials = json.loads(base64.b64decode(secret["data"]["credentials"]))
+            user_id = credentials["user_id"]
+            
+            owner = observed_xr["spec"]["owner"]
+            buckets = observed_xr["spec"]["buckets"]
+
+            response.require_resources(
+              rsp,
+              name = "application",
+              api_version = "iam.scaleway.upbound.io/v1alpha1",
+              kind = "Application",
+              match_name = owner
+            )
+
+            application = request.get_required_resource(req, "application")
+
+            if not application:
+              return
+
+            application_id = application["status"]["atProvider"]["id"]
+
+            for bucket in buckets:
+              bucketName = bucket["bucketName"]
+
+              policy = {
+                "Version": "2023-04-17",
+                "Statement": [
+                  {
+                    "Effect": "Allow",
+                    "Principal": {
+                      "SCW": [
+                        f"user_id:{user_id}",
+                        f"application_id:{application_id}"
+                      ]
+                    },
+                    "Action": [ "s3:*" ],
+                    "Resource": []
+                  }
+                ]
+              }
+
+              policy["Statement"][0]["Resource"].append(f"storage-scaleway-{bucketName}-p-s")
+              policy["Statement"][0]["Resource"].append(f"storage-scaleway-{bucketName}-p-s/*")
+
+              rsp.desired.resources[f"bucket-policy-{bucketName}"].resource.update({
+                "apiVersion": "object.scaleway.upbound.io/v1alpha1",
+                "kind": "Policy",
+                "metadata": {
+                  "name": f"{bucketName}",
+                  "annotations": {
+                    "gotemplating.fn.crossplane.io/composition-resource-name": f"bucket-policy-{bucketName}"
+                  }
+                },
+                "spec": {
+                  "forProvider": {
+                    "bucket": f"storage-scaleway-{bucketName}-p-s",
+                    "policy": json.dumps(policy, indent=2)
+                  },
+                  "providerConfigRef": {
+                    "name": "storage-scaleway"
+                  }
+                }
+              })
     # - step: create-grant-bucket-access-policies
     #   functionRef:
     #     name: crossplane-contrib-function-go-templating
@@ -250,33 +376,34 @@ spec:
     #             name: storage-aws
     #           {{- end }}
     #         {{- end }}
-    # - step: create-user-access-key
-    #   functionRef:
-    #     name: crossplane-contrib-function-go-templating
-    #   input:
-    #     apiVersion: gotemplating.fn.crossplane.io/v1beta1
-    #     kind: GoTemplate
-    #     source: Inline
-    #     inline:
-    #       template: |
-    #         {{ $owner := .observed.composite.resource.spec.owner }}
-    #         {{ $namespace := index .observed.composite.resource.metadata.labels "crossplane.io/claim-namespace" }}
-    #         ---
-    #         apiVersion: iam.aws.upbound.io/v1beta1
-    #         kind: AccessKey
-    #         metadata:
-    #           name: {{ $owner }}
-    #           annotations:
-    #             gotemplating.fn.crossplane.io/composition-resource-name: access-key-{{ $owner }}
-    #         spec:
-    #           forProvider:
-    #             userRef:
-    #               name: {{ $owner }}
-    #           providerConfigRef:
-    #             name: storage-aws
-    #           writeConnectionSecretToRef:
-    #             name: {{ $owner }}
-    #             namespace: {{ $namespace }}
+    - step: create-application-api-key
+      functionRef:
+        name: crossplane-contrib-function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            {{ $owner := .observed.composite.resource.spec.owner }}
+            {{ $namespace := index .observed.composite.resource.metadata.labels "crossplane.io/claim-namespace" }}
+            {{ $applicationObject := get .observed.resources (printf "application-%s" $owner) | default dict }}
+            ---
+            apiVersion: iam.scaleway.upbound.io/v1alpha1
+            kind: ApiKey
+            metadata:
+              name: {{ $owner }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: api-key-{{ $owner }}
+            spec:
+              forProvider:
+                applicationIdRef:
+                  name: {{ $applicationObject.resource.metadata.name }}
+              providerConfigRef:
+                name: storage-scaleway
+              writeConnectionSecretToRef:
+                name: {{ $owner }}
+                namespace: {{ $namespace }}
     - step: automatically-detect-ready-composed-resources
       functionRef:
         name: crossplane-contrib-function-auto-ready
