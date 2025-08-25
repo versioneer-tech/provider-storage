@@ -5,10 +5,12 @@ nav:
   - Tutorials:
     - storage-minio: tutorials/storage-minio.md
     - storage-aws: tutorials/storage-aws.md
+    - storage-scaleway: tutorials/storage-scaleway.md
   - How-to guides:
     - general: how-to-guides/general.md
     - storage-minio: how-to-guides/storage-minio.md
     - storage-aws: how-to-guides/storage-aws.md
+    - storage-scaleway: how-to-guides/storage-scaleway.md
   - Reference guides:
     - API: reference-guides/api.md
 plugins:
@@ -18,6 +20,8 @@ markdown_extensions:
   - admonition
 theme:
   name: material
+  features:
+  - content.code.copy
 extra:
   version:
     provider: mike

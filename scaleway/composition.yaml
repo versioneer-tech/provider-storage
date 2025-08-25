@@ -134,19 +134,21 @@ spec:
           from crossplane.function import request, response
 
           def compose(req, rsp):
+            # Get observed composite resources
             observed_xr = req.observed.composite.resource
 
+            # We need the provider-config-secret for the user_id so that we can add them as a Principal for the "owner"
+            # permissions.
             secret = request.get_required_resource(req, "provider-config-secret")
             credentials = json.loads(base64.b64decode(secret["data"]["credentials"]))
             user_id = credentials["user_id"]
 
             spec = observed_xr["spec"]
-            
             owner = observed_xr["spec"]["owner"]
             buckets = observed_xr["spec"]["buckets"]
-            if "bucketAccessGrants" in spec:
-              bucketAccessGrants = spec["bucketAccessGrants"]
 
+            # We need the application associated to the owner for the application_id so that we can add them as a
+            # Principal for the "owner" permissions.
             response.require_resources(
               rsp,
               name = "application",
@@ -157,6 +159,8 @@ spec:
 
             application = request.get_required_resource(req, "application")
 
+            # If the application associated to the owner does not exist, then there is nothing we can do and we exit
+            # the step and wait for Crossplane to call it again.
             if not application:
               return
 
@@ -165,6 +169,8 @@ spec:
             for bucket in buckets:
               bucketName = bucket["bucketName"]
 
+              # Since there is a limit of one policy per bucket it needs to include the owner, ReadWrite and ReadOnly
+              # permissions. The owner and the ProviderConfig user always have "owner" permissions.
               policy = {
                 "Version": "2023-04-17",
                 "Statement": [
@@ -215,12 +221,19 @@ spec:
                 ]
               }
 
-              bucket_access_grant_object = [
-                grant for grant in bucketAccessGrants
-                if grant["bucketName"] == bucketName
-              ]
+              bucket_access_grant_object = []
+
+              if "bucketAccessGrants" in spec:
+                bucketAccessGrants = spec["bucketAccessGrants"]
+                bucket_access_grant_object = [
+                  grant for grant in bucketAccessGrants
+                  if grant["bucketName"] == bucketName
+                ]
 
 
+              # We only need to add any principals if access has been granted to other owners. In order for Crossplane
+              # to continuously check if the owner exists, we require the resource. This offers an easy way to force
+              # the reconciliation of the bucket policy.
               if bucket_access_grant_object:
                 bucket_access_grant = bucket_access_grant_object[0]
                 grantees = bucket_access_grant["grantees"]
@@ -235,6 +248,8 @@ spec:
 
                   grantee_application = request.get_required_resource(req, f"application-{grantee}")
 
+                  # If we cannot find the application associated to the grantee we exit the loop because the policy
+                  # should still be created but just without the grantee in the principal.
                   if not grantee_application:
                     break
 
@@ -245,6 +260,7 @@ spec:
                   else:
                     policy["Statement"][2]["Principal"]["SCW"].append(f"application_id:{grantee_id}")
 
+              # Create the policy with the correct policy and permissions.
               rsp.desired.resources[f"bucket-policy-{bucketName}"].resource.update({
                 "apiVersion": "object.scaleway.upbound.io/v1alpha1",
                 "kind": "Policy",
