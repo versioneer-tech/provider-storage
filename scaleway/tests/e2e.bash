@@ -39,6 +39,7 @@ stringData:
       "access_key": "${SCALEWAY_ACCESS_KEY_ID}",
       "secret_key": "${SCALEWAY_SECRET_ACCESS_KEY}",
       "organization_id": "${SCALEWAY_ORGANIZATION_ID}",
+      "user_id": "${SCALEWAY_USER_ID}",
       "region": "fr-par",
       "zone": "fr-par-1"
     }
@@ -57,107 +58,6 @@ spec:
       name: storage-scaleway
       namespace: crossplane-system
       key: credentials
-EOF
-
-# Create RBAC for provider-kubernetes
-kubectl apply -f - << EOF
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: storage-kubernetes
-rules:
-- apiGroups:
-  - kubernetes.crossplane.io
-  resources:
-  - objects
-  - objects/status
-  - observedobjectcollections
-  - observedobjectcollections/status
-  - providerconfigs
-  - providerconfigs/status
-  - providerconfigusages
-  - providerconfigusages/status
-  verbs:
-  - get
-  - list
-  - watch
-  - update
-  - patch
-  - create
-- apiGroups:
-  - kubernetes.crossplane.io
-  resources:
-  - '*/finalizers'
-  verbs:
-  - update
-- apiGroups:
-  - coordination.k8s.io
-  resources:
-  - secrets
-  - configmaps
-  - events
-  - leases
-  verbs:
-  - '*'
-- apiGroups:
-  - ""
-  resources:
-  - secrets
-  verbs:
-  - watch
-  - get
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: storage-kubernetes
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: storage-kubernetes
-subjects:
-- kind: ServiceAccount
-  name: storage-kubernetes
-  namespace: crossplane-system
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: storage-kubernetes
-  namespace: crossplane-system
-EOF
-
-# Apply Provider, ProviderConfig and DeploymentRuntimeConfig for provider-kubernetes
-kubectl apply -f - << EOF
----
-apiVersion: pkg.crossplane.io/v1
-kind: Provider
-metadata:
-  name: crossplane-contrib-provider-kubernetes
-spec:
-  package: xpkg.crossplane.io/crossplane-contrib/provider-kubernetes:v0.18.0
-  runtimeConfigRef:
-    apiVersion: pkg.crossplane.io/v1beta1
-    kind: DeploymentRuntimeConfig
-    name: storage-kubernetes
----
-apiVersion: pkg.crossplane.io/v1beta1
-kind: DeploymentRuntimeConfig
-metadata:
-  name: storage-kubernetes
-spec:
-  serviceAccountTemplate:
-    metadata:
-      name: storage-kubernetes
----
-apiVersion: kubernetes.crossplane.io/v1alpha1
-kind: ProviderConfig
-metadata:
-  name: storage-kubernetes
-spec:
-  credentials:
-    source: InjectedIdentity
 EOF
 
 # Create namespaces for claims in examples/buckets.yaml
