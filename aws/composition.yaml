@@ -1,0 +1,282 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: provider-storage
+  labels:
+    storage: aws
+spec:
+  compositeTypeRef:
+    apiVersion: pkg.internal/v1beta1
+    kind: XStorage
+  mode: Pipeline
+  pipeline:
+    - step: create-buckets
+      functionRef:
+        name: crossplane-contrib-function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            {{ $owner := .observed.composite.resource.spec.owner }}
+            {{- range $i, $bucket := .observed.composite.resource.spec.buckets }}
+            ---
+            apiVersion: s3.aws.upbound.io/v1beta2
+            kind: Bucket
+            metadata:
+              name: {{ $bucket.bucketName }}-{{ randAlphaNum 5 | lower }}-{{ randAlphaNum 5 | lower }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: bucket-{{ $owner }}-{{ $bucket.bucketName }}
+                xstorages.pkg.internal/discoverable: "{{ printf "%t" $bucket.discoverable }}"
+            spec:
+              forProvider:
+                region: eu-central-1
+              providerConfigRef:
+                name: storage-aws
+            {{- end }}
+    - step: create-owner-policies
+      functionRef:
+        name: crossplane-contrib-function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            {{ $owner := .observed.composite.resource.spec.owner }}
+            {{ $root := . }}
+            {{- range $i, $bucket := .observed.composite.resource.spec.buckets }}
+              {{ $bucketObject := get $root.observed.resources (printf "bucket-%s-%s" $owner $bucket.bucketName) | default dict }}
+            ---
+            apiVersion: iam.aws.upbound.io/v1beta1
+            kind: Policy
+            metadata:
+              name: {{ $owner }}.owner.{{ $bucket.bucketName }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: policy-{{ $owner }}.owner.{{ $bucket.bucketName }}
+            spec:
+              forProvider:
+                policy: |
+                  {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                      {
+                        "Effect": "Allow",
+                        "Action": [ "s3:*" ],
+                        "Resource": [
+                          "arn:aws:s3:::{{ $bucketObject.resource.metadata.name }}",
+                          "arn:aws:s3:::{{ $bucketObject.resource.metadata.name }}/*"
+                        ]
+                      }
+                    ]
+                  }
+              providerConfigRef:
+                name: storage-aws
+            {{- end }}
+    - step: create-grant-bucket-access-policies
+      functionRef:
+        name: crossplane-contrib-function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            {{ $owner := .observed.composite.resource.spec.owner }}
+            {{ $root := . }}
+            {{- range $i, $bucket := .observed.composite.resource.spec.bucketAccessGrants }}
+              {{ $bucketObject := get $root.observed.resources (printf "bucket-%s-%s" $owner $bucket.bucketName) | default dict }}
+              {{- range $j, $grantee := $bucket.grantees }}
+            ---
+            apiVersion: iam.aws.upbound.io/v1beta1
+            kind: Policy
+            metadata:
+              name: {{ $grantee }}.{{ $bucket.permission | lower }}.{{ $bucket.bucketName }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: policy-{{ $grantee }}.{{ $bucket.permission | lower }}.{{ $bucket.bucketName }}
+            spec:
+              forProvider:
+                {{- if eq $bucket.permission "ReadWrite"}}
+                policy: |
+                  {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                      {
+                        "Effect": "Allow",
+                        "Action": [
+                          "s3:GetBucketLocation",
+                          "s3:ListBucket",
+                          "s3:GetObject",
+                          "s3:PutObject",
+                          "s3:DeleteObject"
+                        ],
+                        "Resource": [
+                          "arn:aws:s3:::{{ $bucketObject.resource.metadata.name }}",
+                          "arn:aws:s3:::{{ $bucketObject.resource.metadata.name }}/*"
+                        ]
+                      }
+                    ]
+                  }
+                {{- end }}
+                {{- if eq $bucket.permission "ReadOnly"}}
+                policy: |
+                  {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                      {
+                        "Effect": "Allow",
+                        "Action": [
+                          "s3:GetBucketLocation",
+                          "s3:ListBucket"
+                        ],
+                        "Resource": [
+                          "arn:aws:s3:::{{ $bucketObject.resource.metadata.name }}"
+                        ]
+                      },
+                      {
+                        "Effect": "Allow",
+                        "Action": [
+                          "s3:GetObject"
+                        ],
+                        "Resource": [
+                          "arn:aws:s3:::{{ $bucketObject.resource.metadata.name }}/*"
+                        ]
+                      }
+                    ]
+                  }
+                {{- end }}
+              providerConfigRef:
+                name: storage-aws
+              {{- end }}
+            {{- end }}
+    - step: check-if-requested-policies-exist
+      functionRef:
+        name: crossplane-contrib-function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            {{ $owner := .observed.composite.resource.spec.owner }}
+            {{- range $i, $bucket := .observed.composite.resource.spec.bucketAccessRequests }}
+            ---
+            apiVersion: kubernetes.crossplane.io/v1alpha2
+            kind: Object
+            metadata:
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: check-policy-{{ $owner }}.{{ $bucket.permission | lower }}.{{ $bucket.bucketName }}
+              name: policy-observer-{{ $owner}}.{{ $bucket.permission | lower }}.{{ $bucket.bucketName }}
+            spec:
+              managementPolicies: ["Observe"]
+              forProvider:
+                manifest:
+                  apiVersion: iam.aws.upbound.io/v1beta1
+                  kind: Policy
+                  metadata:
+                    name: {{ $owner}}.{{ $bucket.permission | lower }}.{{ $bucket.bucketName }}
+              providerConfigRef:
+                name: storage-kubernetes
+            {{- end }}
+    - step: create-user
+      functionRef:
+        name: crossplane-contrib-function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            {{ $owner := .observed.composite.resource.spec.owner }}
+            {{ $namespace := index .observed.composite.resource.metadata.labels "crossplane.io/claim-namespace" }}
+            ---
+            apiVersion: iam.aws.upbound.io/v1beta1
+            kind: User
+            metadata:
+              name: {{ $owner }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: user-{{ $owner }}
+            spec:
+              forProvider: {}
+              providerConfigRef:
+                name: storage-aws
+    - step: attach-policies-to-user
+      functionRef:
+        name: crossplane-contrib-function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            {{ $owner := .observed.composite.resource.spec.owner }}
+            {{ $root := . }}
+            {{- range $i, $bucket := .observed.composite.resource.spec.buckets }}
+            ---
+            apiVersion: iam.aws.upbound.io/v1beta1
+            kind: UserPolicyAttachment
+            metadata:
+              name: {{ $owner }}.owner.{{ $bucket.bucketName }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: user-policy-attachement-{{ $owner }}.owner.{{ $bucket.bucketName }}
+            spec:
+              forProvider:
+                userRef:
+                  name: {{ $owner }}
+                policyArnRef:
+                  name: {{ $owner }}.owner.{{ $bucket.bucketName }}
+              providerConfigRef:
+                name: storage-aws
+            {{- end }}
+            {{- range $i, $bucket := .observed.composite.resource.spec.bucketAccessRequests }}
+              {{ $policyCheckName := printf "check-policy-%s.%s.%s" $owner ($bucket.permission | lower) $bucket.bucketName }}
+              {{ $policyCheck := get $root.observed.resources $policyCheckName | default dict }}
+              {{- if $policyCheck.resource.status.atProvider }}
+            ---
+            apiVersion: iam.aws.upbound.io/v1beta1
+            kind: UserPolicyAttachment
+            metadata:
+              name: {{ $owner }}.{{ $bucket.permission | lower }}.{{ $bucket.bucketName }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: user-policy-attachement-{{ $owner }}.{{ $bucket.permission | lower }}.{{ $bucket.bucketName }}
+            spec:
+              forProvider:
+                userRef:
+                  name: {{ $owner }}
+                policyArnRef:
+                  name: {{ $owner }}.{{ $bucket.permission | lower }}.{{ $bucket.bucketName }}
+              providerConfigRef:
+                name: storage-aws
+              {{- end }}
+            {{- end }}
+    - step: create-user-access-key
+      functionRef:
+        name: crossplane-contrib-function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            {{ $owner := .observed.composite.resource.spec.owner }}
+            {{ $namespace := index .observed.composite.resource.metadata.labels "crossplane.io/claim-namespace" }}
+            ---
+            apiVersion: iam.aws.upbound.io/v1beta1
+            kind: AccessKey
+            metadata:
+              name: {{ $owner }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: access-key-{{ $owner }}
+            spec:
+              forProvider:
+                userRef:
+                  name: {{ $owner }}
+              providerConfigRef:
+                name: storage-aws
+              writeConnectionSecretToRef:
+                name: {{ $owner }}
+                namespace: {{ $namespace }}
+    - step: automatically-detect-ready-composed-resources
+      functionRef:
+        name: crossplane-contrib-function-auto-ready
