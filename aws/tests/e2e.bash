@@ -1,7 +1,6 @@
 #!/bin/bash
 
-# Add helm repositories for MinIO and Crossplane
-helm repo add minio-operator https://operator.min.io
+# Add helm repositories for Crossplane
 helm repo add crossplane-stable https://charts.crossplane.io/stable
 helm repo update
 
@@ -9,75 +8,67 @@ helm repo update
 helm install crossplane \
 --namespace crossplane-system \
 --create-namespace crossplane-stable/crossplane \
---version 1.20.0 \
+--version 2.0.2 \
+--set provider.defaultActivations={} \
 --wait
 
-# Install the MinIO operator
-helm install \
-  --namespace minio-operator \
-  --create-namespace \
-  operator minio-operator/operator \
-  --wait
-
-# Install the MinIO tenant
-cat > values.yaml << EOF
-tenant:
-  pools:
-    - servers: 1
-      name: pool-0
-      volumesPerServer: 1
-      size: 1Gi
-  certificate:
-    requestAutoCert: false
+# Install the MRAP to reduce stress on the control plane
+kubectl apply -f - << EOF
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: ManagedResourceActivationPolicy
+metadata:
+  name: storage-aws
+spec:
+  activate:
+  - buckets.s3.aws.upbound.io
+  - accesskeys.iam.aws.upbound.io
+  - policies.iam.aws.upbound.io
+  - users.iam.aws.upbound.io
+  - userpolicyattachments.iam.aws.upbound.io
+  - objects.kubernetes.crossplane.io
 EOF
 
-helm install \
-  --values values.yaml \
-  --namespace minio-tenant \
-  --create-namespace \
-  minio-tenant minio-operator/tenant \
-  --wait
-
-# Install the storage-minio configuration package
+# Install the storage-aws configuration package
 kubectl apply -f - << EOF
 apiVersion: pkg.crossplane.io/v1
 kind: Configuration
 metadata:
-  name: storage-minio
+  name: storage-aws
 spec:
-  package: ghcr.io/versioneer-tech/provider-storage:${PR_SLUG}-minio
+  package: ghcr.io/versioneer-tech/provider-storage:${PR_SLUG}-aws
 EOF
 
 # Wait for the configuration and providers to be healthy
-kubectl wait --for=condition=Healthy configuration.pkg.crossplane.io/storage-minio --timeout=15m
+kubectl wait --for=condition=Healthy configuration.pkg.crossplane.io/storage-aws --timeout=15m
 kubectl wait --for=condition=Healthy providers.pkg.crossplane.io --all --timeout=15m
 
-# Configure the connection secret for provider-minio
+# Configure the connection secret for provider-aws-s3 and provider-aws-iam
 kubectl apply -f - << EOF
 apiVersion: v1
 kind: Secret
 metadata:
-  name: storage-minio
-  namespace: minio-tenant
+  name: storage-aws
+  namespace: crossplane-system
 stringData:
-  AWS_ACCESS_KEY_ID: minio
-  AWS_SECRET_ACCESS_KEY: minio123
+  credentials: |
+    [default]
+    aws_access_key_id = ${AWS_ACCESS_KEY_ID}
+    aws_secret_access_key = ${AWS_SECRET_ACCESS_KEY}
 EOF
 
-# Apply the ProviderConfig for provider-minio
+# Apply the ProviderConfig for provider-aws-s3 and provider-aws-iam
 kubectl apply -f - << EOF
-apiVersion: minio.crossplane.io/v1
+apiVersion: aws.upbound.io/v1beta1
 kind: ProviderConfig
 metadata:
-  name: storage-minio
-  namespace: crossplane-system
+  name: storage-aws
 spec:
   credentials:
-    apiSecretRef:
-      name: storage-minio
-      namespace: minio-tenant
-    source: InjectedIdentity
-  minioURL: "http://myminio-hl.minio-tenant.svc.cluster.local:9000/"
+    source: Secret
+    secretRef:
+      name: storage-aws
+      namespace: crossplane-system
+      key: credentials
 EOF
 
 # Create RBAC for provider-kubernetes
@@ -122,7 +113,7 @@ rules:
   verbs:
   - '*'
 - apiGroups:
-  - minio.crossplane.io
+  - iam.aws.upbound.io
   resources:
   - policies
   verbs:

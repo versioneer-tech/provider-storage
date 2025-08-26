@@ -4,8 +4,11 @@ nav:
   - Home: index.md
   - Tutorials:
     - storage-minio: tutorials/storage-minio.md
+    - storage-aws: tutorials/storage-aws.md
   - How-to guides:
+    - general: how-to-guides/general.md
     - storage-minio: how-to-guides/storage-minio.md
+    - storage-aws: how-to-guides/storage-aws.md
   - Reference guides:
     - API: reference-guides/api.md
 plugins:
