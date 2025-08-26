@@ -28,7 +28,6 @@ metadata:
   annotations:
     crossplane.io/composition-resource-name: bucket-alice-001-alice-001
     xstorages.pkg.internal/discoverable: "false"
-  generateName: alice-001-
   labels:
     crossplane.io/composite: alice-001
   name: alice-001
@@ -49,7 +48,6 @@ metadata:
   annotations:
     crossplane.io/composition-resource-name: bucket-alice-001-alice-shared-001
     xstorages.pkg.internal/discoverable: "true"
-  generateName: alice-001-
   labels:
     crossplane.io/composite: alice-001
   name: alice-shared-001
@@ -69,7 +67,6 @@ kind: Policy
 metadata:
   annotations:
     crossplane.io/composition-resource-name: policy-alice-001.owner.alice-001
-  generateName: alice-001-
   labels:
     crossplane.io/composite: alice-001
   name: alice-001.owner.alice-001
@@ -104,7 +101,6 @@ kind: Policy
 metadata:
   annotations:
     crossplane.io/composition-resource-name: policy-alice-001.owner.alice-shared-001
-  generateName: alice-001-
   labels:
     crossplane.io/composite: alice-001
   name: alice-001.owner.alice-shared-001
@@ -139,7 +135,6 @@ kind: User
 metadata:
   annotations:
     crossplane.io/composition-resource-name: user-alice-001
-  generateName: alice-001-
   labels:
     crossplane.io/composite: alice-001
   name: alice-001

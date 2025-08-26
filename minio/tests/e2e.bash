@@ -9,7 +9,8 @@ helm repo update
 helm install crossplane \
 --namespace crossplane-system \
 --create-namespace crossplane-stable/crossplane \
---version 1.20.0 \
+--version 2.0.2 \
+--set provider.defaultActivations={} \
 --wait
 
 # Install the MinIO operator
@@ -38,6 +39,20 @@ helm install \
   minio-tenant minio-operator/tenant \
   --wait
 
+# Install the MRAP to reduce stress on the control plane
+kubectl apply -f - << EOF
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: ManagedResourceActivationPolicy
+metadata:
+  name: storage-aws
+spec:
+  activate:
+  - buckets.minio.crossplane.io
+  - policies.minio.crossplane.io
+  - users.minio.crossplane.io
+  - objects.kubernetes.crossplane.io
+EOF
+
 # Install the storage-minio configuration package
 kubectl apply -f - << EOF
 apiVersion: pkg.crossplane.io/v1
@@ -45,7 +60,7 @@ kind: Configuration
 metadata:
   name: storage-minio
 spec:
-  package: ghcr.io/versioneer-tech/provider-storage:${PR_SLUG}-minio
+  package: ghcr.io/chrstphfrtz/testeroni-meloni/test:test-minio
 EOF
 
 # Wait for the configuration and providers to be healthy
