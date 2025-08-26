@@ -60,7 +60,7 @@ kind: Configuration
 metadata:
   name: storage-minio
 spec:
-  package: ghcr.io/chrstphfrtz/testeroni-meloni/test:test-minio
+  package: ghcr.io/versioneer-tech/provider-storage:${PR_SLUG}-minio
 EOF
 
 # Wait for the configuration and providers to be healthy
