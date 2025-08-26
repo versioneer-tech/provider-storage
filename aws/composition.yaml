@@ -25,7 +25,7 @@ spec:
             apiVersion: s3.aws.upbound.io/v1beta2
             kind: Bucket
             metadata:
-              name: {{ $bucket.bucketName }}-{{ randAlphaNum 5 | lower }}-{{ randAlphaNum 5 | lower }}
+              name: storage-aws-{{ $bucket.bucketName }}-p-s
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: bucket-{{ $owner }}-{{ $bucket.bucketName }}
                 xstorages.pkg.internal/discoverable: "{{ printf "%t" $bucket.discoverable }}"
@@ -47,7 +47,6 @@ spec:
             {{ $owner := .observed.composite.resource.spec.owner }}
             {{ $root := . }}
             {{- range $i, $bucket := .observed.composite.resource.spec.buckets }}
-              {{ $bucketObject := get $root.observed.resources (printf "bucket-%s-%s" $owner $bucket.bucketName) | default dict }}
             ---
             apiVersion: iam.aws.upbound.io/v1beta1
             kind: Policy
@@ -65,8 +64,8 @@ spec:
                         "Effect": "Allow",
                         "Action": [ "s3:*" ],
                         "Resource": [
-                          "arn:aws:s3:::{{ $bucketObject.resource.metadata.name }}",
-                          "arn:aws:s3:::{{ $bucketObject.resource.metadata.name }}/*"
+                          "arn:aws:s3:::storage-aws-{{ $bucket.bucketName }}-p-s",
+                          "arn:aws:s3:::storage-aws-{{ $bucket.bucketName }}-p-s/*"
                         ]
                       }
                     ]
@@ -86,7 +85,6 @@ spec:
             {{ $owner := .observed.composite.resource.spec.owner }}
             {{ $root := . }}
             {{- range $i, $bucket := .observed.composite.resource.spec.bucketAccessGrants }}
-              {{ $bucketObject := get $root.observed.resources (printf "bucket-%s-%s" $owner $bucket.bucketName) | default dict }}
               {{- range $j, $grantee := $bucket.grantees }}
             ---
             apiVersion: iam.aws.upbound.io/v1beta1
@@ -105,15 +103,14 @@ spec:
                       {
                         "Effect": "Allow",
                         "Action": [
-                          "s3:GetBucketLocation",
                           "s3:ListBucket",
                           "s3:GetObject",
                           "s3:PutObject",
                           "s3:DeleteObject"
                         ],
                         "Resource": [
-                          "arn:aws:s3:::{{ $bucketObject.resource.metadata.name }}",
-                          "arn:aws:s3:::{{ $bucketObject.resource.metadata.name }}/*"
+                          "arn:aws:s3:::storage-aws-{{ $bucket.bucketName }}-p-s",
+                          "arn:aws:s3:::storage-aws-{{ $bucket.bucketName }}-p-s/*"
                         ]
                       }
                     ]
@@ -127,20 +124,12 @@ spec:
                       {
                         "Effect": "Allow",
                         "Action": [
-                          "s3:GetBucketLocation",
-                          "s3:ListBucket"
-                        ],
-                        "Resource": [
-                          "arn:aws:s3:::{{ $bucketObject.resource.metadata.name }}"
-                        ]
-                      },
-                      {
-                        "Effect": "Allow",
-                        "Action": [
+                          "s3:ListBucket",
                           "s3:GetObject"
                         ],
                         "Resource": [
-                          "arn:aws:s3:::{{ $bucketObject.resource.metadata.name }}/*"
+                          "arn:aws:s3:::storage-aws-{{ $bucket.bucketName }}-p-s",
+                          "arn:aws:s3:::storage-aws-{{ $bucket.bucketName }}-p-s/*"
                         ]
                       }
                     ]

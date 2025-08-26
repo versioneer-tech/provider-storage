@@ -28,7 +28,6 @@ kind: AccessKey
 metadata:
   annotations:
     crossplane.io/composition-resource-name: access-key-alice-004
-  generateName: alice-004-
   labels:
     crossplane.io/composite: alice-004
   name: alice
@@ -55,7 +54,6 @@ metadata:
   annotations:
     crossplane.io/composition-resource-name: bucket-alice-004-alice-004
     xstorages.pkg.internal/discoverable: "false"
-  generateName: alice-004-
   labels:
     crossplane.io/composite: alice-004
   name: alice-004
@@ -78,7 +76,6 @@ metadata:
   annotations:
     crossplane.io/composition-resource-name: bucket-alice-004-alice-shared-004
     xstorages.pkg.internal/discoverable: "true"
-  generateName: alice-004-
   labels:
     crossplane.io/composite: alice-004
   name: alice-shared-004
@@ -100,7 +97,6 @@ kind: Object
 metadata:
   annotations:
     crossplane.io/composition-resource-name: check-policy-alice-004.readwrite.bob-shared-004
-  generateName: alice-004-
   labels:
     crossplane.io/composite: alice-004
   name: policy-observer-alice-004.readwrite.bob-shared-004
@@ -128,7 +124,6 @@ kind: Policy
 metadata:
   annotations:
     crossplane.io/composition-resource-name: policy-alice-004.owner.alice-004
-  generateName: alice-004-
   labels:
     crossplane.io/composite: alice-004
   name: alice-004.owner.alice-004
@@ -149,8 +144,8 @@ spec:
             "Effect": "Allow",
             "Action": [ "s3:*" ],
             "Resource": [
-              "arn:aws:s3:::alice-004",
-              "arn:aws:s3:::alice-004/*"
+              "arn:aws:s3:::storage-aws-alice-004-p-s",
+              "arn:aws:s3:::storage-aws-alice-004-p-s/*"
             ]
           }
         ]
@@ -163,7 +158,6 @@ kind: Policy
 metadata:
   annotations:
     crossplane.io/composition-resource-name: policy-alice-004.owner.alice-shared-004
-  generateName: alice-004-
   labels:
     crossplane.io/composite: alice-004
   name: alice-004.owner.alice-shared-004
@@ -184,8 +178,8 @@ spec:
             "Effect": "Allow",
             "Action": [ "s3:*" ],
             "Resource": [
-              "arn:aws:s3:::alice-shared-004",
-              "arn:aws:s3:::alice-shared-004/*"
+              "arn:aws:s3:::storage-aws-alice-shared-004-p-s",
+              "arn:aws:s3:::storage-aws-alice-shared-004-p-s/*"
             ]
           }
         ]
@@ -198,7 +192,6 @@ kind: User
 metadata:
   annotations:
     crossplane.io/composition-resource-name: user-alice-004
-  generateName: alice-004-
   labels:
     crossplane.io/composite: alice-004
   name: alice-004
@@ -219,7 +212,6 @@ kind: UserPolicyAttachment
 metadata:
   annotations:
     crossplane.io/composition-resource-name: user-policy-attachement-alice-004.owner.alice-004
-  generateName: alice-004-
   labels:
     crossplane.io/composite: alice-004
   name: alice-004.owner.alice-004
@@ -244,7 +236,6 @@ kind: UserPolicyAttachment
 metadata:
   annotations:
     crossplane.io/composition-resource-name: user-policy-attachement-alice-004.owner.alice-shared-004
-  generateName: alice-004-
   labels:
     crossplane.io/composite: alice-004
   name: alice-004.owner.alice-shared-004
@@ -269,7 +260,6 @@ kind: UserPolicyAttachment
 metadata:
   annotations:
     crossplane.io/composition-resource-name: user-policy-attachement-alice-004.readwrite.bob-shared-004
-  generateName: alice-004-
   labels:
     crossplane.io/composite: alice-004
   name: alice-004.readwrite.bob-shared-004
