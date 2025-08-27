@@ -12,51 +12,70 @@ spec:
   pipeline:
     - step: create-buckets
       functionRef:
-        name: crossplane-contrib-function-go-templating
+        name: crossplane-contrib-function-python
       input:
-        apiVersion: gotemplating.fn.crossplane.io/v1beta1
-        kind: GoTemplate
-        source: Inline
-        inline:
-          template: |
-            {{ $owner := .observed.composite.resource.spec.owner }}
-            {{- range $i, $bucket := .observed.composite.resource.spec.buckets }}
-            ---
-            apiVersion: object.scaleway.upbound.io/v1alpha1
-            kind: Bucket
-            metadata:
-              name: storage-scaleway-{{ $bucket.bucketName }}-p-s
-              annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: bucket-{{ $owner }}-{{ $bucket.bucketName }}
-                xstorages.pkg.internal/discoverable: "{{ printf "%t" $bucket.discoverable }}"
-            spec:
-              forProvider:
-                name: storage-scaleway-{{ $bucket.bucketName }}-p-s
-              providerConfigRef:
-                name: storage-scaleway
-            {{- end }}
+        apiVersion: python.fn.crossplane.io/v1beta1
+        kind: Script
+        script: |
+          def compose(req, rsp):
+            observed_xr = req.observed.composite.resource
+            owner = observed_xr["spec"]["owner"]
+            buckets = observed_xr["spec"]["buckets"]
+
+            for bucket in buckets:
+              bucket_name = bucket["bucketName"]
+              discoverable = bucket["discoverable"]
+
+              rsp.desired.resources[f"storage-scaleway-{bucket_name}"].resource.update({
+                "apiVersion": "object.scaleway.upbound.io/v1alpha1",
+                "kind": "Bucket",
+                "metadata": {
+                  "name": f"storage-scaleway-{bucket_name}",
+                  "annotations": {
+                    "gotemplating.fn.crossplane.io/composition-resource-name": f"bucket-{owner}-{bucket_name}",
+                    "xstorages.pkg.internal/discoverable": f"{discoverable}",
+                    "xstorages.pkg.internal/bucket-name": f"{bucket_name}",
+                    "xstorages.pkg.internal/owner": f"{owner}"
+                  }
+                },
+                "spec": {
+                  "forProvider": {
+                    "name": f"storage-scaleway-{bucket_name}"
+                  },
+                  "providerConfigRef": {
+                    "name": "storage-scaleway"
+                  }
+                }
+              })
     - step: create-application
       functionRef:
-        name: crossplane-contrib-function-go-templating
+        name: crossplane-contrib-function-python
       input:
-        apiVersion: gotemplating.fn.crossplane.io/v1beta1
-        kind: GoTemplate
-        source: Inline
-        inline:
-          template: |
-            {{ $owner := .observed.composite.resource.spec.owner }}
-            ---
-            apiVersion: iam.scaleway.upbound.io/v1alpha1
-            kind: Application
-            metadata:
-              name: {{ $owner }}
-              annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: application-{{ $owner }}
-            spec:
-              forProvider:
-                name: {{ $owner }}
-              providerConfigRef:
-                name: storage-scaleway
+        apiVersion: python.fn.crossplane.io/v1beta1
+        kind: Script
+        script: |
+          def compose(req, rsp):
+            observed_xr = req.observed.composite.resource
+            owner = observed_xr["spec"]["owner"]
+
+            rsp.desired.resources[f"application-{owner}"].resource.update({
+              "apiVersion": "iam.scaleway.upbound.io/v1alpha1",
+              "kind": "Application",
+              "metadata": {
+                "name": owner,
+                "annotations": {
+                  "gotemplating.fn.crossplane.io/composition-resource-name": f"application-{owner}"
+                }
+              },
+              "spec": {
+                "forProvider": {
+                  "name": owner
+                },
+                "providerConfigRef": {
+                  "name": "storage-scaleway"
+                }
+              }
+            })
     - step: create-iam-policies
       functionRef:
         name: crossplane-contrib-function-python
@@ -167,7 +186,7 @@ spec:
             application_id = application["status"]["atProvider"]["id"]
 
             for bucket in buckets:
-              bucketName = bucket["bucketName"]
+              bucket_name = bucket["bucketName"]
 
               # Since there is a limit of one policy per bucket it needs to include the owner, ReadWrite and ReadOnly
               # permissions. The owner and the ProviderConfig user always have "owner" permissions.
@@ -184,8 +203,8 @@ spec:
                     },
                     "Action": [ "s3:*" ],
                     "Resource": [
-                      f"storage-scaleway-{bucketName}-p-s",
-                      f"storage-scaleway-{bucketName}-p-s/*"
+                      f"storage-scaleway-{bucket_name}",
+                      f"storage-scaleway-{bucket_name}/*"
                     ]
                   },
                   {
@@ -200,8 +219,8 @@ spec:
                       "s3:DeleteObject"
                     ],
                     "Resource": [
-                      f"storage-scaleway-{bucketName}-p-s",
-                      f"storage-scaleway-{bucketName}-p-s/*"
+                      f"storage-scaleway-{bucket_name}",
+                      f"storage-scaleway-{bucket_name}/*"
                     ]
                   },
                   {
@@ -214,8 +233,8 @@ spec:
                       "s3:GetObject"
                     ],
                     "Resource": [
-                      f"storage-scaleway-{bucketName}-p-s",
-                      f"storage-scaleway-{bucketName}-p-s/*"
+                      f"storage-scaleway-{bucket_name}",
+                      f"storage-scaleway-{bucket_name}/*"
                     ]
                   }
                 ]
@@ -224,10 +243,10 @@ spec:
               bucket_access_grant_object = []
 
               if "bucketAccessGrants" in spec:
-                bucketAccessGrants = spec["bucketAccessGrants"]
+                bucket_access_grants = spec["bucketAccessGrants"]
                 bucket_access_grant_object = [
-                  grant for grant in bucketAccessGrants
-                  if grant["bucketName"] == bucketName
+                  grant for grant in bucket_access_grants
+                  if grant["bucketName"] == bucket_name
                 ]
 
 
@@ -261,18 +280,18 @@ spec:
                     policy["Statement"][2]["Principal"]["SCW"].append(f"application_id:{grantee_id}")
 
               # Create the policy with the correct policy and permissions.
-              rsp.desired.resources[f"bucket-policy-{bucketName}"].resource.update({
+              rsp.desired.resources[f"bucket-policy-{bucket_name}"].resource.update({
                 "apiVersion": "object.scaleway.upbound.io/v1alpha1",
                 "kind": "Policy",
                 "metadata": {
-                  "name": f"{bucketName}",
+                  "name": f"{bucket_name}",
                   "annotations": {
-                    "gotemplating.fn.crossplane.io/composition-resource-name": f"bucket-policy-{bucketName}"
+                    "gotemplating.fn.crossplane.io/composition-resource-name": f"bucket-policy-{bucket_name}"
                   }
                 },
                 "spec": {
                   "forProvider": {
-                    "bucket": f"storage-scaleway-{bucketName}-p-s",
+                    "bucket": f"storage-scaleway-{bucket_name}",
                     "policy": json.dumps(policy, indent=2)
                   },
                   "providerConfigRef": {
@@ -282,32 +301,54 @@ spec:
               })
     - step: create-application-api-key
       functionRef:
-        name: crossplane-contrib-function-go-templating
+        name: crossplane-contrib-function-python
       input:
-        apiVersion: gotemplating.fn.crossplane.io/v1beta1
-        kind: GoTemplate
-        source: Inline
-        inline:
-          template: |
-            {{ $owner := .observed.composite.resource.spec.owner }}
-            {{ $namespace := index .observed.composite.resource.metadata.labels "crossplane.io/claim-namespace" }}
-            {{ $applicationObject := get .observed.resources (printf "application-%s" $owner) | default dict }}
-            ---
-            apiVersion: iam.scaleway.upbound.io/v1alpha1
-            kind: ApiKey
-            metadata:
-              name: {{ $owner }}
-              annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: api-key-{{ $owner }}
-            spec:
-              forProvider:
-                applicationIdRef:
-                  name: {{ $applicationObject.resource.metadata.name }}
-              providerConfigRef:
-                name: storage-scaleway
-              writeConnectionSecretToRef:
-                name: {{ $owner }}
-                namespace: {{ $namespace }}
+        apiVersion: python.fn.crossplane.io/v1beta1
+        kind: Script
+        script: |
+          from crossplane.function import request, response
+
+          def compose(req, rsp):
+            observed_xr = req.observed.composite.resource
+            owner = observed_xr["spec"]["owner"]
+            namespace = observed_xr["metadata"]["labels"]["crossplane.io/claim-namespace"]
+
+            # We need the application associated to the owner otherwise there is no point in creating an API key
+            response.require_resources(
+              rsp,
+              name = "application",
+              api_version = "iam.scaleway.upbound.io/v1alpha1",
+              kind = "Application",
+              match_name = owner
+            )
+            application = request.get_required_resource(req, "application")
+            if not application:
+              return
+
+            rsp.desired.resources[f"api-key-{owner}"].resource.update({
+              "apiVersion": "iam.scaleway.upbound.io/v1alpha1",
+              "kind": "ApiKey",
+              "metadata": {
+                "name": owner,
+                "annotations": {
+                  "gotemplating.fn.crossplane.io/composition-resource-name": f"api-key-{owner}"
+                }
+              },
+              "spec": {
+                "forProvider": {
+                  "applicationIdRef": {
+                    "name": application["metadata"]["name"]
+                  }
+                },
+                "providerConfigRef": {
+                  "name": "storage-scaleway"
+                },
+                "writeConnectionSecretToRef": {
+                  "name": owner,
+                  "namespace": namespace
+                }
+              }
+            })
     - step: automatically-detect-ready-composed-resources
       functionRef:
         name: crossplane-contrib-function-auto-ready

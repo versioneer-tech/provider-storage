@@ -9,7 +9,23 @@ helm install crossplane \
 --namespace crossplane-system \
 --create-namespace crossplane-stable/crossplane \
 --version 2.0.2 \
+--set provider.defaultActivations={} \
 --wait
+
+# Install the MRAP to reduce stress on the control plane
+kubectl apply -f - << EOF
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: ManagedResourceActivationPolicy
+metadata:
+  name: storage-scaleway
+spec:
+  activate:
+  - buckets.object.scaleway.upbound.io
+  - policies.object.scaleway.upbound.io
+  - apikeys.iam.scaleway.upbound.io
+  - applications.iam.scaleway.upbound.io
+  - policies.iam.scaleway.upbound.io
+EOF
 
 # Install the storage-scaleway configuration package
 kubectl apply -f - << EOF
@@ -18,7 +34,7 @@ kind: Configuration
 metadata:
   name: storage-scaleway
 spec:
-  package: ghcr.io/chrstphfrtz/testeroni-meloni/test:test
+  package: ghcr.io/versioneer-tech/provider-storage:${PR_SLUG}-scaleway
 EOF
 
 # Wait for the configuration and providers to be healthy
