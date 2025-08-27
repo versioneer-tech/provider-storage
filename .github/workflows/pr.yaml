@@ -45,7 +45,7 @@ jobs:
       - name: Build and publish storage-scaleway Configuration Package
         run: |
           cp xrd.yaml scaleway/xrd.yaml
-          crossplane xpkg build --package-root=scaleway --ignore="tests/observed/*,tests/expected/*" --package-file=scaleway/storage-scaleway.xpkg --verbose
+          crossplane xpkg build --package-root=scaleway --ignore="tests/observed/*,tests/expected/*,tests/required/*" --package-file=scaleway/storage-scaleway.xpkg --verbose
           crossplane xpkg push --package-files=scaleway/storage-scaleway.xpkg "ghcr.io/versioneer-tech/provider-storage/scaleway:${PR_SLUG}" --verbose
   minio_unit_tests:
     runs-on: ubuntu-latest
