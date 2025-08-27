@@ -10,7 +10,7 @@ helm install crossplane \
 --create-namespace crossplane-stable/crossplane \
 --version 2.0.2 \
 --set provider.defaultActivations={} \
---set args{"--enable-operations"} \
+--set args={"--enable-operations"} \
 --wait
 
 # Install the MRAP to reduce stress on the control plane
