@@ -36,17 +36,17 @@ jobs:
         run: |
           cp xrd.yaml minio/xrd.yaml
           crossplane xpkg build --package-root=minio --ignore="tests/observed/*,tests/expected/*" --package-file=minio/storage-minio.xpkg --verbose
-          crossplane xpkg push --package-files=minio/storage-minio.xpkg "ghcr.io/versioneer-tech/provider-storage:${PR_SLUG}-minio" --verbose
+          crossplane xpkg push --package-files=minio/storage-minio.xpkg "ghcr.io/${{ github.repository }}:${PR_SLUG}-minio" --verbose
       - name: Build and publish storage-aws Configuration Package
         run: |
           cp xrd.yaml aws/xrd.yaml
           crossplane xpkg build --package-root=aws --ignore="tests/observed/*,tests/expected/*" --package-file=aws/storage-aws.xpkg --verbose
-          crossplane xpkg push --package-files=aws/storage-aws.xpkg "ghcr.io/versioneer-tech/provider-storage:${PR_SLUG}-aws" --verbose
+          crossplane xpkg push --package-files=aws/storage-aws.xpkg "ghcr.io/${{ github.repository }}:${PR_SLUG}-aws" --verbose
       - name: Build and publish storage-scaleway Configuration Package
         run: |
           cp xrd.yaml scaleway/xrd.yaml
           crossplane xpkg build --package-root=scaleway --ignore="tests/observed/*,tests/expected/*" --package-file=scaleway/storage-scaleway.xpkg --verbose
-          crossplane xpkg push --package-files=scaleway/storage-scaleway.xpkg "ghcr.io/versioneer-tech/provider-storage:${PR_SLUG}-scaleway" --verbose
+          crossplane xpkg push --package-files=scaleway/storage-scaleway.xpkg "ghcr.io/${{ github.repository }}:${PR_SLUG}-scaleway" --verbose
   minio_unit_tests:
     runs-on: ubuntu-latest
     steps:
