@@ -8,6 +8,9 @@ The `storage-scaleway` configuration package allows the creation of S3-compatibl
 
 ### How to install the `storage-scaleway` configuration package
 
+!!! warning
+    In order for `storage-scaleway` to work you need [enable Operations](https://docs.crossplane.io/latest/operations/operation/#troubleshooting-operations) when installing Crossplane!
+
 The `storage-scaleway` configuration package can be installed like any other configuration package with
 
 ```yaml
@@ -16,14 +19,13 @@ kind: Configuration
 metadata:
   name: storage-scaleway
 spec:
-  package: ghcr.io/versioneer-tech/provider-storage:<!version!>-scaleway
+  package: ghcr.io/versioneer-tech/provider-storage/scaleway:<!version!>
 ```
 
 This automatically installs the necessary dependencies:
 
 - [provider-scaleway](https://github.com/scaleway/crossplane-provider-scaleway) >= v0.4.0
 - [function-auto-ready](https://github.com/crossplane-contrib/function-auto-ready) >= 0.5.0
-- [function-go-templating](https://github.com/crossplane-contrib/function-go-templating) >= v0.10.0
 - [function-python](https://github.com/crossplane-contrib/function-python) >= v0.2.0
 
 However, it does not install the necessary `ProviderConfig` and `Secret` that are actually needed for the `storage-scaleway` to work.

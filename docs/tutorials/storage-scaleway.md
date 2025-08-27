@@ -28,6 +28,7 @@ helm repo update
 helm install crossplane \
 --namespace crossplane-system \
 --create-namespace crossplane-stable/crossplane \
+--set args={"--enable-operations"} \
 --version 2.0.2
 ```
 
@@ -43,7 +44,7 @@ kind: Configuration
 metadata:
   name: storage-scaleway
 spec:
-  package: ghcr.io/versioneer-tech/provider-storage:<!version!>-scaleway
+  package: ghcr.io/versioneer-tech/provider-storage/scaleway:<!version!>
 ```
 
 Then, we need to apply it to the cluster with
