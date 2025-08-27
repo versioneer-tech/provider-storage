@@ -135,34 +135,3 @@ jobs:
           echo "${{ github.token }}" | gh auth login --with-token
           package_id=$(gh api /orgs/versioneer-tech/packages/container/provider-storage/versions | jq --arg PR_SLUG "${PR_SLUG}" -r '.[] | select(.metadata.container.tags | contains(["\($PR_SLUG)-aws"])) | .id')
           gh api --method DELETE --silent "/orgs/versioneer-tech/packages/container/provider-storage/versions/${package_id}"
-  aws_e2e_tests:
-    runs-on: ubuntu-latest
-    permissions:
-      packages: write
-    needs: build_and_publish_configuration_packages
-    env:
-      CHAINSAW: /home/runner/.chainsaw/chainsaw
-      KUBECTL: /usr/bin/kubectl
-      CROSSPLANE_NAMESPACE: crossplane-system
-    steps:
-      # - name: Checkout code
-      #   uses: actions/checkout@v4
-      # - name: Install Uptest CLI
-      #   run: |
-      #     curl -OL https://github.com/crossplane/uptest/releases/download/v1.4.0/uptest_linux-amd64
-      #     chmod +x uptest_linux-amd64
-      #     sudo mv uptest_linux-amd64 /usr/local/bin/uptest
-      # - name: Install chainsaw CLI
-      #   uses: kyverno/action-install-chainsaw@v0.2.12
-      #   with:
-      #     release: v0.2.12
-      # - name: Create kind cluster
-      #   uses: helm/kind-action@v1
-      # - name: Run e2e tests
-      #   run: |
-      #     uptest e2e --setup-script aws/tests/e2e.bash examples/buckets.yaml
-      - name: Delete Configuration Package
-        run: |
-          echo "${{ github.token }}" | gh auth login --with-token
-          package_id=$(gh api /orgs/versioneer-tech/packages/container/provider-storage/versions | jq --arg PR_SLUG "${PR_SLUG}" -r '.[] | select(.metadata.container.tags | contains(["\($PR_SLUG)-aws"])) | .id')
-          gh api --method DELETE --silent "/orgs/versioneer-tech/packages/container/provider-storage/versions/${package_id}"
