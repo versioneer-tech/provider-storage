@@ -8,6 +8,10 @@ env:
   PR_SLUG: "pr-${{ github.event.pull_request.number }}"
   AWS_ACCESS_KEY_ID: "{{ secrets.AWS_ACCESS_KEY_ID }}"
   AWS_SECRET_ACCESS_KEY: "{{ secrets.AWS_SECRET_ACCESS_KEY }}"
+  SCALEWAY_ACCESS_KEY_ID: "{{ secrets.SCALEWAY_ACCESS_KEY_ID }}"
+  SCALEWAY_SECRET_ACCESS_KEY: "{{ secrets.SCALEWAY_SECRET_ACCESS_KEY }}"
+  SCALEWAY_ORGANIZATION_ID: "{{ secrets.SCALEWAY_ORGANIZATION_ID }}"
+  SCALEWAY_USER_ID: "{{ secrets.SCALEWAY_USER_ID }}"
 
 jobs:
   build_and_publish_configuration_packages:
