@@ -35,7 +35,7 @@ kind: Configuration
 metadata:
   name: storage-scaleway
 spec:
-  package: ghcr.io/versioneer-tech/provider-storage:${PR_SLUG}-scaleway
+  package: ghcr.io/versioneer-tech/provider-storage/scaleway:${PR_SLUG}
 EOF
 
 # Wait for the configuration and providers to be healthy
