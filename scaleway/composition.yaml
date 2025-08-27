@@ -43,15 +43,15 @@ spec:
               bucket_name = bucket["bucketName"]
               discoverable = bucket["discoverable"]
 
-              rsp.desired.resources[bucket_name].resource.update({
+              rsp.desired.resources[f"bucket-{bucket_name}"].resource.update({
                 "apiVersion": "object.scaleway.upbound.io/v1alpha1",
                 "kind": "Bucket",
                 "metadata": {
                   "name": f"{owner}-{bucket_name}",
                   "annotations": {
-                    "xstorages.pkg.internal/discoverable": discoverable,
+                    "xstorages.pkg.internal/discoverable": f"{discoverable}",
                     "xstorages.pkg.internal/owner": owner,
-                    "xstorages.pkg.internal/bucket-name": bucket_name,
+                    "xstorages.pkg.internal/bucket-name": bucket_name
                   }
                 },
                 "spec": {
@@ -79,9 +79,6 @@ spec:
               "kind": "Application",
               "metadata": {
                 "name": owner,
-                "annotations": {
-                  "gotemplating.fn.crossplane.io/composition-resource-name": f"application-{owner}"
-                }
               },
               "spec": {
                 "forProvider": {
@@ -124,10 +121,7 @@ spec:
               "apiVersion": "iam.scaleway.upbound.io/v1alpha1",
               "kind": "Policy",
               "metadata": {
-                "name": f"{owner}",
-                "annotations": {
-                  "gotemplating.fn.crossplane.io/composition-resource-name": f"iam-policy-{owner}"
-                }
+                "name": f"{owner}"
               },
               "spec": {
                 "forProvider": {
@@ -206,7 +200,7 @@ spec:
               observed_bucket_name = ""
 
               for name, observed_resource in req.observed.resources.items():
-                if name == bucket_name:
+                if name == f"bucket-{bucket_name}":
                   observed_bucket_name = observed_resource.resource["spec"]["forProvider"]["name"]
 
               # Since there is a limit of one policy per bucket it needs to include the owner, ReadWrite and ReadOnly
@@ -267,7 +261,7 @@ spec:
                 bucket_access_grants = spec["bucketAccessGrants"]
                 bucket_access_grant_object = [
                   grant for grant in bucket_access_grants
-                  if grant["bucketName"] == observed_bucket_name
+                  if grant["bucketName"] == bucket_name
                 ]
 
 
@@ -347,10 +341,7 @@ spec:
               "apiVersion": "iam.scaleway.upbound.io/v1alpha1",
               "kind": "ApiKey",
               "metadata": {
-                "name": owner,
-                "annotations": {
-                  "gotemplating.fn.crossplane.io/composition-resource-name": f"api-key-{owner}"
-                }
+                "name": owner
               },
               "spec": {
                 "forProvider": {

@@ -1,0 +1,40 @@
+---
+apiVersion: object.scaleway.upbound.io/v1alpha1
+kind: Bucket
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: bucket-alice-004
+  name: alice-004-alice-004
+spec:
+  forProvider:
+    name: alice-004-alice-004-abcde-fghij
+status:
+  conditions:
+  - lastTransitionTime: "1970-01-01T00:00:00Z"
+    reason: Available
+    status: "True"
+    type: Ready
+  - lastTransitionTime: "1970-01-01T00:00:00Z"
+    reason: ReconcileSuccess
+    status: "True"
+    type: Synced
+---
+apiVersion: object.scaleway.upbound.io/v1alpha1
+kind: Bucket
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: bucket-alice-shared-004
+  name: alice-004-alice-shared-004
+spec:
+  forProvider:
+    name: alice-004-alice-shared-004-abcde-fghij
+status:
+  conditions:
+  - lastTransitionTime: "1970-01-01T00:00:00Z"
+    reason: Available
+    status: "True"
+    type: Ready
+  - lastTransitionTime: "1970-01-01T00:00:00Z"
+    reason: ReconcileSuccess
+    status: "True"
+    type: Synced

@@ -1,0 +1,132 @@
+---
+apiVersion: iam.scaleway.upbound.io/v1alpha1
+kind: Application
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: application-alice-002
+  name: alice-002
+spec: {}
+status:
+  atProvider:
+    id: application_id
+  conditions:
+  - lastTransitionTime: "1970-01-01T00:00:00Z"
+    reason: Available
+    status: "True"
+    type: Ready
+  - lastTransitionTime: "1970-01-01T00:00:00Z"
+    reason: ReconcileSuccess
+    status: "True"
+    type: Synced
+---
+apiVersion: object.scaleway.upbound.io/v1alpha1
+kind: Bucket
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: bucket-alice-002
+  name: alice-002-alice-002
+spec:
+  forProvider:
+    name: alice-002-alice-002-abcde-fghij
+status:
+  conditions:
+  - lastTransitionTime: "1970-01-01T00:00:00Z"
+    reason: Available
+    status: "True"
+    type: Ready
+  - lastTransitionTime: "1970-01-01T00:00:00Z"
+    reason: ReconcileSuccess
+    status: "True"
+    type: Synced
+---
+apiVersion: object.scaleway.upbound.io/v1alpha1
+kind: Bucket
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: bucket-alice-shared-002
+  name: alice-002-alice-shared-002
+spec:
+  forProvider:
+    name: alice-002-alice-shared-002-abcde-fghij
+status:
+  conditions:
+  - lastTransitionTime: "1970-01-01T00:00:00Z"
+    reason: Available
+    status: "True"
+    type: Ready
+  - lastTransitionTime: "1970-01-01T00:00:00Z"
+    reason: ReconcileSuccess
+    status: "True"
+    type: Synced
+---
+apiVersion: iam.scaleway.upbound.io/v1alpha1
+kind: ApiKey
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: api-key-alice-002
+  name: alice-002
+spec: {}
+status:
+  conditions:
+  - lastTransitionTime: "1970-01-01T00:00:00Z"
+    reason: Available
+    status: "True"
+    type: Ready
+  - lastTransitionTime: "1970-01-01T00:00:00Z"
+    reason: ReconcileSuccess
+    status: "True"
+    type: Synced
+---
+apiVersion: object.scaleway.upbound.io/v1alpha1
+kind: Policy
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: bucket-policy-alice-002
+  name: alice-002
+spec: {}
+status:
+  conditions:
+  - lastTransitionTime: "1970-01-01T00:00:00Z"
+    reason: Available
+    status: "True"
+    type: Ready
+  - lastTransitionTime: "1970-01-01T00:00:00Z"
+    reason: ReconcileSuccess
+    status: "True"
+    type: Synced
+---
+apiVersion: object.scaleway.upbound.io/v1alpha1
+kind: Policy
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: bucket-policy-alice-shared-002
+  name: alice-shared-002
+spec: {}
+status:
+  conditions:
+  - lastTransitionTime: "1970-01-01T00:00:00Z"
+    reason: Available
+    status: "True"
+    type: Ready
+  - lastTransitionTime: "1970-01-01T00:00:00Z"
+    reason: ReconcileSuccess
+    status: "True"
+    type: Synced
+---
+apiVersion: iam.scaleway.upbound.io/v1alpha1
+kind: Policy
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: iam-policy-alice-002
+  name: alice-002
+spec: {}
+status:
+  conditions:
+  - lastTransitionTime: "1970-01-01T00:00:00Z"
+    reason: Available
+    status: "True"
+    type: Ready
+  - lastTransitionTime: "1970-01-01T00:00:00Z"
+    reason: ReconcileSuccess
+    status: "True"
+    type: Synced

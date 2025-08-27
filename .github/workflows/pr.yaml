@@ -87,6 +87,26 @@ jobs:
             crossplane render "tests/00${i}-buckets.yaml" aws/composition.yaml tests/functions.yaml --observed-resources "aws/tests/observed/00${i}-buckets.yaml" -x > "aws/00${i}-buckets.yaml"
             dyff between "aws/00${i}-buckets.yaml" "aws/tests/expected/00${i}-buckets.yaml" -s
           done
+  scaleway_unit_tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Install Crossplane CLI
+        run: |
+          curl -sL "https://raw.githubusercontent.com/crossplane/crossplane/main/install.sh" | XP_VERSION=v2.0.2 sh
+          sudo mv crossplane /usr/local/bin
+      - name: Set up Homebrew
+        uses: Homebrew/actions/setup-homebrew@main
+      - name: Install dyff
+        run: |
+          brew install dyff
+      - name: Run unit tests
+        run: |
+          for i in {1..5}; do
+            crossplane render "tests/00${i}-buckets.yaml" scaleway/composition.yaml tests/functions.yaml --observed-resources "scaleway/tests/observed/00${i}-buckets.yaml" --required-resources "scaleway/tests/required/00${i}-buckets.yaml" -x > "scaleway/00${i}-buckets.yaml"
+            dyff between "scaleway/00${i}-buckets.yaml" "scaleway/tests/expected/00${i}-buckets.yaml" -s
+          done
   minio_e2e_tests:
     runs-on: ubuntu-latest
     permissions:

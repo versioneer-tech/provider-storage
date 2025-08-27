@@ -1,0 +1,288 @@
+---
+apiVersion: pkg.internal/v1beta1
+kind: XStorage
+metadata:
+  labels:
+    crossplane.io/claim-name: alice-002
+    crossplane.io/claim-namespace: default
+  name: alice-002
+spec:
+  buckets:
+  - bucketName: alice-002
+    discoverable: false
+  - bucketName: alice-shared-002
+    discoverable: true
+  owner: alice-002
+status:
+  conditions:
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    reason: Available
+    status: "True"
+    type: Ready
+---
+apiVersion: iam.scaleway.upbound.io/v1alpha1
+kind: ApiKey
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: api-key-alice-002
+  labels:
+    crossplane.io/composite: alice-002
+  name: alice-002
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: XStorage
+    name: alice-002
+    uid: ""
+spec:
+  forProvider:
+    applicationIdRef:
+      name: alice-002
+  providerConfigRef:
+    name: storage-scaleway
+  writeConnectionSecretToRef:
+    name: alice-002
+    namespace: default
+---
+apiVersion: iam.scaleway.upbound.io/v1alpha1
+kind: Application
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: application-alice-002
+  labels:
+    crossplane.io/composite: alice-002
+  name: alice-002
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: XStorage
+    name: alice-002
+    uid: ""
+spec:
+  forProvider:
+    name: alice-002
+  providerConfigRef:
+    name: storage-scaleway
+---
+apiVersion: object.scaleway.upbound.io/v1alpha1
+kind: Bucket
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: bucket-alice-002
+    xstorages.pkg.internal/bucket-name: alice-002
+    xstorages.pkg.internal/discoverable: "False"
+    xstorages.pkg.internal/owner: alice-002
+  labels:
+    crossplane.io/composite: alice-002
+  name: alice-002-alice-002
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: XStorage
+    name: alice-002
+    uid: ""
+spec:
+  forProvider:
+    name: alice-002-alice-002-abcde-fghij
+  providerConfigRef:
+    name: storage-scaleway
+---
+apiVersion: object.scaleway.upbound.io/v1alpha1
+kind: Bucket
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: bucket-alice-shared-002
+    xstorages.pkg.internal/bucket-name: alice-shared-002
+    xstorages.pkg.internal/discoverable: "True"
+    xstorages.pkg.internal/owner: alice-002
+  labels:
+    crossplane.io/composite: alice-002
+  name: alice-002-alice-shared-002
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: XStorage
+    name: alice-002
+    uid: ""
+spec:
+  forProvider:
+    name: alice-002-alice-shared-002-abcde-fghij
+  providerConfigRef:
+    name: storage-scaleway
+---
+apiVersion: object.scaleway.upbound.io/v1alpha1
+kind: Policy
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: bucket-policy-alice-002
+  labels:
+    crossplane.io/composite: alice-002
+  name: alice-002
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: XStorage
+    name: alice-002
+    uid: ""
+spec:
+  forProvider:
+    bucket: alice-002-alice-002-abcde-fghij
+    policy: |-
+      {
+        "Version": "2023-04-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Principal": {
+              "SCW": [
+                "user_id:user_id",
+                "application_id:application_id_alice-002"
+              ]
+            },
+            "Action": [
+              "s3:*"
+            ],
+            "Resource": [
+              "alice-002-alice-002-abcde-fghij",
+              "alice-002-alice-002-abcde-fghij/*"
+            ]
+          },
+          {
+            "Effect": "Allow",
+            "Principal": {
+              "SCW": []
+            },
+            "Action": [
+              "s3:ListBucket",
+              "s3:GetObject",
+              "s3:PutObject",
+              "s3:DeleteObject"
+            ],
+            "Resource": [
+              "alice-002-alice-002-abcde-fghij",
+              "alice-002-alice-002-abcde-fghij/*"
+            ]
+          },
+          {
+            "Effect": "Allow",
+            "Principal": {
+              "SCW": []
+            },
+            "Action": [
+              "s3:ListBucket",
+              "s3:GetObject"
+            ],
+            "Resource": [
+              "alice-002-alice-002-abcde-fghij",
+              "alice-002-alice-002-abcde-fghij/*"
+            ]
+          }
+        ]
+      }
+  providerConfigRef:
+    name: storage-scaleway
+---
+apiVersion: object.scaleway.upbound.io/v1alpha1
+kind: Policy
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: bucket-policy-alice-shared-002
+  labels:
+    crossplane.io/composite: alice-002
+  name: alice-shared-002
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: XStorage
+    name: alice-002
+    uid: ""
+spec:
+  forProvider:
+    bucket: alice-002-alice-shared-002-abcde-fghij
+    policy: |-
+      {
+        "Version": "2023-04-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Principal": {
+              "SCW": [
+                "user_id:user_id",
+                "application_id:application_id_alice-002"
+              ]
+            },
+            "Action": [
+              "s3:*"
+            ],
+            "Resource": [
+              "alice-002-alice-shared-002-abcde-fghij",
+              "alice-002-alice-shared-002-abcde-fghij/*"
+            ]
+          },
+          {
+            "Effect": "Allow",
+            "Principal": {
+              "SCW": []
+            },
+            "Action": [
+              "s3:ListBucket",
+              "s3:GetObject",
+              "s3:PutObject",
+              "s3:DeleteObject"
+            ],
+            "Resource": [
+              "alice-002-alice-shared-002-abcde-fghij",
+              "alice-002-alice-shared-002-abcde-fghij/*"
+            ]
+          },
+          {
+            "Effect": "Allow",
+            "Principal": {
+              "SCW": []
+            },
+            "Action": [
+              "s3:ListBucket",
+              "s3:GetObject"
+            ],
+            "Resource": [
+              "alice-002-alice-shared-002-abcde-fghij",
+              "alice-002-alice-shared-002-abcde-fghij/*"
+            ]
+          }
+        ]
+      }
+  providerConfigRef:
+    name: storage-scaleway
+---
+apiVersion: iam.scaleway.upbound.io/v1alpha1
+kind: Policy
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: iam-policy-alice-002
+  labels:
+    crossplane.io/composite: alice-002
+  name: alice-002
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: XStorage
+    name: alice-002
+    uid: ""
+spec:
+  forProvider:
+    applicationIdRef:
+      name: alice-002
+    name: object-storage-full-access-alice-002
+    rule:
+    - organizationId: organization_id
+      permissionSetNames:
+      - ObjectStorageFullAccess
+  providerConfigRef:
+    name: storage-scaleway

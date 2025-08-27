@@ -1,0 +1,37 @@
+---
+apiVersion: v1
+data:
+  credentials: ewogICJhY2Nlc3Nfa2V5IjogImFjY2Vzc19rZXkiLAogICJzZWNyZXRfa2V5IjogInNlY3JldF9rZXkiLAogICJvcmdhbml6YXRpb25faWQiOiAib3JnYW5pemF0aW9uX2lkIiwKICAidXNlcl9pZCI6ICJ1c2VyX2lkIiwKICAicmVnaW9uIjogImZyLXBhciIsCiAgInpvbmUiOiAiZnItcGFyLTEiCn0K
+kind: Secret
+metadata:
+  name: storage-scaleway
+  namespace: crossplane-system
+type: Opaque
+---
+apiVersion: v1
+data:
+  random-string: abcde-fghij
+kind: ConfigMap
+metadata:
+  name: random-string
+  namespace: crossplane-system
+---
+apiVersion: iam.scaleway.upbound.io/v1alpha1
+kind: Application
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: application-alice-004
+  name: alice-004
+spec: {}
+status:
+  atProvider:
+    id: application_id_alice-004
+  conditions:
+  - lastTransitionTime: "1970-01-01T00:00:00Z"
+    reason: Available
+    status: "True"
+    type: Ready
+  - lastTransitionTime: "1970-01-01T00:00:00Z"
+    reason: ReconcileSuccess
+    status: "True"
+    type: Synced
