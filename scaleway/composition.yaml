@@ -13,34 +13,50 @@ spec:
     - step: create-buckets
       functionRef:
         name: crossplane-contrib-function-python
+      requirements:
+        requiredResources:
+        - requirementName: random-string-config-map
+          apiVersion: v1
+          kind: ConfigMap
+          name: random-string
+          namespace: crossplane-system
       input:
         apiVersion: python.fn.crossplane.io/v1beta1
         kind: Script
         script: |
+          import uuid
+          from crossplane.function import request
+
           def compose(req, rsp):
             observed_xr = req.observed.composite.resource
+
+            config_map = request.get_required_resource(req, "random-string-config-map")
+            if not config_map:
+              return
+
             owner = observed_xr["spec"]["owner"]
             buckets = observed_xr["spec"]["buckets"]
+
+            random_string = config_map["data"]["random-string"]
 
             for bucket in buckets:
               bucket_name = bucket["bucketName"]
               discoverable = bucket["discoverable"]
 
-              rsp.desired.resources[f"storage-scaleway-{bucket_name}"].resource.update({
+              rsp.desired.resources[bucket_name].resource.update({
                 "apiVersion": "object.scaleway.upbound.io/v1alpha1",
                 "kind": "Bucket",
                 "metadata": {
-                  "name": f"storage-scaleway-{bucket_name}",
+                  "name": f"{owner}-{bucket_name}",
                   "annotations": {
-                    "gotemplating.fn.crossplane.io/composition-resource-name": f"bucket-{owner}-{bucket_name}",
-                    "xstorages.pkg.internal/discoverable": f"{discoverable}",
-                    "xstorages.pkg.internal/bucket-name": f"{bucket_name}",
-                    "xstorages.pkg.internal/owner": f"{owner}"
+                    "xstorages.pkg.internal/discoverable": discoverable,
+                    "xstorages.pkg.internal/owner": owner,
+                    "xstorages.pkg.internal/bucket-name": bucket_name,
                   }
                 },
                 "spec": {
                   "forProvider": {
-                    "name": f"storage-scaleway-{bucket_name}"
+                    "name": f"{owner}-{bucket_name}-{random_string}"
                   },
                   "providerConfigRef": {
                     "name": "storage-scaleway"
@@ -153,8 +169,8 @@ spec:
           from crossplane.function import request, response
 
           def compose(req, rsp):
-            # Get observed composite resources
             observed_xr = req.observed.composite.resource
+            observed_resources = req.observed.resources
 
             # We need the provider-config-secret for the user_id so that we can add them as a Principal for the "owner"
             # permissions.
@@ -187,6 +203,11 @@ spec:
 
             for bucket in buckets:
               bucket_name = bucket["bucketName"]
+              observed_bucket_name = ""
+
+              for name, observed_resource in req.observed.resources.items():
+                if name == bucket_name:
+                  observed_bucket_name = observed_resource.resource["spec"]["forProvider"]["name"]
 
               # Since there is a limit of one policy per bucket it needs to include the owner, ReadWrite and ReadOnly
               # permissions. The owner and the ProviderConfig user always have "owner" permissions.
@@ -203,8 +224,8 @@ spec:
                     },
                     "Action": [ "s3:*" ],
                     "Resource": [
-                      f"storage-scaleway-{bucket_name}",
-                      f"storage-scaleway-{bucket_name}/*"
+                      observed_bucket_name,
+                      f"{observed_bucket_name}/*"
                     ]
                   },
                   {
@@ -219,8 +240,8 @@ spec:
                       "s3:DeleteObject"
                     ],
                     "Resource": [
-                      f"storage-scaleway-{bucket_name}",
-                      f"storage-scaleway-{bucket_name}/*"
+                      observed_bucket_name,
+                      f"{observed_bucket_name}/*"
                     ]
                   },
                   {
@@ -233,8 +254,8 @@ spec:
                       "s3:GetObject"
                     ],
                     "Resource": [
-                      f"storage-scaleway-{bucket_name}",
-                      f"storage-scaleway-{bucket_name}/*"
+                      observed_bucket_name,
+                      f"{observed_bucket_name}/*"
                     ]
                   }
                 ]
@@ -246,7 +267,7 @@ spec:
                 bucket_access_grants = spec["bucketAccessGrants"]
                 bucket_access_grant_object = [
                   grant for grant in bucket_access_grants
-                  if grant["bucketName"] == bucket_name
+                  if grant["bucketName"] == observed_bucket_name
                 ]
 
 
@@ -285,13 +306,10 @@ spec:
                 "kind": "Policy",
                 "metadata": {
                   "name": f"{bucket_name}",
-                  "annotations": {
-                    "gotemplating.fn.crossplane.io/composition-resource-name": f"bucket-policy-{bucket_name}"
-                  }
                 },
                 "spec": {
                   "forProvider": {
-                    "bucket": f"storage-scaleway-{bucket_name}",
+                    "bucket": observed_bucket_name,
                     "policy": json.dumps(policy, indent=2)
                   },
                   "providerConfigRef": {
