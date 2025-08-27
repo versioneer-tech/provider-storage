@@ -21,8 +21,8 @@ spec:
 status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: access-key-alice-005, policy-alice-005.owner.alice-005,
-      policy-alice-005.owner.alice-shared-005, and 4 more'
+    message: 'Unready resources: access-key-alice-005, bucket-alice-005-alice-005,
+      bucket-alice-005-alice-shared-005, and 6 more'
     reason: Creating
     status: "False"
     type: Ready
@@ -32,7 +32,6 @@ kind: AccessKey
 metadata:
   annotations:
     crossplane.io/composition-resource-name: access-key-alice-005
-  generateName: alice-005-
   labels:
     crossplane.io/composite: alice-005
   name: alice-005
@@ -59,10 +58,9 @@ metadata:
   annotations:
     crossplane.io/composition-resource-name: bucket-alice-005-alice-005
     xstorages.pkg.internal/discoverable: "false"
-  generateName: alice-005-
   labels:
     crossplane.io/composite: alice-005
-  name: alice-005
+  name: storage-aws-alice-005-p-s
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
     blockOwnerDeletion: true
@@ -82,10 +80,9 @@ metadata:
   annotations:
     crossplane.io/composition-resource-name: bucket-alice-005-alice-shared-005
     xstorages.pkg.internal/discoverable: "true"
-  generateName: alice-005-
   labels:
     crossplane.io/composite: alice-005
-  name: alice-shared-005
+  name: storage-aws-alice-shared-005-p-s
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
     blockOwnerDeletion: true
@@ -104,7 +101,6 @@ kind: Policy
 metadata:
   annotations:
     crossplane.io/composition-resource-name: policy-alice-005.owner.alice-005
-  generateName: alice-005-
   labels:
     crossplane.io/composite: alice-005
   name: alice-005.owner.alice-005
@@ -125,8 +121,8 @@ spec:
             "Effect": "Allow",
             "Action": [ "s3:*" ],
             "Resource": [
-              "arn:aws:s3:::alice-005",
-              "arn:aws:s3:::alice-005/*"
+              "arn:aws:s3:::storage-aws-alice-005-p-s",
+              "arn:aws:s3:::storage-aws-alice-005-p-s/*"
             ]
           }
         ]
@@ -139,7 +135,6 @@ kind: Policy
 metadata:
   annotations:
     crossplane.io/composition-resource-name: policy-alice-005.owner.alice-shared-005
-  generateName: alice-005-
   labels:
     crossplane.io/composite: alice-005
   name: alice-005.owner.alice-shared-005
@@ -160,8 +155,8 @@ spec:
             "Effect": "Allow",
             "Action": [ "s3:*" ],
             "Resource": [
-              "arn:aws:s3:::alice-shared-005",
-              "arn:aws:s3:::alice-shared-005/*"
+              "arn:aws:s3:::storage-aws-alice-shared-005-p-s",
+              "arn:aws:s3:::storage-aws-alice-shared-005-p-s/*"
             ]
           }
         ]
@@ -174,7 +169,6 @@ kind: Policy
 metadata:
   annotations:
     crossplane.io/composition-resource-name: policy-bob-005.readonly.alice-shared-005
-  generateName: alice-005-
   labels:
     crossplane.io/composite: alice-005
   name: bob-005.readonly.alice-shared-005
@@ -194,20 +188,12 @@ spec:
           {
             "Effect": "Allow",
             "Action": [
-              "s3:GetBucketLocation",
-              "s3:ListBucket"
-            ],
-            "Resource": [
-              "arn:aws:s3:::alice-shared-005"
-            ]
-          },
-          {
-            "Effect": "Allow",
-            "Action": [
+              "s3:ListBucket",
               "s3:GetObject"
             ],
             "Resource": [
-              "arn:aws:s3:::alice-shared-005/*"
+              "arn:aws:s3:::storage-aws-alice-shared-005-p-s",
+              "arn:aws:s3:::storage-aws-alice-shared-005-p-s/*"
             ]
           }
         ]
@@ -220,7 +206,6 @@ kind: User
 metadata:
   annotations:
     crossplane.io/composition-resource-name: user-alice-005
-  generateName: alice-005-
   labels:
     crossplane.io/composite: alice-005
   name: alice-005
@@ -241,7 +226,6 @@ kind: UserPolicyAttachment
 metadata:
   annotations:
     crossplane.io/composition-resource-name: user-policy-attachement-alice-005.owner.alice-005
-  generateName: alice-005-
   labels:
     crossplane.io/composite: alice-005
   name: alice-005.owner.alice-005
@@ -266,7 +250,6 @@ kind: UserPolicyAttachment
 metadata:
   annotations:
     crossplane.io/composition-resource-name: user-policy-attachement-alice-005.owner.alice-shared-005
-  generateName: alice-005-
   labels:
     crossplane.io/composite: alice-005
   name: alice-005.owner.alice-shared-005

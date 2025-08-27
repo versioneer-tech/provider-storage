@@ -8,8 +8,25 @@ helm repo update
 helm install crossplane \
 --namespace crossplane-system \
 --create-namespace crossplane-stable/crossplane \
---version 1.20.0 \
+--version 2.0.2 \
+--set provider.defaultActivations={} \
 --wait
+
+# Install the MRAP to reduce stress on the control plane
+kubectl apply -f - << EOF
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: ManagedResourceActivationPolicy
+metadata:
+  name: storage-aws
+spec:
+  activate:
+  - buckets.s3.aws.upbound.io
+  - accesskeys.iam.aws.upbound.io
+  - policies.iam.aws.upbound.io
+  - users.iam.aws.upbound.io
+  - userpolicyattachments.iam.aws.upbound.io
+  - objects.kubernetes.crossplane.io
+EOF
 
 # Install the storage-aws configuration package
 kubectl apply -f - << EOF
@@ -33,7 +50,7 @@ metadata:
   name: storage-aws
   namespace: crossplane-system
 stringData:
-  creds: |
+  credentials: |
     [default]
     aws_access_key_id = ${AWS_ACCESS_KEY_ID}
     aws_secret_access_key = ${AWS_SECRET_ACCESS_KEY}
@@ -51,7 +68,7 @@ spec:
     secretRef:
       name: storage-aws
       namespace: crossplane-system
-      key: creds
+      key: credentials
 EOF
 
 # Create RBAC for provider-kubernetes
