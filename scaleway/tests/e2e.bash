@@ -41,6 +41,7 @@ EOF
 # Wait for the configuration and providers to be healthy
 kubectl wait --for=condition=Healthy configuration.pkg.crossplane.io/storage-scaleway --timeout=15m
 kubectl wait --for=condition=Healthy providers.pkg.crossplane.io --all --timeout=15m
+kubectl wait --for=condition=Healthy functions.pkg.crossplane.io --all --timeout=15m
 
 # Configure the connection secret for provider-scaleway
 kubectl apply -f - << EOF
