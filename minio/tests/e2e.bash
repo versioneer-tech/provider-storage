@@ -44,7 +44,7 @@ kubectl apply -f - << EOF
 apiVersion: apiextensions.crossplane.io/v1alpha1
 kind: ManagedResourceActivationPolicy
 metadata:
-  name: storage-aws
+  name: storage-minio
 spec:
   activate:
   - buckets.minio.crossplane.io

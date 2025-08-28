@@ -7,6 +7,7 @@ The `provider-storage` [Configuration Package](https://docs.crossplane.io/latest
 The following configuration packages are built from `provider-storage`:
 
 - `storage-minio`
+- `storage-aws`
 
 ## First steps
 
@@ -15,6 +16,8 @@ Before you can work with any of the configuration packages built from `provider-
 You can either follow a tutorial to set up everything from scratch to deploy your first [Claim](https://docs.crossplane.io/latest/concepts/claims/) or, if you already have experience with Crossplane and Kubernetes, follow a how-to guide on how to install a specific configuration package built from `providers-storage`.
 
 ## Getting help
+
+The best way to get help is by creating an issue on [GitHub](https://github.com/versioneer-tech/provider-storage).
 
 ## How the documentation is organized
 

@@ -28,7 +28,29 @@ helm repo update
 helm install crossplane \
 --namespace crossplane-system \
 --create-namespace crossplane-stable/crossplane \
---version 1.20.0
+--version 2.0.2 \
+--set provider.defaultActivations={}
+```
+
+In order to reduce the strain on the control plane nodes, we also apply a [ManagedResourceActivationPolicy](https://docs.crossplane.io/latest/managed-resources/managed-resource-activation-policies/) and only activate the resources we need.
+
+```bash
+# mrap.yaml
+
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: ManagedResourceActivationPolicy
+metadata:
+  name: storage-minio
+spec:
+  activate:
+  - buckets.minio.crossplane.io
+  - policies.minio.crossplane.io
+  - users.minio.crossplane.io
+  - objects.kubernetes.crossplane.io
+```
+
+```bash
+kubectl apply -f mrap.yaml
 ```
 
 ### MinIO installation
@@ -121,15 +143,7 @@ For `storage-minio` to work, we need to configure the providers with a `Provider
 
 Let's start with `provider-minio`. In order for the provider to know where to actually create the resources specified in the Crossplane composition, we need to provide it with connection details through a `ProviderConfig`.
 
-Since we are using the MinIO instance installed in the cluster, we can forward the port for the web interface and create an API key.
-
-```bash
-kubectl port-forward pod/myminio-pool-0-0 -n minio-tenant 9090 9090
-```
-
-Navigate to `http://localhost:9090` and login with the username `minio` and `minio123`. Click on `Access Keys` and create a new access key.
-
-Then we need to create a `Secret` with the new access keys for `provider-minio` to connect.
+Since we are using the MinIO instance installed in the cluster, we can use the default API key for this tutorial.
 
 ```yaml
 # secret.yaml
@@ -140,8 +154,8 @@ metadata:
   name: storage-minio
   namespace: minio-tenant
 stringData:
-  AWS_ACCESS_KEY_ID: <Access Key>
-  AWS_SECRET_ACCESS_KEY: <Secret Key>
+  AWS_ACCESS_KEY_ID: minio
+  AWS_SECRET_ACCESS_KEY: minio123
 ```
 
 ```bash
@@ -181,53 +195,52 @@ The following file creates a `ServiceAccount`, `ClusterRole` and `ClusterRoleBin
 
 ```yaml
 # rbac.yaml
-
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: storage-kubernetes
 rules:
-- apiGroups:
-  - kubernetes.crossplane.io
-  resources:
-  - objects
-  - objects/status
-  - observedobjectcollections
-  - observedobjectcollections/status
-  - providerconfigs
-  - providerconfigs/status
-  - providerconfigusages
-  - providerconfigusages/status
-  verbs:
-  - get
-  - list
-  - watch
-  - update
-  - patch
-  - create
-- apiGroups:
-  - kubernetes.crossplane.io
-  resources:
-  - '*/finalizers'
-  verbs:
-  - update
-- apiGroups:
-  - coordination.k8s.io
-  resources:
-  - secrets
-  - configmaps
-  - events
-  - leases
-  verbs:
-  - '*'
-- apiGroups:
-  - minio.crossplane.io
-  resources:
-  - policies
-  verbs:
-  - watch
-  - get
+  - apiGroups:
+      - kubernetes.crossplane.io
+    resources:
+      - objects
+      - objects/status
+      - observedobjectcollections
+      - observedobjectcollections/status
+      - providerconfigs
+      - providerconfigs/status
+      - providerconfigusages
+      - providerconfigusages/status
+    verbs:
+      - get
+      - list
+      - watch
+      - update
+      - patch
+      - create
+  - apiGroups:
+      - kubernetes.crossplane.io
+    resources:
+      - "*/finalizers"
+    verbs:
+      - update
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - secrets
+      - configmaps
+      - events
+      - leases
+    verbs:
+      - "*"
+  - apiGroups:
+      - minio.crossplane.io
+    resources:
+      - policies
+    verbs:
+      - watch
+      - get
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -238,9 +251,9 @@ roleRef:
   kind: ClusterRole
   name: storage-kubernetes
 subjects:
-- kind: ServiceAccount
-  name: storage-kubernetes
-  namespace: crossplane-system
+  - kind: ServiceAccount
+    name: storage-kubernetes
+    namespace: crossplane-system
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -257,7 +270,6 @@ Now we can update `provider-kubernetes` with a `DeploymentRuntimeConfig` to use 
 
 ```yaml
 # kubernetes-provider-config.yaml
-
 ---
 apiVersion: pkg.crossplane.io/v1
 kind: Provider
@@ -300,7 +312,6 @@ Everything is up and running and we can create our first claim - or rather, our 
 
 ```yaml
 # claims.yaml
-
 ---
 apiVersion: pkg.internal/v1beta1
 kind: Storage
@@ -333,7 +344,6 @@ Now that everyone has their buckets, Alice wants to have access to `bob-shared` 
 
 ```yaml
 # claims.yaml
-
 ---
 apiVersion: pkg.internal/v1beta1
 kind: Storage
@@ -394,7 +404,6 @@ Bob is the `owner` of `bob-shared` so he needs to grant Alice the `ReadWrite` pe
 
 ```yaml
 # claims.yaml
-
 ---
 apiVersion: pkg.internal/v1beta1
 kind: Storage
