@@ -30,5 +30,9 @@ spec:
       kind: Function
       package: xpkg.crossplane.io/crossplane-contrib/function-go-templating
       version: ">=v0.10.0"
+    - apiVersion: pkg.crossplane.io/v1
+      kind: Function
+      package: xpkg.crossplane.io/crossplane-contrib/function-python
+      version: ">=v0.2.0"
   crossplane:
     version: ">=v2.0.2"
