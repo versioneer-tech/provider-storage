@@ -36,7 +36,7 @@ jobs:
       - name: Build and publish storage-aws Configuration Package
         run: |
           cp xrd.yaml aws/xrd.yaml
-          crossplane xpkg build --package-root=aws --ignore="tests/observed/*,tests/expected/*" --package-file=aws/storage-aws.xpkg --verbose
+          crossplane xpkg build --package-root=aws --ignore="tests/observed/*,tests/expected/*,tests/required/*" --package-file=aws/storage-aws.xpkg --verbose
           crossplane xpkg push --package-files=aws/storage-aws.xpkg "ghcr.io/versioneer-tech/provider-storage:${PR_SLUG}-aws" --verbose
   minio_unit_tests:
     runs-on: ubuntu-latest
