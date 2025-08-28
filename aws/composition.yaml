@@ -12,29 +12,49 @@ spec:
   pipeline:
     - step: create-buckets
       functionRef:
-        name: crossplane-contrib-function-go-templating
+        name: crossplane-contrib-function-python
+      requirements:
+        requiredResources:
+          - requirementName: random-string-config-map
+            apiVersion: v1
+            kind: ConfigMap
+            name: random-string
+            namespace: crossplane-system
       input:
-        apiVersion: gotemplating.fn.crossplane.io/v1beta1
-        kind: GoTemplate
-        source: Inline
-        inline:
-          template: |
-            {{ $owner := .observed.composite.resource.spec.owner }}
-            {{- range $i, $bucket := .observed.composite.resource.spec.buckets }}
-            ---
-            apiVersion: s3.aws.upbound.io/v1beta2
-            kind: Bucket
-            metadata:
-              name: storage-aws-{{ $bucket.bucketName }}-p-s
-              annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: bucket-{{ $owner }}-{{ $bucket.bucketName }}
-                xstorages.pkg.internal/discoverable: "{{ printf "%t" $bucket.discoverable }}"
-            spec:
-              forProvider:
-                region: eu-central-1
-              providerConfigRef:
-                name: storage-aws
-            {{- end }}
+        apiVersion: python.fn.crossplane.io/v1beta1
+        kind: Script
+        script: |
+          from crossplane.function import request
+
+          def compose(req, rsp):
+            observed_xr = req.observed.composite.resource
+            owner = observed_xr["spec"]["owner"]
+            buckets = observed_xr["spec"]["buckets"]
+
+            config_map = request.get_required_resource(req, "random-string-config-map")
+            if not config_map:
+              return
+
+            random_string = config_map["data"]["random-string"]
+
+            for bucket in buckets:
+              bucket_name = bucket["bucketName"]
+
+              rsp.desired.resources[f"bucket-{owner}-{bucket_name}"].resource.update({
+                "apiVersion": "s3.aws.upbound.io/v1beta2",
+                "kind": "Bucket",
+                "metadata": {
+                  "name": f"{owner}-{bucket_name}-{random_string}"
+                },
+                "spec": {
+                  "forProvider": {
+                    "region": "eu-central-1"
+                  },
+                  "providerConfigRef": {
+                    "name": "storage-aws"
+                  }
+                }
+              })
     - step: create-owner-policies
       functionRef:
         name: crossplane-contrib-function-go-templating
@@ -47,6 +67,7 @@ spec:
             {{ $owner := .observed.composite.resource.spec.owner }}
             {{ $root := . }}
             {{- range $i, $bucket := .observed.composite.resource.spec.buckets }}
+              {{ $bucketObject := get $root.observed.resources (printf "bucket-%s-%s" $owner $bucket.bucketName) | default dict }}
             ---
             apiVersion: iam.aws.upbound.io/v1beta1
             kind: Policy
@@ -64,8 +85,8 @@ spec:
                         "Effect": "Allow",
                         "Action": [ "s3:*" ],
                         "Resource": [
-                          "arn:aws:s3:::storage-aws-{{ $bucket.bucketName }}-p-s",
-                          "arn:aws:s3:::storage-aws-{{ $bucket.bucketName }}-p-s/*"
+                          "arn:aws:s3:::{{ $bucketObject.resource.metadata.name }}",
+                          "arn:aws:s3:::{{ $bucketObject.resource.metadata.name }}/*"
                         ]
                       }
                     ]
@@ -85,6 +106,7 @@ spec:
             {{ $owner := .observed.composite.resource.spec.owner }}
             {{ $root := . }}
             {{- range $i, $bucket := .observed.composite.resource.spec.bucketAccessGrants }}
+              {{ $bucketObject := get $root.observed.resources (printf "bucket-%s-%s" $owner $bucket.bucketName) | default dict }}
               {{- range $j, $grantee := $bucket.grantees }}
             ---
             apiVersion: iam.aws.upbound.io/v1beta1
@@ -109,8 +131,8 @@ spec:
                           "s3:DeleteObject"
                         ],
                         "Resource": [
-                          "arn:aws:s3:::storage-aws-{{ $bucket.bucketName }}-p-s",
-                          "arn:aws:s3:::storage-aws-{{ $bucket.bucketName }}-p-s/*"
+                          "arn:aws:s3:::{{ $bucketObject.resource.metadata.name }}",
+                          "arn:aws:s3:::{{ $bucketObject.resource.metadata.name }}/*"
                         ]
                       }
                     ]
@@ -128,8 +150,8 @@ spec:
                           "s3:GetObject"
                         ],
                         "Resource": [
-                          "arn:aws:s3:::storage-aws-{{ $bucket.bucketName }}-p-s",
-                          "arn:aws:s3:::storage-aws-{{ $bucket.bucketName }}-p-s/*"
+                          "arn:aws:s3:::{{ $bucketObject.resource.metadata.name }}",
+                          "arn:aws:s3:::{{ $bucketObject.resource.metadata.name }}/*"
                         ]
                       }
                     ]

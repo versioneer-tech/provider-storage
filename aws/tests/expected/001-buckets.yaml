@@ -16,8 +16,8 @@ spec:
 status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: access-key-alice-001, bucket-alice-001-alice-001,
-      bucket-alice-001-alice-shared-001, and 5 more'
+    message: 'Unready resources: access-key-alice-001, policy-alice-001.owner.alice-001,
+      policy-alice-001.owner.alice-shared-001, and 3 more'
     reason: Creating
     status: "False"
     type: Ready
@@ -52,10 +52,9 @@ kind: Bucket
 metadata:
   annotations:
     crossplane.io/composition-resource-name: bucket-alice-001-alice-001
-    xstorages.pkg.internal/discoverable: "false"
   labels:
     crossplane.io/composite: alice-001
-  name: storage-aws-alice-001-p-s
+  name: alice-001-alice-001
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
     blockOwnerDeletion: true
@@ -74,10 +73,9 @@ kind: Bucket
 metadata:
   annotations:
     crossplane.io/composition-resource-name: bucket-alice-001-alice-shared-001
-    xstorages.pkg.internal/discoverable: "true"
   labels:
     crossplane.io/composite: alice-001
-  name: storage-aws-alice-shared-001-p-s
+  name: alice-001-alice-shared-001
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
     blockOwnerDeletion: true
@@ -116,8 +114,8 @@ spec:
             "Effect": "Allow",
             "Action": [ "s3:*" ],
             "Resource": [
-              "arn:aws:s3:::storage-aws-alice-001-p-s",
-              "arn:aws:s3:::storage-aws-alice-001-p-s/*"
+              "arn:aws:s3:::alice-001-alice-001",
+              "arn:aws:s3:::alice-001-alice-001/*"
             ]
           }
         ]
@@ -150,8 +148,8 @@ spec:
             "Effect": "Allow",
             "Action": [ "s3:*" ],
             "Resource": [
-              "arn:aws:s3:::storage-aws-alice-shared-001-p-s",
-              "arn:aws:s3:::storage-aws-alice-shared-001-p-s/*"
+              "arn:aws:s3:::alice-001-alice-shared-001",
+              "arn:aws:s3:::alice-001-alice-shared-001/*"
             ]
           }
         ]
