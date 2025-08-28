@@ -77,7 +77,7 @@ apiVersion: object.scaleway.upbound.io/v1alpha1
 kind: Bucket
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: bucket-alice-005
+    crossplane.io/composition-resource-name: bucket-alice-005-alice-005
     xstorages.pkg.internal/bucket-name: alice-005
     xstorages.pkg.internal/discoverable: "False"
     xstorages.pkg.internal/owner: alice-005
@@ -101,7 +101,7 @@ apiVersion: object.scaleway.upbound.io/v1alpha1
 kind: Bucket
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: bucket-alice-shared-005
+    crossplane.io/composition-resource-name: bucket-alice-005-alice-shared-005
     xstorages.pkg.internal/bucket-name: alice-shared-005
     xstorages.pkg.internal/discoverable: "True"
     xstorages.pkg.internal/owner: alice-005

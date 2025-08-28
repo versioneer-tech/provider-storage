@@ -43,7 +43,7 @@ spec:
               bucket_name = bucket["bucketName"]
               discoverable = bucket["discoverable"]
 
-              rsp.desired.resources[f"bucket-{bucket_name}"].resource.update({
+              rsp.desired.resources[f"bucket-{owner}-{bucket_name}"].resource.update({
                 "apiVersion": "object.scaleway.upbound.io/v1alpha1",
                 "kind": "Bucket",
                 "metadata": {
@@ -200,7 +200,7 @@ spec:
               observed_bucket_name = ""
 
               for name, observed_resource in req.observed.resources.items():
-                if name == f"bucket-{bucket_name}":
+                if name == f"bucket-{owner}-{bucket_name}":
                   observed_bucket_name = observed_resource.resource["spec"]["forProvider"]["name"]
 
               # Since there is a limit of one policy per bucket it needs to include the owner, ReadWrite and ReadOnly

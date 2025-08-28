@@ -28,8 +28,31 @@ helm repo update
 helm install crossplane \
 --namespace crossplane-system \
 --create-namespace crossplane-stable/crossplane \
+--set provider.defaultActivations={} \
 --set args={"--enable-operations"} \
 --version 2.0.2
+```
+
+In order to reduce the strain on the control plane nodes, we also apply a [ManagedResourceActivationPolicy](https://docs.crossplane.io/latest/managed-resources/managed-resource-activation-policies/) and only activate the resources we need.
+
+```bash
+# mrap.yaml
+
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: ManagedResourceActivationPolicy
+metadata:
+  name: storage-scaleway
+spec:
+  activate:
+  - buckets.object.scaleway.upbound.io
+  - policies.object.scaleway.upbound.io
+  - apikeys.iam.scaleway.upbound.io
+  - applications.iam.scaleway.upbound.io
+  - policies.iam.scaleway.upbound.io
+```
+
+```bash
+kubectl apply -f mrap.yaml
 ```
 
 ## `storage-scaleway` configuration package installation
@@ -55,10 +78,10 @@ kubectl apply -f configuration.yaml
 
 This automatically installs the necessary dependencies specified in the configuration package:
 
-- [provider-scaleway](https://github.com/scaleway/crossplane-provider-scaleway) >= v0.4.0
-- [function-auto-ready](https://github.com/crossplane-contrib/function-auto-ready) >= 0.5.0
-- [function-go-templating](https://github.com/crossplane-contrib/function-go-templating) >= v0.10.0
-- [function-python](https://github.com/crossplane-contrib/function-python) >= v0.2.0
+- [provider-scaleway](https://github.com/scaleway/crossplane-provider-scaleway): v0.4.0
+- [function-auto-ready](https://github.com/crossplane-contrib/function-auto-ready): 0.5.0
+- [function-go-templating](https://github.com/crossplane-contrib/function-go-templating): v0.10.0
+- [function-python](https://github.com/crossplane-contrib/function-python): v0.2.0
 
 You can check this by running
 
@@ -273,8 +296,8 @@ spec:
         "s3:DeleteObject"
       ],
       "Resource": [
-        "storage-scaleway-bob-shared-p-s",
-        "storage-scaleway-bob-shared-p-s/*"
+        "bob-bob-shared-abcde-fghij",
+        "bob-bob-shared-abcde-fghij/*"
       ]
     }
   ...

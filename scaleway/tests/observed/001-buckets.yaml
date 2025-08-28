@@ -3,7 +3,7 @@ apiVersion: object.scaleway.upbound.io/v1alpha1
 kind: Bucket
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: bucket-alice-001
+    crossplane.io/composition-resource-name: bucket-alice-001-alice-001
   name: alice-001-alice-001
 spec:
   forProvider:
@@ -23,7 +23,7 @@ apiVersion: object.scaleway.upbound.io/v1alpha1
 kind: Bucket
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: bucket-alice-shared-001
+    crossplane.io/composition-resource-name: bucket-alice-001-alice-shared-001
   name: alice-001-alice-shared-001
 spec:
   forProvider:
