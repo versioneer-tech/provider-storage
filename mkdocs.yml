@@ -11,6 +11,8 @@ nav:
     - storage-minio: how-to-guides/storage-minio.md
     - storage-aws: how-to-guides/storage-aws.md
     - storage-scaleway: how-to-guides/storage-scaleway.md
+  - Discussions:
+    - Permission Workflow: discussions/permission-workflow.md
   - Reference guides:
     - API: reference-guides/api.md
 plugins:
