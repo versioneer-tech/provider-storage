@@ -28,7 +28,33 @@ helm repo update
 helm install crossplane \
 --namespace crossplane-system \
 --create-namespace crossplane-stable/crossplane \
---version 1.20.0
+--version 2.0.2 \
+--set provider.defaultActivations={} \
+--set args={"--enable-operations"}
+```
+
+In order to reduce the strain on the control plane nodes, we also apply a [ManagedResourceActivationPolicy](https://docs.crossplane.io/latest/managed-resources/managed-resource-activation-policies/) and only activate the resources we need.
+
+```bash
+# mrap.yaml
+
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: ManagedResourceActivationPolicy
+metadata:
+  name: storage-aws
+spec:
+  activate:
+  - buckets.s3.aws.upbound.io
+  - accesskeys.iam.aws.upbound.io
+  - policies.iam.aws.upbound.io
+  - users.iam.aws.upbound.io
+  - userpolicyattachments.iam.aws.upbound.io
+  - objects.kubernetes.crossplane.io
+
+```
+
+```bash
+kubectl apply -f mrap.yaml
 ```
 
 ## `storage-aws` configuration package installation
@@ -59,6 +85,7 @@ This automatically installs the necessary dependencies specified in the configur
 - [provider-kubernetes](https://github.com/crossplane-contrib/provider-kubernetes) >= v0.18.0
 - [function-auto-ready](https://github.com/crossplane-contrib/function-auto-ready) >= 0.5.0
 - [function-go-templating](https://github.com/crossplane-contrib/function-go-templating) >= v0.10.0
+- [function-python](https://github.com/crossplane-contrib/function-python) >= v0.2.0
 
 You can check this by running
 
@@ -81,13 +108,7 @@ For `storage-aws` to work, we need to configure the providers with a `ProviderCo
 
 Let's start with `provider-aws-s3` and `provider-aws-iam`. In order for the provider to know where to actually create the resources specified in the Crossplane composition, we need to provide it with connection details through a `ProviderConfig`.
 
-We need to create a `Secret` with the access keys for `provider-aws-s3` and `provider-aws-iam` to connect. For this, we need to `base64` encode the information as follows
-
-```bash
-echo -n "[default]\naws_access_key_id = <your-access-key-id>\naws_secret_access_key = <your-secret-access-key>" | base64
-```
-
-Copy the output of the above command into the secret and apply it to the cluster.
+We need to create a `Secret` with the access keys for `provider-aws-s3` and `provider-aws-iam` to connect.
 
 ```yaml
 # secret.yaml
@@ -97,9 +118,11 @@ kind: Secret
 metadata:
   name: storage-aws
   namespace: crossplane-system
-data:
-  creds: |
-    <base64-encoded-string>
+stringData:
+  credentials: |
+    [default]
+    aws_access_key_id = <aws-access-key-id>
+    aws_secret_access_key = <aws-secret-access-key>
 ```
 
 ```bash
@@ -121,7 +144,7 @@ spec:
     secretRef:
       name: storage-aws
       namespace: crossplane-system
-      key: creds
+      key: credentials
 ```
 
 ```bash
@@ -138,53 +161,52 @@ The following file creates a `ServiceAccount`, `ClusterRole` and `ClusterRoleBin
 
 ```yaml
 # rbac.yaml
-
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: storage-kubernetes
 rules:
-- apiGroups:
-  - kubernetes.crossplane.io
-  resources:
-  - objects
-  - objects/status
-  - observedobjectcollections
-  - observedobjectcollections/status
-  - providerconfigs
-  - providerconfigs/status
-  - providerconfigusages
-  - providerconfigusages/status
-  verbs:
-  - get
-  - list
-  - watch
-  - update
-  - patch
-  - create
-- apiGroups:
-  - kubernetes.crossplane.io
-  resources:
-  - '*/finalizers'
-  verbs:
-  - update
-- apiGroups:
-  - coordination.k8s.io
-  resources:
-  - secrets
-  - configmaps
-  - events
-  - leases
-  verbs:
-  - '*'
-- apiGroups:
-  - iam.aws.upbound.io
-  resources:
-  - policies
-  verbs:
-  - watch
-  - get
+  - apiGroups:
+      - kubernetes.crossplane.io
+    resources:
+      - objects
+      - objects/status
+      - observedobjectcollections
+      - observedobjectcollections/status
+      - providerconfigs
+      - providerconfigs/status
+      - providerconfigusages
+      - providerconfigusages/status
+    verbs:
+      - get
+      - list
+      - watch
+      - update
+      - patch
+      - create
+  - apiGroups:
+      - kubernetes.crossplane.io
+    resources:
+      - "*/finalizers"
+    verbs:
+      - update
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - secrets
+      - configmaps
+      - events
+      - leases
+    verbs:
+      - "*"
+  - apiGroups:
+      - iam.aws.upbound.io
+    resources:
+      - policies
+    verbs:
+      - watch
+      - get
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -195,9 +217,9 @@ roleRef:
   kind: ClusterRole
   name: storage-kubernetes
 subjects:
-- kind: ServiceAccount
-  name: storage-kubernetes
-  namespace: crossplane-system
+  - kind: ServiceAccount
+    name: storage-kubernetes
+    namespace: crossplane-system
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -214,7 +236,6 @@ Now we can update `provider-kubernetes` with a `DeploymentRuntimeConfig` to use 
 
 ```yaml
 # kubernetes-provider-config.yaml
-
 ---
 apiVersion: pkg.crossplane.io/v1
 kind: Provider
@@ -257,7 +278,6 @@ Everything is up and running and we can create our first claim - or rather, our 
 
 ```yaml
 # claims.yaml
-
 ---
 apiVersion: pkg.internal/v1beta1
 kind: Storage
@@ -290,7 +310,6 @@ Now that everyone has their buckets, Alice wants to have access to `bob-shared` 
 
 ```yaml
 # claims.yaml
-
 ---
 apiVersion: pkg.internal/v1beta1
 kind: Storage
@@ -345,7 +364,6 @@ Bob is the `owner` of `bob-shared` so he needs to grant Alice the `ReadWrite` pe
 
 ```yaml
 # claims.yaml
-
 ---
 apiVersion: pkg.internal/v1beta1
 kind: Storage
