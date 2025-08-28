@@ -16,7 +16,7 @@ kind: Configuration
 metadata:
   name: storage-minio
 spec:
-  package: ghcr.io/versioneer-tech/provider-storage:<!version!>-minio
+  package: ghcr.io/versioneer-tech/provider-storage/minio:<!version!>
 ```
 
 This automatically installs the necessary dependencies:

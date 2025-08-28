@@ -1,0 +1,363 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: provider-storage
+  labels:
+    storage: scaleway
+spec:
+  compositeTypeRef:
+    apiVersion: pkg.internal/v1beta1
+    kind: XStorage
+  mode: Pipeline
+  pipeline:
+    - step: create-buckets
+      functionRef:
+        name: crossplane-contrib-function-python
+      requirements:
+        requiredResources:
+        - requirementName: random-string-config-map
+          apiVersion: v1
+          kind: ConfigMap
+          name: random-string
+          namespace: crossplane-system
+      input:
+        apiVersion: python.fn.crossplane.io/v1beta1
+        kind: Script
+        script: |
+          import uuid
+          from crossplane.function import request
+
+          def compose(req, rsp):
+            observed_xr = req.observed.composite.resource
+
+            config_map = request.get_required_resource(req, "random-string-config-map")
+            if not config_map:
+              return
+
+            owner = observed_xr["spec"]["owner"]
+            buckets = observed_xr["spec"]["buckets"]
+
+            random_string = config_map["data"]["random-string"]
+
+            for bucket in buckets:
+              bucket_name = bucket["bucketName"]
+              discoverable = bucket["discoverable"]
+
+              rsp.desired.resources[f"bucket-{owner}-{bucket_name}"].resource.update({
+                "apiVersion": "object.scaleway.upbound.io/v1alpha1",
+                "kind": "Bucket",
+                "metadata": {
+                  "name": f"{owner}-{bucket_name}",
+                  "annotations": {
+                    "xstorages.pkg.internal/discoverable": f"{discoverable}",
+                    "xstorages.pkg.internal/owner": owner,
+                    "xstorages.pkg.internal/bucket-name": bucket_name
+                  }
+                },
+                "spec": {
+                  "forProvider": {
+                    "name": f"{owner}-{bucket_name}-{random_string}"
+                  },
+                  "providerConfigRef": {
+                    "name": "storage-scaleway"
+                  }
+                }
+              })
+    - step: create-application
+      functionRef:
+        name: crossplane-contrib-function-python
+      input:
+        apiVersion: python.fn.crossplane.io/v1beta1
+        kind: Script
+        script: |
+          def compose(req, rsp):
+            observed_xr = req.observed.composite.resource
+            owner = observed_xr["spec"]["owner"]
+
+            rsp.desired.resources[f"application-{owner}"].resource.update({
+              "apiVersion": "iam.scaleway.upbound.io/v1alpha1",
+              "kind": "Application",
+              "metadata": {
+                "name": owner,
+              },
+              "spec": {
+                "forProvider": {
+                  "name": owner
+                },
+                "providerConfigRef": {
+                  "name": "storage-scaleway"
+                }
+              }
+            })
+    - step: create-iam-policies
+      functionRef:
+        name: crossplane-contrib-function-python
+      requirements:
+        requiredResources:
+        - requirementName: provider-config-secret
+          apiVersion: v1
+          kind: Secret
+          name: storage-scaleway
+          namespace: crossplane-system
+      input:
+        apiVersion: python.fn.crossplane.io/v1beta1
+        kind: Script
+        script: |
+          import base64
+          import json
+
+          from crossplane.function import request, response
+
+          def compose(req, rsp):
+            observed_xr = req.observed.composite.resource
+
+            secret = request.get_required_resource(req, "provider-config-secret")
+            credentials = json.loads(base64.b64decode(secret["data"]["credentials"]))
+            organization_id = credentials["organization_id"]
+
+            owner = observed_xr["spec"]["owner"]
+
+            rsp.desired.resources[f"iam-policy-{owner}"].resource.update({
+              "apiVersion": "iam.scaleway.upbound.io/v1alpha1",
+              "kind": "Policy",
+              "metadata": {
+                "name": f"{owner}"
+              },
+              "spec": {
+                "forProvider": {
+                  "applicationIdRef": {
+                    "name": owner
+                  },
+                  "name": f"object-storage-full-access-{owner}",
+                  "rule": [
+                    {
+                      "organizationId": organization_id,
+                      "permissionSetNames": [
+                        "ObjectStorageFullAccess"
+                      ]
+                    }
+                  ]
+                },
+                "providerConfigRef": {
+                  "name": "storage-scaleway"
+                }
+              }
+            })
+    - step: create-bucket-policies
+      functionRef:
+        name: crossplane-contrib-function-python
+      requirements:
+        requiredResources:
+        - requirementName: provider-config-secret
+          apiVersion: v1
+          kind: Secret
+          name: storage-scaleway
+          namespace: crossplane-system
+      input:
+        apiVersion: python.fn.crossplane.io/v1beta1
+        kind: Script
+        script: |
+          import base64
+          import json
+
+          from crossplane.function import request, response
+
+          def compose(req, rsp):
+            observed_xr = req.observed.composite.resource
+            observed_resources = req.observed.resources
+
+            # We need the provider-config-secret for the user_id so that we can add them as a Principal for the "owner"
+            # permissions.
+            secret = request.get_required_resource(req, "provider-config-secret")
+            credentials = json.loads(base64.b64decode(secret["data"]["credentials"]))
+            user_id = credentials["user_id"]
+
+            spec = observed_xr["spec"]
+            owner = observed_xr["spec"]["owner"]
+            buckets = observed_xr["spec"]["buckets"]
+
+            # We need the application associated to the owner for the application_id so that we can add them as a
+            # Principal for the "owner" permissions.
+            response.require_resources(
+              rsp,
+              name = "application",
+              api_version = "iam.scaleway.upbound.io/v1alpha1",
+              kind = "Application",
+              match_name = owner
+            )
+
+            application = request.get_required_resource(req, "application")
+
+            # If the application associated to the owner does not exist, then there is nothing we can do and we exit
+            # the step and wait for Crossplane to call it again.
+            if not application:
+              return
+
+            application_id = application["status"]["atProvider"]["id"]
+
+            for bucket in buckets:
+              bucket_name = bucket["bucketName"]
+              observed_bucket_name = ""
+
+              for name, observed_resource in req.observed.resources.items():
+                if name == f"bucket-{owner}-{bucket_name}":
+                  observed_bucket_name = observed_resource.resource["spec"]["forProvider"]["name"]
+
+              # Since there is a limit of one policy per bucket it needs to include the owner, ReadWrite and ReadOnly
+              # permissions. The owner and the ProviderConfig user always have "owner" permissions.
+              policy = {
+                "Version": "2023-04-17",
+                "Statement": [
+                  {
+                    "Effect": "Allow",
+                    "Principal": {
+                      "SCW": [
+                        f"user_id:{user_id}",
+                        f"application_id:{application_id}"
+                      ]
+                    },
+                    "Action": [ "s3:*" ],
+                    "Resource": [
+                      observed_bucket_name,
+                      f"{observed_bucket_name}/*"
+                    ]
+                  },
+                  {
+                    "Effect": "Allow",
+                    "Principal": {
+                      "SCW": []
+                    },
+                    "Action": [
+                      "s3:ListBucket",
+                      "s3:GetObject",
+                      "s3:PutObject",
+                      "s3:DeleteObject"
+                    ],
+                    "Resource": [
+                      observed_bucket_name,
+                      f"{observed_bucket_name}/*"
+                    ]
+                  },
+                  {
+                    "Effect": "Allow",
+                    "Principal": {
+                      "SCW": []
+                    },
+                    "Action": [
+                      "s3:ListBucket",
+                      "s3:GetObject"
+                    ],
+                    "Resource": [
+                      observed_bucket_name,
+                      f"{observed_bucket_name}/*"
+                    ]
+                  }
+                ]
+              }
+
+              bucket_access_grant_object = []
+
+              if "bucketAccessGrants" in spec:
+                bucket_access_grants = spec["bucketAccessGrants"]
+                bucket_access_grant_object = [
+                  grant for grant in bucket_access_grants
+                  if grant["bucketName"] == bucket_name
+                ]
+
+
+              # We only need to add any principals if access has been granted to other owners. In order for Crossplane
+              # to continuously check if the owner exists, we require the resource. This offers an easy way to force
+              # the reconciliation of the bucket policy.
+              if bucket_access_grant_object:
+                bucket_access_grant = bucket_access_grant_object[0]
+                grantees = bucket_access_grant["grantees"]
+                for grantee in grantees:
+                  response.require_resources(
+                    rsp,
+                    name = f"application-{grantee}",
+                    api_version = "iam.scaleway.upbound.io/v1alpha1",
+                    kind = "Application",
+                    match_name = grantee
+                  )
+
+                  grantee_application = request.get_required_resource(req, f"application-{grantee}")
+
+                  # If we cannot find the application associated to the grantee we exit the loop because the policy
+                  # should still be created but just without the grantee in the principal.
+                  if not grantee_application:
+                    break
+
+                  grantee_id = grantee_application["status"]["atProvider"]["id"]
+
+                  if bucket_access_grant["permission"] == "ReadWrite":
+                    policy["Statement"][1]["Principal"]["SCW"].append(f"application_id:{grantee_id}")
+                  else:
+                    policy["Statement"][2]["Principal"]["SCW"].append(f"application_id:{grantee_id}")
+
+              # Create the policy with the correct policy and permissions.
+              rsp.desired.resources[f"bucket-policy-{bucket_name}"].resource.update({
+                "apiVersion": "object.scaleway.upbound.io/v1alpha1",
+                "kind": "Policy",
+                "metadata": {
+                  "name": f"{bucket_name}",
+                },
+                "spec": {
+                  "forProvider": {
+                    "bucket": observed_bucket_name,
+                    "policy": json.dumps(policy, indent=2)
+                  },
+                  "providerConfigRef": {
+                    "name": "storage-scaleway"
+                  }
+                }
+              })
+    - step: create-application-api-key
+      functionRef:
+        name: crossplane-contrib-function-python
+      input:
+        apiVersion: python.fn.crossplane.io/v1beta1
+        kind: Script
+        script: |
+          from crossplane.function import request, response
+
+          def compose(req, rsp):
+            observed_xr = req.observed.composite.resource
+            owner = observed_xr["spec"]["owner"]
+            namespace = observed_xr["metadata"]["labels"]["crossplane.io/claim-namespace"]
+
+            # We need the application associated to the owner otherwise there is no point in creating an API key
+            response.require_resources(
+              rsp,
+              name = "application",
+              api_version = "iam.scaleway.upbound.io/v1alpha1",
+              kind = "Application",
+              match_name = owner
+            )
+            application = request.get_required_resource(req, "application")
+            if not application:
+              return
+
+            rsp.desired.resources[f"api-key-{owner}"].resource.update({
+              "apiVersion": "iam.scaleway.upbound.io/v1alpha1",
+              "kind": "ApiKey",
+              "metadata": {
+                "name": owner
+              },
+              "spec": {
+                "forProvider": {
+                  "applicationIdRef": {
+                    "name": application["metadata"]["name"]
+                  }
+                },
+                "providerConfigRef": {
+                  "name": "storage-scaleway"
+                },
+                "writeConnectionSecretToRef": {
+                  "name": owner,
+                  "namespace": namespace
+                }
+              }
+            })
+    - step: automatically-detect-ready-composed-resources
+      functionRef:
+        name: crossplane-contrib-function-auto-ready

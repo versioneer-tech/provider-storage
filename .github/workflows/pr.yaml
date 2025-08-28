@@ -8,6 +8,10 @@ env:
   PR_SLUG: "pr-${{ github.event.pull_request.number }}"
   AWS_ACCESS_KEY_ID: "${{ secrets.AWS_ACCESS_KEY_ID }}"
   AWS_SECRET_ACCESS_KEY: "${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+  SCALEWAY_ACCESS_KEY_ID: "${{ secrets.SCALEWAY_ACCESS_KEY_ID }}"
+  SCALEWAY_SECRET_ACCESS_KEY: "${{ secrets.SCALEWAY_SECRET_ACCESS_KEY }}"
+  SCALEWAY_ORGANIZATION_ID: "${{ secrets.SCALEWAY_ORGANIZATION_ID }}"
+  SCALEWAY_USER_ID: "${{ secrets.SCALEWAY_USER_ID }}"
 
 jobs:
   build_and_publish_configuration_packages:
@@ -32,12 +36,17 @@ jobs:
         run: |
           cp xrd.yaml minio/xrd.yaml
           crossplane xpkg build --package-root=minio --ignore="tests/observed/*,tests/expected/*" --package-file=minio/storage-minio.xpkg --verbose
-          crossplane xpkg push --package-files=minio/storage-minio.xpkg "ghcr.io/versioneer-tech/provider-storage:${PR_SLUG}-minio" --verbose
+          crossplane xpkg push --package-files=minio/storage-minio.xpkg "ghcr.io/versioneer-tech/provider-storage/minio:${PR_SLUG}" --verbose
       - name: Build and publish storage-aws Configuration Package
         run: |
           cp xrd.yaml aws/xrd.yaml
           crossplane xpkg build --package-root=aws --ignore="tests/observed/*,tests/expected/*,tests/required/*" --package-file=aws/storage-aws.xpkg --verbose
-          crossplane xpkg push --package-files=aws/storage-aws.xpkg "ghcr.io/versioneer-tech/provider-storage:${PR_SLUG}-aws" --verbose
+          crossplane xpkg push --package-files=aws/storage-aws.xpkg "ghcr.io/versioneer-tech/provider-storage/aws:${PR_SLUG}" --verbose
+      - name: Build and publish storage-scaleway Configuration Package
+        run: |
+          cp xrd.yaml scaleway/xrd.yaml
+          crossplane xpkg build --package-root=scaleway --ignore="tests/observed/*,tests/expected/*,tests/required/*" --package-file=scaleway/storage-scaleway.xpkg --verbose
+          crossplane xpkg push --package-files=scaleway/storage-scaleway.xpkg "ghcr.io/versioneer-tech/provider-storage/scaleway:${PR_SLUG}" --verbose
   minio_unit_tests:
     runs-on: ubuntu-latest
     steps:
@@ -78,6 +87,26 @@ jobs:
             crossplane render "tests/00${i}-buckets.yaml" aws/composition.yaml tests/functions.yaml --observed-resources "aws/tests/observed/00${i}-buckets.yaml" --required-resources "aws/tests/required/00${i}-buckets.yaml" -x > "aws/00${i}-buckets.yaml"
             dyff between "aws/00${i}-buckets.yaml" "aws/tests/expected/00${i}-buckets.yaml" -s
           done
+  scaleway_unit_tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Install Crossplane CLI
+        run: |
+          curl -sL "https://raw.githubusercontent.com/crossplane/crossplane/main/install.sh" | XP_VERSION=v2.0.2 sh
+          sudo mv crossplane /usr/local/bin
+      - name: Set up Homebrew
+        uses: Homebrew/actions/setup-homebrew@main
+      - name: Install dyff
+        run: |
+          brew install dyff
+      - name: Run unit tests
+        run: |
+          for i in {1..5}; do
+            crossplane render "tests/00${i}-buckets.yaml" scaleway/composition.yaml tests/functions.yaml --observed-resources "scaleway/tests/observed/00${i}-buckets.yaml" --required-resources "scaleway/tests/required/00${i}-buckets.yaml" -x > "scaleway/00${i}-buckets.yaml"
+            dyff between "scaleway/00${i}-buckets.yaml" "scaleway/tests/expected/00${i}-buckets.yaml" -s
+          done
   minio_e2e_tests:
     runs-on: ubuntu-latest
     permissions:
@@ -107,8 +136,8 @@ jobs:
       - name: Delete Configuration Package
         run: |
           echo "${{ github.token }}" | gh auth login --with-token
-          package_id=$(gh api /orgs/versioneer-tech/packages/container/provider-storage/versions | jq --arg PR_SLUG "${PR_SLUG}" -r '.[] | select(.metadata.container.tags | contains(["\($PR_SLUG)-minio"])) | .id')
-          gh api --method DELETE --silent "/orgs/versioneer-tech/packages/container/provider-storage/versions/${package_id}"
+          package_id=$(gh api /orgs/versioneer-tech/packages/container/provider-storage%2Fminio/versions | jq --arg PR_SLUG "${PR_SLUG}" -r '.[] | select(.metadata.container.tags | contains(["\($PR_SLUG)"])) | .id')
+          gh api --method DELETE --silent "/orgs/versioneer-tech/packages/container/provider-storage%2Fminio/versions/${package_id}"
   aws_e2e_tests:
     runs-on: ubuntu-latest
     permissions:
@@ -138,5 +167,36 @@ jobs:
       - name: Delete Configuration Package
         run: |
           echo "${{ github.token }}" | gh auth login --with-token
-          package_id=$(gh api /orgs/versioneer-tech/packages/container/provider-storage/versions | jq --arg PR_SLUG "${PR_SLUG}" -r '.[] | select(.metadata.container.tags | contains(["\($PR_SLUG)-aws"])) | .id')
-          gh api --method DELETE --silent "/orgs/versioneer-tech/packages/container/provider-storage/versions/${package_id}"
+          package_id=$(gh api /orgs/versioneer-tech/packages/container/provider-storage%2Faws/versions | jq --arg PR_SLUG "${PR_SLUG}" -r '.[] | select(.metadata.container.tags | contains(["\($PR_SLUG)"])) | .id')
+          gh api --method DELETE --silent "/orgs/versioneer-tech/packages/container/provider-storage%2Faws/versions/${package_id}"
+  scaleway_e2e_tests:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    needs: build_and_publish_configuration_packages
+    env:
+      CHAINSAW: /home/runner/.chainsaw/chainsaw
+      KUBECTL: /usr/bin/kubectl
+      CROSSPLANE_NAMESPACE: crossplane-system
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Install Uptest CLI
+        run: |
+          curl -OL https://github.com/crossplane/uptest/releases/download/v1.4.0/uptest_linux-amd64
+          chmod +x uptest_linux-amd64
+          sudo mv uptest_linux-amd64 /usr/local/bin/uptest
+      - name: Install chainsaw CLI
+        uses: kyverno/action-install-chainsaw@v0.2.12
+        with:
+          release: v0.2.12
+      - name: Create kind cluster
+        uses: helm/kind-action@v1
+      - name: Run e2e tests
+        run: |
+          uptest e2e --setup-script scaleway/tests/e2e.bash examples/buckets.yaml
+      - name: Delete Configuration Package
+        run: |
+          echo "${{ github.token }}" | gh auth login --with-token
+          package_id=$(gh api /orgs/versioneer-tech/packages/container/provider-storage%2Fscaleway/versions | jq --arg PR_SLUG "${PR_SLUG}" -r '.[] | select(.metadata.container.tags | contains(["\($PR_SLUG)"])) | .id')
+          gh api --method DELETE --silent "/orgs/versioneer-tech/packages/container/provider-storage%2Fscaleway/versions/${package_id}"

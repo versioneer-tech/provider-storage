@@ -69,7 +69,7 @@ kind: Configuration
 metadata:
   name: storage-aws
 spec:
-  package: ghcr.io/versioneer-tech/provider-storage:<!version!>-aws
+  package: ghcr.io/versioneer-tech/provider-storage/aws:<!version!>
 ```
 
 Then, we need to apply it to the cluster with

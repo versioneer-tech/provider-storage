@@ -16,7 +16,7 @@ kind: Configuration
 metadata:
   name: storage-aws
 spec:
-  package: ghcr.io/versioneer-tech/provider-storage:<!version!>-aws
+  package: ghcr.io/versioneer-tech/provider-storage/aws:<!version!>
 ```
 
 This automatically installs the necessary dependencies:

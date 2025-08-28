@@ -8,6 +8,7 @@ The following configuration packages are built from `provider-storage`:
 
 - `storage-minio`
 - `storage-aws`
+- `storage-scaleway`
 
 ## First steps
 

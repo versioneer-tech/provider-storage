@@ -36,7 +36,7 @@ kind: Configuration
 metadata:
   name: storage-aws
 spec:
-  package: ghcr.io/versioneer-tech/provider-storage:${PR_SLUG}-aws
+  package: ghcr.io/versioneer-tech/provider-storage/aws:${PR_SLUG}
 EOF
 
 # Wait for the configuration and providers to be healthy
