@@ -5,9 +5,6 @@ The `storage-minio` configuration package allows the creation of `buckets` on a 
 ## How-to guides
 
 - [How to install the `storage-minio` configuration package](#how-to-install-the-storage-minio-configuration-package)
-- [How to create `Buckets` with `storage-minio`](#how-to-create-buckets-with-storage-minio)
-- [How to request access to `Buckets` from other `owners`](#how-to-request-access-to-buckets-from-other-owners)
-- [How to grant access to `Buckets` to other `owners`](#how-to-grant-access-to-buckets-to-other-owners)
 
 ### How to install the `storage-minio` configuration package
 
@@ -72,46 +69,46 @@ kind: ClusterRole
 metadata:
   name: <name>
 rules:
-- apiGroups:
-  - kubernetes.crossplane.io
-  resources:
-  - objects
-  - objects/status
-  - observedobjectcollections
-  - observedobjectcollections/status
-  - providerconfigs
-  - providerconfigs/status
-  - providerconfigusages
-  - providerconfigusages/status
-  verbs:
-  - get
-  - list
-  - watch
-  - update
-  - patch
-  - create
-- apiGroups:
-  - kubernetes.crossplane.io
-  resources:
-  - '*/finalizers'
-  verbs:
-  - update
-- apiGroups:
-  - coordination.k8s.io
-  resources:
-  - secrets
-  - configmaps
-  - events
-  - leases
-  verbs:
-  - '*'
-- apiGroups:
-  - minio.crossplane.io
-  resources:
-  - policies
-  verbs:
-  - watch
-  - get
+  - apiGroups:
+      - kubernetes.crossplane.io
+    resources:
+      - objects
+      - objects/status
+      - observedobjectcollections
+      - observedobjectcollections/status
+      - providerconfigs
+      - providerconfigs/status
+      - providerconfigusages
+      - providerconfigusages/status
+    verbs:
+      - get
+      - list
+      - watch
+      - update
+      - patch
+      - create
+  - apiGroups:
+      - kubernetes.crossplane.io
+    resources:
+      - "*/finalizers"
+    verbs:
+      - update
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - secrets
+      - configmaps
+      - events
+      - leases
+    verbs:
+      - "*"
+  - apiGroups:
+      - minio.crossplane.io
+    resources:
+      - policies
+    verbs:
+      - watch
+      - get
 ```
 
 When the `ClusterRole` is attached to the `ServiceAccount` via a `ClusterRoleBinding`, the actual `provider-kubernetes` can be updated with a `DeploymentRuntimeConfig` to use the newly created `ServiceAccount`. Furthermore, a standard `ProviderConfig` can be applied.
@@ -123,7 +120,6 @@ When the `ClusterRole` is attached to the `ServiceAccount` via a `ClusterRoleBin
     The name of the `ProviderConfig` needs to be `storage-kubernetes`! The composition will not work with any other name and will not be able to observe resources!
 
 ```yaml
-
 ---
 apiVersion: pkg.crossplane.io/v1
 kind: Provider
@@ -155,67 +151,3 @@ spec:
 ```
 
 This is everything that is needed for the `storage-minio` configuration package to function properly.
-
-### How to create `Buckets` with `storage-minio`
-
-In order to create buckets you need to specify the `owner` and the `bucketName`. Additionally, you can set the flag `discoverable` to true which adds an annotation `xstorages.pkg.internal/discoverable` to the bucket resource.
-
-```yaml
-apiVersion: pkg.internal/v1beta1
-kind: Storage
-metadata:
-  name: <name>
-  namespace: <namespace>
-spec:
-  owner: <owner>
-  buckets:
-    - bucketName: <bucketName>
-    - bucketName: <bucketName>
-      discoverable: true
-```
-
-### How to request access to `Buckets` from other `owners`
-
-If an `owner` wants to request access to a bucket from another `owner` it can just be added to a claim by specifying the `bucketAccessRequests`. The permission can either be `ReadWrite` or `ReadOnly`.
-
-```yaml
-apiVersion: pkg.internal/v1beta1
-kind: Storage
-metadata:
-  name: <name>
-  namespace: <namespace>
-spec:
-  ...
-  owner: <owner>
-  bucketAccessRequests:
-    - bucketName: <bucketName>
-      permissions: <permission>
-  ...
-```
-
-This creates a Kubernetes object with `provider-kubernetes` that observes if the `<owner>.<permission>.<bucketName>` exists. If the other `owner` has not granted access to the requested bucket yet (this means that the policy does not exist yet), the `XStorage` object will switch to `READY: False` and trigger the `crossplane` reconciliation loop which continuously checks if the policy exists.
-
-If access is granted to the bucket, the policy is created and attached to the `User` object of the `owner`. This switches the status of the `XStorage` object back to `READY: True`.
-
-### How to grant access to `Buckets` to other `owners`
-
-It is possible to grant `owners` access to a bucket without them first requesting access. However, it is only attached to the user role if the user has requested access to it as well. Similarly to the requests, the claim can include `bucketAccessGrants` that grant permissions (`ReadWrite` or `ReadOnly`) to a bucket to a list of `grantees`.
-
-```yaml
-apiVersion: pkg.internal/v1beta1
-kind: Storage
-metadata:
-  name: <name>
-  namespace: <namespace>
-spec:
-  ...
-  owner: <owner>
-  bucketAccessGrants:
-    - bucketName: <bucketName>
-      permissions: <permission>
-      grantees:
-        - <grantee>
-  ...
-```
-
-This creates the `<grantee>.<permission>.<bucketName>` policy so if the `grantee` request access to this bucket, they are automatically granted access.

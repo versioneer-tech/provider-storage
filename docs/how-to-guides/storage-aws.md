@@ -26,14 +26,11 @@ This automatically installs the necessary dependencies:
 - [provider-kubernetes](https://github.com/crossplane-contrib/provider-kubernetes) >= v0.18.0
 - [function-auto-ready](https://github.com/crossplane-contrib/function-auto-ready) >= 0.5.0
 - [function-go-templating](https://github.com/crossplane-contrib/function-go-templating) >= v0.10.0
+- [function-python](https://github.com/crossplane-contrib/function-python) >= v0.2.0
 
 However, it does not install the necessary `ProviderConfigs`, `ServiceAccounts` and `Secrets` that are actually needed for the `storage-aws` to work.
 
-The `provider-aws` needs credentials for AWS. Therefore, it needs a `Secret` which includes the access key and secret key which need to be `base64` encoded.
-
-```bash
-echo -n "[default]\naws_access_key_id = <your-access-key-id>\naws_secret_access_key = <your-secret-access-key>" | base64
-```
+The `provider-aws` needs credentials for AWS. Therefore, it needs a `Secret` which includes the access key and secret key.
 
 ```yaml
 apiVersion: v1
@@ -41,9 +38,11 @@ kind: Secret
 metadata:
   name: storage-aws
   namespace: crossplane-system
-data:
-  creds: |
-    <base64-encoded-string>
+stringData:
+  credentials: |
+    [default]
+    aws_access_key_id = <aws-access-key-id>
+    aws_secret_access_key = <aws-secret-access-key>
 ```
 
 Furthermore, the `ProviderConfig` needs to reference this secret.
@@ -62,7 +61,7 @@ spec:
     secretRef:
       name: storage-aws
       namespace: crossplane-system
-      key: creds
+      key: credentials
 ```
 
 The `provider-kubernetes` needs a `ServiceAccount` that can observe resources from `policies.iam.aws.upbound.io`. Below is an example `ClusterRole` which expands the default `ClusterRole` created by `crossplane-rbac`.
@@ -73,46 +72,46 @@ kind: ClusterRole
 metadata:
   name: storage-kubernetes
 rules:
-- apiGroups:
-  - kubernetes.crossplane.io
-  resources:
-  - objects
-  - objects/status
-  - observedobjectcollections
-  - observedobjectcollections/status
-  - providerconfigs
-  - providerconfigs/status
-  - providerconfigusages
-  - providerconfigusages/status
-  verbs:
-  - get
-  - list
-  - watch
-  - update
-  - patch
-  - create
-- apiGroups:
-  - kubernetes.crossplane.io
-  resources:
-  - '*/finalizers'
-  verbs:
-  - update
-- apiGroups:
-  - coordination.k8s.io
-  resources:
-  - secrets
-  - configmaps
-  - events
-  - leases
-  verbs:
-  - '*'
-- apiGroups:
-  - iam.aws.upbound.io
-  resources:
-  - policies
-  verbs:
-  - watch
-  - get
+  - apiGroups:
+      - kubernetes.crossplane.io
+    resources:
+      - objects
+      - objects/status
+      - observedobjectcollections
+      - observedobjectcollections/status
+      - providerconfigs
+      - providerconfigs/status
+      - providerconfigusages
+      - providerconfigusages/status
+    verbs:
+      - get
+      - list
+      - watch
+      - update
+      - patch
+      - create
+  - apiGroups:
+      - kubernetes.crossplane.io
+    resources:
+      - "*/finalizers"
+    verbs:
+      - update
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - secrets
+      - configmaps
+      - events
+      - leases
+    verbs:
+      - "*"
+  - apiGroups:
+      - iam.aws.upbound.io
+    resources:
+      - policies
+    verbs:
+      - watch
+      - get
 ```
 
 When the `ClusterRole` is attached to the `ServiceAccount` via a `ClusterRoleBinding`, the actual `provider-kubernetes` can be updated with a `DeploymentRuntimeConfig` to use the newly created `ServiceAccount`. Furthermore, a standard `ProviderConfig` can be applied.
@@ -124,7 +123,6 @@ When the `ClusterRole` is attached to the `ServiceAccount` via a `ClusterRoleBin
     The name of the `ProviderConfig` needs to be `storage-kubernetes`! The composition will not work with any other name and will not be able to observe resources!
 
 ```yaml
-
 ---
 apiVersion: pkg.crossplane.io/v1
 kind: Provider
