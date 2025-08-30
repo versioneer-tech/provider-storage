@@ -150,4 +150,8 @@ Now the question is: How does the the `crossplane` controller now know that it n
 }
 ```
 
+One downside is that there is no way to see who requested access to which Buckets yet. This will be implemented in a future release such that it can be used by external systems that want to build off of it.
+
 ## Conclusion
+
+In conclusion, the difference between `storage-minio` and `storage-aws` on the one hand and `storage-scaleway`on the other hand, comes down to the difference in Policies. While `storage-minio` and `storage-aws` create IAM Policies, `storage-scaleway` creates Bucket Policies. The permission workflow for the first two Configuration Packages works by creating specific `Objects` with `provider-kubernetes` that observe if an IAM Policy exists. This implies that the Claim always has the state `Ready: False` if it does not. The permission workflow for the last Configuration Package works by checking if the specified `Application`, that permission is granted, exists. The Claim is reconciled as long as the `Application` does not exist. This implies that the Claim always has the `Ready: True` state but there is no way (yet) to see if there is a request to a specific Bucket.
