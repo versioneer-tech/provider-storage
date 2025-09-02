@@ -19,13 +19,14 @@ spec:
           type: object
           properties:
             spec:
+              description: Spec defines the desired state of Storage.
               type: object
               properties:
                 owner:
                   description: Owner of the buckets to create.
                   type: string
                 buckets:
-                  description: List of buckets to create and which are owned by the `owner`.
+                  description: List of buckets to create and which are owned by the owner.
                   type: array
                   items:
                     type: object
@@ -34,13 +35,13 @@ spec:
                         description: Name of the bucket to create.
                         type: string
                       discoverable:
-                        description: Whether this bucket should be discoverable through the catalog by other `owners` (defined in separate `Storage` claims).
+                        description: Whether this bucket should be discoverable through the catalog by other owners (defined in separate Storage claims).
                         type: boolean
                         default: false
                     required:
                       - bucketName
                 bucketAccessRequests:
-                  description: List of buckets where the `owner` requests either ReadWrite or ReadOnly permissions from other `owners` (defined in separate `Storage` claims).
+                  description: List of buckets where the owner requests either ReadWrite or ReadOnly permissions from other owners (defined in separate Storage claims).
                   type: array
                   items:
                     type: object
@@ -58,7 +59,7 @@ spec:
                       - bucketName
                       - permission
                 bucketAccessGrants:
-                  description: List of buckets where the `owner` grants either ReadWrite or ReadOnly permissions to other `owners` (defined in separate `Storage` claims).
+                  description: List of buckets where the owner grants either ReadWrite or ReadOnly permissions to other owners (defined in separate Storage claims).
                   type: array
                   items:
                     type: object
@@ -73,7 +74,7 @@ spec:
                           - ReadWrite
                           - ReadOnly
                       grantees:
-                        description: List of `owners` (defined in separate `Storage` claims) that the permission is granted to.
+                        description: List of owners (defined in separate Storage claims) that the permission is granted to.
                         type: array
                         items:
                           type: string
@@ -84,5 +85,52 @@ spec:
               required:
                 - owner
                 - buckets
+            status:
+              description: Status defines the observed status of Storage.
+              type: object
+              properties:
+                storage:
+                  description: Information about connection details and buckets associated to the owner.
+                  type: object
+                  properties:
+                    buckets:
+                      description: List of buckets to associated with the owner.
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          bucketName:
+                            description: Name of the bucket.
+                            type: string
+                          permission:
+                            description: Permission asssociated with the bucket.
+                            type: string
+                            enum:
+                              - ReadWrite
+                              - ReadOnly
+                          status:
+                            description: Status of the permission access to the bucket.
+                            type: string
+                            enum:
+                              - Owned
+                              - Requested
+                              - Granted
+                              - Denied
+                    connectionDetails:
+                      description: Connection details for the owner to access buckets.
+                      type: object
+                      properties:
+                        accessKey:
+                          description: This is the AWS_ACCESS_KEY_ID or username.
+                          type: string
+                        accessSecret:
+                          description: This is the AWS_SECRET_ACCESS_KEY or password.
+                          type: string
+                        endpoint:
+                          description: The endpoint to connect and authenticate to.
+                          type: string
+                        region:
+                          description: The region the buckets are created in.
+                          type: string
           required:
             - spec
