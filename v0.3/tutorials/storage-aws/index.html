@@ -1,0 +1,1276 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://versioneer-tech.github.io/provider-storage/v0.3/tutorials/storage-aws/">
+      
+      
+        <link rel="prev" href="../storage-minio/">
+      
+      
+        <link rel="next" href="../storage-scaleway/">
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.18">
+    
+    
+      
+        <title>storage-aws - provider-storage</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.7e37652d.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#tutorials-storage-aws" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="provider-storage" class="md-header__button md-logo" aria-label="provider-storage" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            provider-storage
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              storage-aws
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="provider-storage" class="md-nav__button md-logo" aria-label="provider-storage" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    provider-storage
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Tutorials
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Tutorials
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../storage-minio/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    storage-minio
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    storage-aws
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    storage-aws
+    
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      Prerequisites
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Prerequisites">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#kind-cluster-and-crossplane-installation" class="md-nav__link">
+    <span class="md-ellipsis">
+      kind cluster and crossplane installation
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#storage-aws-configuration-package-installation" class="md-nav__link">
+    <span class="md-ellipsis">
+      storage-aws configuration package installation
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="storage-aws configuration package installation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#provider-aws-s3-and-provider-aws-iam-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      provider-aws-s3 and provider-aws-iam configuration
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#provider-kubernetes-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      provider-kubernetes configuration
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#creating-buckets-for-alice-and-bob" class="md-nav__link">
+    <span class="md-ellipsis">
+      Creating Buckets for Alice and Bob
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#requesting-access-to-buckets-from-bob" class="md-nav__link">
+    <span class="md-ellipsis">
+      Requesting access to Buckets from Bob
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#granting-access-to-buckets-to-alice" class="md-nav__link">
+    <span class="md-ellipsis">
+      Granting access to Buckets to Alice
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#conclusion" class="md-nav__link">
+    <span class="md-ellipsis">
+      Conclusion
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../storage-scaleway/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    storage-scaleway
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    How-to guides
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            How-to guides
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to-guides/general/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    general
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to-guides/storage-minio/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    storage-minio
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to-guides/storage-aws/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    storage-aws
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to-guides/storage-scaleway/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    storage-scaleway
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Discussions
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Discussions
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../discussions/permission-workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Permission Workflow
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Reference guides
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Reference guides
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference-guides/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    API
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      Prerequisites
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Prerequisites">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#kind-cluster-and-crossplane-installation" class="md-nav__link">
+    <span class="md-ellipsis">
+      kind cluster and crossplane installation
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#storage-aws-configuration-package-installation" class="md-nav__link">
+    <span class="md-ellipsis">
+      storage-aws configuration package installation
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="storage-aws configuration package installation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#provider-aws-s3-and-provider-aws-iam-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      provider-aws-s3 and provider-aws-iam configuration
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#provider-kubernetes-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      provider-kubernetes configuration
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#creating-buckets-for-alice-and-bob" class="md-nav__link">
+    <span class="md-ellipsis">
+      Creating Buckets for Alice and Bob
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#requesting-access-to-buckets-from-bob" class="md-nav__link">
+    <span class="md-ellipsis">
+      Requesting access to Buckets from Bob
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#granting-access-to-buckets-to-alice" class="md-nav__link">
+    <span class="md-ellipsis">
+      Granting access to Buckets to Alice
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#conclusion" class="md-nav__link">
+    <span class="md-ellipsis">
+      Conclusion
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="tutorials-storage-aws">Tutorials: storage-aws</h1>
+<p>These tutorials offer a series of steps to install, run and deploy your first <code>Claim</code> for the <code>storage-aws</code> configuration package. We are going to create buckets for Alice and Bob, two imaginary users. Then, Alice is going to request access to a bucket which is owned by Bob and in the last step Bob is going to grant access to Alice for this bucket.</p>
+<h2 id="prerequisites">Prerequisites</h2>
+<p>This tutorial assumes that you have <a href="https://go.dev/">go</a>, <a href="https://kubernetes.io/docs/tasks/tools/#kubectl">kubectl</a> and <a href="https://helm.sh/docs/intro/install/">helm</a> installed on your machine. Furthermore, we are using a local <a href="https://kind.sigs.k8s.io/">kind</a> cluster for this tutorial. You can find installation instructions <a href="https://kind.sigs.k8s.io/#installation-and-usage">here</a>.</p>
+<h3 id="kind-cluster-and-crossplane-installation"><code>kind</code> cluster and <code>crossplane</code> installation</h3>
+<p>After you have installed the necessary tools, we can create a new cluster with</p>
+<pre><code class="language-bash">kind create cluster --name storage-aws
+</code></pre>
+<p>and check if everything is working with</p>
+<pre><code class="language-bash">kubectl get pods -A
+</code></pre>
+<p>If the cluster is up and running, we need to install Crossplane. You can find more information about the installation process <a href="https://docs.crossplane.io/latest/software/install/">here</a>.</p>
+<pre><code class="language-bash">helm repo add crossplane-stable https://charts.crossplane.io/stable
+helm repo update
+helm install crossplane \
+--namespace crossplane-system \
+--create-namespace crossplane-stable/crossplane \
+--version 2.0.2 \
+--set provider.defaultActivations={} \
+--set args={&quot;--enable-operations&quot;}
+</code></pre>
+<p>In order to reduce the strain on the control plane nodes, we also apply a <a href="https://docs.crossplane.io/latest/managed-resources/managed-resource-activation-policies/">ManagedResourceActivationPolicy</a> and only activate the resources we need.</p>
+<pre><code class="language-bash"># mrap.yaml
+
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: ManagedResourceActivationPolicy
+metadata:
+  name: storage-aws
+spec:
+  activate:
+  - buckets.s3.aws.upbound.io
+  - accesskeys.iam.aws.upbound.io
+  - policies.iam.aws.upbound.io
+  - users.iam.aws.upbound.io
+  - userpolicyattachments.iam.aws.upbound.io
+  - objects.kubernetes.crossplane.io
+
+</code></pre>
+<pre><code class="language-bash">kubectl apply -f mrap.yaml
+</code></pre>
+<h2 id="storage-aws-configuration-package-installation"><code>storage-aws</code> configuration package installation</h2>
+<p>In order to install the <code>storage-aws</code> configuration package, we first need to create a <code>Configuration</code>.</p>
+<pre><code class="language-yaml"># configuration.yaml
+
+apiVersion: pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: storage-aws
+spec:
+  package: ghcr.io/versioneer-tech/provider-storage/aws:v0.3
+</code></pre>
+<p>Then, we need to apply it to the cluster with</p>
+<pre><code class="language-bash">kubectl apply -f configuration.yaml
+</code></pre>
+<p>This automatically installs the necessary dependencies specified in the configuration package:</p>
+<ul>
+<li><a href="https://github.com/crossplane-contrib/provider-upjet-aws">provider-aws-s3</a> &gt;= v2.0.0</li>
+<li><a href="https://github.com/crossplane-contrib/provider-upjet-aws">provider-aws-iam</a> &gt;= v2.0.0</li>
+<li><a href="https://github.com/crossplane-contrib/provider-kubernetes">provider-kubernetes</a> &gt;= v0.18.0</li>
+<li><a href="https://github.com/crossplane-contrib/function-auto-ready">function-auto-ready</a> &gt;= 0.5.0</li>
+<li><a href="https://github.com/crossplane-contrib/function-go-templating">function-go-templating</a> &gt;= v0.10.0</li>
+<li><a href="https://github.com/crossplane-contrib/function-python">function-python</a> &gt;= v0.2.0</li>
+</ul>
+<p>You can check this by running</p>
+<pre><code class="language-bash">kubectl get pods -A
+</code></pre>
+<p>and confirm that you see pods name <code>crossplane-contrib-function-auto-ready-...</code>, <code>crossplane-contrib-provider-kubernetes-...</code>, etc. Furthermore, you should now see one <code>CompositeResourceDefinition</code> or <code>XRD</code> and one <code>Composition</code> with</p>
+<pre><code class="language-bash">kubectl get xrds
+kubectl get compositions
+</code></pre>
+<p>The <code>storage-aws</code> configuration package is now installed. However, it is not functional yet since it does not install the necessary <code>ProviderConfigs</code>, <code>ServiceAccounts</code>, <code>ClusterRoles</code>, <code>ClusterRoleBindings</code> and <code>Secrets</code> that are needed by the <code>provider-aws-s3</code>, <code>provider-aws-iam</code> and <code>provider-kubernetes</code>.</p>
+<h3 id="provider-aws-s3-and-provider-aws-iam-configuration"><code>provider-aws-s3</code> and <code>provider-aws-iam</code> configuration</h3>
+<p>For <code>storage-aws</code> to work, we need to configure the providers with a <code>ProviderConfig</code>.</p>
+<p>Let's start with <code>provider-aws-s3</code> and <code>provider-aws-iam</code>. In order for the provider to know where to actually create the resources specified in the Crossplane composition, we need to provide it with connection details through a <code>ProviderConfig</code>.</p>
+<p>We need to create a <code>Secret</code> with the access keys for <code>provider-aws-s3</code> and <code>provider-aws-iam</code> to connect.</p>
+<pre><code class="language-yaml"># secret.yaml
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: storage-aws
+  namespace: crossplane-system
+stringData:
+  credentials: |
+    [default]
+    aws_access_key_id = &lt;aws-access-key-id&gt;
+    aws_secret_access_key = &lt;aws-secret-access-key&gt;
+</code></pre>
+<pre><code class="language-bash">kubectl apply -f secret.yaml
+</code></pre>
+<p>Finally, we can finish the setup for <code>provider-aws-s3</code> and <code>provider-aws-iam</code> by applying a <code>ProviderConfig</code> that references this secret.</p>
+<pre><code class="language-yaml"># aws-provider-config.yaml
+
+apiVersion: aws.upbound.io/v1beta1
+kind: ProviderConfig
+metadata:
+  name: storage-aws
+spec:
+  credentials:
+    source: Secret
+    secretRef:
+      name: storage-aws
+      namespace: crossplane-system
+      key: credentials
+</code></pre>
+<pre><code class="language-bash">kubectl apply -f aws-provider-config.yaml
+</code></pre>
+<p>That's it for <code>provider-aws-s3</code> and <code>provider-aws-iam</code>.</p>
+<h3 id="provider-kubernetes-configuration"><code>provider-kubernetes</code> configuration</h3>
+<p>The second provider needed for <code>storage-aws</code> is <code>provider-kubernetes</code>. Since we want to observe <code>Policies</code> created by <code>provider-aws-iam</code>, we need to create a <code>ServiceAccount</code> for <code>provider-kubernetes</code> that actually has permissions to observe these resources.</p>
+<p>The following file creates a <code>ServiceAccount</code>, <code>ClusterRole</code> and <code>ClusterRoleBinding</code> for those permissions.</p>
+<pre><code class="language-yaml"># rbac.yaml
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: storage-kubernetes
+rules:
+  - apiGroups:
+      - kubernetes.crossplane.io
+    resources:
+      - objects
+      - objects/status
+      - observedobjectcollections
+      - observedobjectcollections/status
+      - providerconfigs
+      - providerconfigs/status
+      - providerconfigusages
+      - providerconfigusages/status
+    verbs:
+      - get
+      - list
+      - watch
+      - update
+      - patch
+      - create
+  - apiGroups:
+      - kubernetes.crossplane.io
+    resources:
+      - &quot;*/finalizers&quot;
+    verbs:
+      - update
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - secrets
+      - configmaps
+      - events
+      - leases
+    verbs:
+      - &quot;*&quot;
+  - apiGroups:
+      - iam.aws.upbound.io
+    resources:
+      - policies
+    verbs:
+      - watch
+      - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: storage-kubernetes
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: storage-kubernetes
+subjects:
+  - kind: ServiceAccount
+    name: storage-kubernetes
+    namespace: crossplane-system
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: storage-kubernetes
+  namespace: crossplane-system
+</code></pre>
+<pre><code class="language-bash">kubectl apply -f rbac.yaml
+</code></pre>
+<p>Now we can update <code>provider-kubernetes</code> with a <code>DeploymentRuntimeConfig</code> to use this new <code>ServiceAccount</code>. Additionally, we provide the basic <code>ProviderConfig</code> needed by <code>provider-kubernetes</code>.</p>
+<pre><code class="language-yaml"># kubernetes-provider-config.yaml
+---
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: crossplane-contrib-provider-kubernetes
+spec:
+  package: xpkg.upbound.io/crossplane-contrib/provider-kubernetes:v0.18.0
+  runtimeConfigRef:
+    apiVersion: pkg.crossplane.io/v1beta1
+    kind: DeploymentRuntimeConfig
+    name: storage-kubernetes
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: DeploymentRuntimeConfig
+metadata:
+  name: storage-kubernetes
+spec:
+  serviceAccountTemplate:
+    metadata:
+      name: storage-kubernetes
+---
+apiVersion: kubernetes.crossplane.io/v1alpha1
+kind: ProviderConfig
+metadata:
+  name: storage-kubernetes
+spec:
+  credentials:
+    source: InjectedIdentity
+</code></pre>
+<pre><code class="language-bash">kubectl apply -f kubernetes-provider-config.yaml
+</code></pre>
+<p>That's it for <code>provider-kubernetes</code> and the complete installation of <code>storage-aws</code>! Now we can finally create our first claim and see the configuration package in action!</p>
+<h2 id="creating-buckets-for-alice-and-bob">Creating <code>Buckets</code> for Alice and Bob</h2>
+<p>Everything is up and running and we can create our first claim - or rather, our first claims! Let's assume that, by default, we need two buckets for every user of the platform. Therefore, we create two two buckets named <code>alice</code> and <code>alice-shared</code> for the user "Alice" and <code>bob</code> and <code>bob-shared</code> for the user "Bob".</p>
+<pre><code class="language-yaml"># claims.yaml
+---
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  name: alice
+spec:
+  owner: alice
+  buckets:
+    - bucketName: alice
+    - bucketName: alice-shared
+---
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  name: bob
+spec:
+  owner: bob
+  buckets:
+    - bucketName: bob
+    - bucketName: bob-shared
+</code></pre>
+<pre><code class="language-bash">kubectl apply -f claims.yaml
+</code></pre>
+<h2 id="requesting-access-to-buckets-from-bob">Requesting access to <code>Buckets</code> from Bob</h2>
+<p>Now that everyone has their buckets, Alice wants to have access to <code>bob-shared</code> since both are working on a project together and she needs access to his results. Since Alice also needs to upload her results to that bucket she needs <code>ReadWrite</code> access.</p>
+<pre><code class="language-yaml"># claims.yaml
+---
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  name: alice
+spec:
+  owner: alice
+  buckets:
+    - bucketName: alice
+    - bucketName: alice-shared
+  bucketAccessRequests:
+    - bucketName: bob-shared
+      permission: ReadWrite
+---
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  name: bob
+spec:
+  owner: bob
+  buckets:
+    - bucketName: bob
+    - bucketName: bob-shared
+</code></pre>
+<pre><code class="language-bash">kubectl apply -f claims.yaml
+</code></pre>
+<p>Note that the status of the <code>XStorage</code> object <code>alice-...</code> has changed to <code>READY: False</code> since the <code>alice.readwrite.bob-shared</code> policy does not exist yet and, therefore, cannot be attached to the user role.</p>
+<pre><code class="language-bash">kubectl get xstorages
+
+# Output
+NAME          SYNCED   READY   COMPOSITION        AGE
+alice-d7kbk   True     False   provider-storage   13m
+bob-2s79f     True     True    provider-storage   13m
+</code></pre>
+<pre><code class="language-bash">kubectl get objects.kubernetes.crossplane.io
+
+# Output
+NAME                                         KIND     PROVIDERCONFIG       SYNCED   READY   AGE
+policy-observer-alice.readwrite.bob-shared   Policy   storage-kubernetes   False            87s
+</code></pre>
+<h2 id="granting-access-to-buckets-to-alice">Granting access to <code>Buckets</code> to Alice</h2>
+<p>Bob is the <code>owner</code> of <code>bob-shared</code> so he needs to grant Alice the <code>ReadWrite</code> permission to the bucket.</p>
+<pre><code class="language-yaml"># claims.yaml
+---
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  name: alice
+spec:
+  owner: alice
+  buckets:
+    - bucketName: alice
+    - bucketName: alice-shared
+  bucketAccessRequests:
+    - bucketName: bob-shared
+      permission: ReadWrite
+---
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  name: bob
+spec:
+  owner: bob
+  buckets:
+    - bucketName: bob
+    - bucketName: bob-shared
+  bucketAccessGrants:
+    - bucketName: bob-shared
+      permission: ReadWrite
+      grantees:
+        - alice
+</code></pre>
+<pre><code class="language-bash">kubectl apply -f claims.yaml
+</code></pre>
+<p>Note that it can take up to two minutes until the new policy is observed and synced. The status of the <code>XStorage</code> object has changed back to <code>READY: True</code> since the <code>alice.readwrite.bob-shared</code> policy has been created (Bob granted access to Alice) and is now attached to the user role.</p>
+<pre><code class="language-bash">kubectl get xstorages
+
+# Output
+NAME          SYNCED   READY   COMPOSITION        AGE
+alice-d7kbk   True     True    storage-minio      15m
+bob-2s79f     True     True    storage-minio      15m
+</code></pre>
+<pre><code class="language-bash">kubectl get objects.kubernetes.crossplane.io
+
+# Output
+NAME                                         KIND     PROVIDERCONFIG       SYNCED   READY   AGE
+policy-observer-alice.readwrite.bob-shared   Policy   storage-kubernetes   False            87s
+</code></pre>
+<pre><code class="language-bash">kubectl get userpolicyattachments.iam.aws.upbound.io
+
+# Output
+NAME                         SYNCED   READY   EXTERNAL-NAME                      AGE
+alice.owner.alice            True     True    alice-20250815121642974900000002   13m
+alice.owner.alice-shared     True     True    alice-20250815121642980400000004   13m
+alice.readwrite.bob-shared   True     True    alice-20250815122824423600000005   2m4s
+bob.owner.bob                True     True    bob-20250815121642978200000003     13m
+bob.owner.bob-shared         True     True    bob-20250815121642972100000001     13m
+</code></pre>
+<h2 id="conclusion">Conclusion</h2>
+<p>Congratulations! You have worked through the whole tutorial and have installed <code>storage-aws</code> and deployed your first claims. You should no be able to follow most of the <strong>How-to guides</strong> in the sidebar and look through the API definitions in the <strong>Reference guides</strong> and see what other options you can enable/disable in the claims.</p>
+<p>We are always happy about feedback and suggestions on how to improve the documentation or <code>provider-storage</code> as a whole. Therefore, if you have trouble following the tutorial or find errors please open an issue on <a href="https://github.com/versioneer-tech/provider-storage/issues">GitHub</a> and let us know about it!</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "../..", "features": ["content.code.copy"], "search": "../../assets/javascripts/workers/search.973d3a69.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.92b07e13.min.js"></script>
+      
+    
+  </body>
+</html>
