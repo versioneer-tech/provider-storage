@@ -1,8 +1,12 @@
-name: Tag
+name: Publish Provider Storage
 on:
   push:
     tags:
-      - 'v*'
+      - "[0-9]+\\.[0-9]+"
+      - "[0-9]+\\.[0-9]+-alpha\\.[0-9]+"
+      - "[0-9]+\\.[0-9]+-beta\\.[0-9]+"
+      - "[0-9]+\\.[0-9]+-rc\\.[0-9]+"
+
 jobs:
   build_and_publish_configuration_packages:
     runs-on: ubuntu-latest
