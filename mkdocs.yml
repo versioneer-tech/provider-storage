@@ -1,5 +1,6 @@
 site_name: provider-storage
 site_url: https://versioneer-tech.github.io/provider-storage/
+copyright: "Copyright &copy; 2025, Versioneer"
 nav:
   - Home: index.md
   - Tutorials:
@@ -22,8 +23,16 @@ markdown_extensions:
   - admonition
 theme:
   name: material
+  language: en
   features:
-  - content.code.copy
+    - content.code.copy
+    - search.suggest
+    - toc.follow
+  logo: imgs/logo.png
+  favicon: imgs/favicon.ico
+  palette:
+    - scheme: default
+      primary: white
 extra:
   version:
     provider: mike
