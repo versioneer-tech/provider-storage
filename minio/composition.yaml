@@ -7,209 +7,283 @@ metadata:
 spec:
   compositeTypeRef:
     apiVersion: pkg.internal/v1beta1
-    kind: XStorage
+    kind: Storage
   mode: Pipeline
   pipeline:
+    - step: prepare-environment
+      functionRef:
+        name: crossplane-contrib-function-environment-configs
+      input:
+        apiVersion: environmentconfigs.fn.crossplane.io/v1beta1
+        kind: Input
+        spec:
+          environmentConfigs:
+            - type: Reference
+              ref:
+                name: storage
+
     - step: create-buckets
       functionRef:
-        name: crossplane-contrib-function-go-templating
+        name: crossplane-contrib-function-python
       input:
-        apiVersion: gotemplating.fn.crossplane.io/v1beta1
-        kind: GoTemplate
-        source: Inline
-        inline:
-          template: |
-            {{ $owner := .observed.composite.resource.spec.owner }}
-            {{- range $i, $bucket := .observed.composite.resource.spec.buckets }}
-            ---
-            apiVersion: minio.crossplane.io/v1
-            kind: Bucket
-            metadata:
-              name: {{ $bucket.bucketName }}
-              annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: bucket-{{ $owner }}-{{ $bucket.bucketName }}
-                xstorages.pkg.internal/discoverable: "{{ printf "%t" $bucket.discoverable }}"
-            spec:
-              providerConfigRef:
-                name: storage-minio
-            {{- end }}
+        apiVersion: python.fn.crossplane.io/v1beta1
+        kind: Script
+        script: |
+          from crossplane.function.proto.v1 import run_function_pb2 as fnv1
+          from google.protobuf import json_format
+          def _to_dict(struct):
+              return {} if struct is None else (struct if isinstance(struct, dict) else json_format.MessageToDict(struct, preserving_proto_field_name=True))
+          def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
+              xr = _to_dict(req.observed.composite.resource)
+              meta = xr.get("metadata", {}) or {}
+              spec = xr.get("spec", {}) or {}
+              name = meta.get("name") or (spec.get("claimRef", {}) or {}).get("name") or "<name-missing>"
+              ns = meta.get("namespace") or (spec.get("claimRef", {}) or {}).get("namespace") or "default"
+              for b in spec.get("buckets", []) or []:
+                  bucket = b.get("bucketName")
+                  if not bucket:
+                      continue
+                  discoverable = str(bool(b.get("discoverable", False))).lower()
+                  objname = f"bucket-{bucket}"
+                  rsp.desired.resources[f"bucket-{name}-{bucket}"].resource.update({
+                      "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
+                      "kind": "Object",
+                      "metadata": {"name": objname, "namespace": ns, "annotations": {"crossplane.io/composition-resource-name": f"bucket-{name}-{bucket}"}},
+                      "spec": {
+                          "forProvider": {
+                              "manifest": {
+                                  "apiVersion": "minio.crossplane.io/v1",
+                                  "kind": "Bucket",
+                                  "metadata": {
+                                      "name": bucket,
+                                      "annotations": {"storages.pkg.internal/discoverable": discoverable}
+                                  },
+                                  "spec": {"providerConfigRef": {"name": "provider-minio"}}
+                              }
+                          },
+                          "providerConfigRef": { "name": "provider-kubernetes", "kind": "ProviderConfig" },
+                          "readiness": { "policy": "SuccessfulCreate" },
+                          "watch": False
+                      }
+                  })
+
     - step: create-owner-policies
       functionRef:
-        name: crossplane-contrib-function-go-templating
+        name: crossplane-contrib-function-python
       input:
-        apiVersion: gotemplating.fn.crossplane.io/v1beta1
-        kind: GoTemplate
-        source: Inline
-        inline:
-          template: |
-            {{ $owner := .observed.composite.resource.spec.owner }}
-            {{- range $i, $bucket := .observed.composite.resource.spec.buckets }}
-            ---
-            apiVersion: minio.crossplane.io/v1
-            kind: Policy
-            metadata:
-              name: {{ $owner }}.owner.{{ $bucket.bucketName }}
-              annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: policy-{{ $owner }}.owner.{{ $bucket.bucketName }}
-            spec:
-              forProvider:
-                rawPolicy: |
-                  {
-                    "Version": "2012-10-17",
-                    "Statement": [
-                      {
-                        "Effect": "Allow",
-                        "Action": [ "s3:*" ],
-                        "Resource": [
-                          "arn:aws:s3:::{{ $bucket.bucketName }}",
-                          "arn:aws:s3:::{{ $bucket.bucketName }}/*"
-                        ]
+        apiVersion: python.fn.crossplane.io/v1beta1
+        kind: Script
+        script: |
+          import json
+          from crossplane.function.proto.v1 import run_function_pb2 as fnv1
+          from google.protobuf import json_format
+          def _to_dict(struct):
+              return {} if struct is None else (struct if isinstance(struct, dict) else json_format.MessageToDict(struct, preserving_proto_field_name=True))
+          def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
+              xr = _to_dict(req.observed.composite.resource)
+              meta = xr.get("metadata", {}) or {}
+              spec = xr.get("spec", {}) or {}
+              name = meta.get("name") or (spec.get("claimRef", {}) or {}).get("name") or "<name-missing>"
+              ns = meta.get("namespace") or (spec.get("claimRef", {}) or {}).get("namespace") or "default"
+              for b in spec.get("buckets", []) or []:
+                  bucket = b.get("bucketName")
+                  if not bucket:
+                      continue
+                  polname = f"{name}.owner.{bucket}"
+                  objname = f"policy-owner-{bucket}"
+                  raw = json.dumps({
+                      "Version": "2012-10-17",
+                      "Statement": [{
+                          "Effect": "Allow",
+                          "Action": ["s3:*"],
+                          "Resource": [f"arn:aws:s3:::{bucket}", f"arn:aws:s3:::{bucket}/*"]
+                      }]
+                  }, indent=2)
+                  rsp.desired.resources[f"policy-owner-{name}-{bucket}"].resource.update({
+                      "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
+                      "kind": "Object",
+                      "metadata": {"name": objname, "namespace": ns, "annotations": {"crossplane.io/composition-resource-name": f"policy-owner-{name}-{bucket}"}},
+                      "spec": {
+                          "forProvider": {
+                              "manifest": {
+                                  "apiVersion": "minio.crossplane.io/v1",
+                                  "kind": "Policy",
+                                  "metadata": {"name": polname},
+                                  "spec": {
+                                      "forProvider": {"rawPolicy": raw},
+                                      "providerConfigRef": {"name": "provider-minio"}
+                                  }
+                              }
+                          },
+                          "providerConfigRef": { "name": "provider-kubernetes", "kind": "ProviderConfig" },
+                          "readiness": { "policy": "SuccessfulCreate" },
+                          "watch": False
                       }
-                    ]
-                  }
-              providerConfigRef:
-                name: storage-minio
-            {{- end }}
+                  })
+
     - step: create-grant-bucket-access-policies
       functionRef:
-        name: crossplane-contrib-function-go-templating
+        name: crossplane-contrib-function-python
       input:
-        apiVersion: gotemplating.fn.crossplane.io/v1beta1
-        kind: GoTemplate
-        source: Inline
-        inline:
-          template: |
-            {{- range $i, $bucket := .observed.composite.resource.spec.bucketAccessGrants }}
-              {{- range $j, $grantee := $bucket.grantees }}
-            ---
-            apiVersion: minio.crossplane.io/v1
-            kind: Policy
-            metadata:
-              name: {{ $grantee }}.{{ $bucket.permission | lower }}.{{ $bucket.bucketName }}
-              annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: policy-{{ $grantee }}.{{ $bucket.permission | lower }}.{{ $bucket.bucketName }}
-            spec:
-              forProvider:
-                {{- if eq $bucket.permission "ReadWrite"}}
-                rawPolicy: |
-                  {
-                    "Version": "2012-10-17",
-                    "Statement": [
-                      {
-                        "Effect": "Allow",
-                        "Action": [
-                          "s3:GetBucketLocation",
-                          "s3:ListBucket",
-                          "s3:GetObject",
-                          "s3:PutObject",
-                          "s3:DeleteObject"
-                        ],
-                        "Resource": [
-                          "arn:aws:s3:::{{ $bucket.bucketName }}",
-                          "arn:aws:s3:::{{ $bucket.bucketName }}/*"
-                        ]
-                      }
-                    ]
-                  }
-                {{- end }}
-                {{- if eq $bucket.permission "ReadOnly"}}
-                rawPolicy: |
-                  {
-                    "Version": "2012-10-17",
-                    "Statement": [
-                      {
-                        "Effect": "Allow",
-                        "Action": [
-                          "s3:GetBucketLocation",
-                          "s3:ListBucket"
-                        ],
-                        "Resource": [
-                          "arn:aws:s3:::{{ $bucket.bucketName }}"
-                        ]
-                      },
-                      {
-                        "Effect": "Allow",
-                        "Action": [
-                          "s3:GetObject"
-                        ],
-                        "Resource": [
-                          "arn:aws:s3:::{{ $bucket.bucketName }}/*"
-                        ]
-                      }
-                    ]
-                  }
-                {{- end }}
-              providerConfigRef:
-                name: storage-minio
-              {{- end }}
-            {{- end }}
+        apiVersion: python.fn.crossplane.io/v1beta1
+        kind: Script
+        script: |
+          import json
+          from crossplane.function.proto.v1 import run_function_pb2 as fnv1
+          from google.protobuf import json_format
+          def _to_dict(struct):
+              return {} if struct is None else (struct if isinstance(struct, dict) else json_format.MessageToDict(struct, preserving_proto_field_name=True))
+          def _raw_policy(bucket, perm):
+              if perm == "readwrite":
+                  stmt = [{
+                      "Effect": "Allow",
+                      "Action": ["s3:GetBucketLocation","s3:ListBucket","s3:GetObject","s3:PutObject","s3:DeleteObject"],
+                      "Resource": [f"arn:aws:s3:::{bucket}", f"arn:aws:s3:::{bucket}/*"]
+                  }]
+              else:
+                  stmt = [
+                      {"Effect": "Allow","Action": ["s3:GetBucketLocation","s3:ListBucket"],"Resource": [f"arn:aws:s3:::{bucket}"]},
+                      {"Effect": "Allow","Action": ["s3:GetObject"],"Resource": [f"arn:aws:s3:::{bucket}/*"]}
+                  ]
+              return json.dumps({"Version": "2012-10-17","Statement": stmt}, indent=2)
+          def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
+              xr = _to_dict(req.observed.composite.resource)
+              meta = xr.get("metadata", {}) or {}
+              spec = xr.get("spec", {}) or {}
+              ns = meta.get("namespace") or (spec.get("claimRef", {}) or {}).get("namespace") or "default"
+              for grant in spec.get("bucketAccessGrants", []) or []:
+                  bucket = grant.get("bucketName")
+                  perm = (grant.get("permission") or "").lower()
+                  if not bucket or perm not in ("readwrite", "readonly"):
+                      continue
+                  raw = _raw_policy(bucket, perm)
+                  for grantee in grant.get("grantees", []) or []:
+                      polname = f"{grantee}.{perm}.{bucket}"
+                      key = f"policy-grant-{grantee}-{perm}-{bucket}"
+                      rsp.desired.resources[key].resource.update({
+                          "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
+                          "kind": "Object",
+                          "metadata": {"name": key, "namespace": ns, "annotations": {"crossplane.io/composition-resource-name": key}},
+                          "spec": {
+                              "forProvider": {
+                                  "manifest": {
+                                      "apiVersion": "minio.crossplane.io/v1",
+                                      "kind": "Policy",
+                                      "metadata": {"name": polname},
+                                      "spec": {
+                                          "forProvider": {"rawPolicy": raw},
+                                          "providerConfigRef": {"name": "provider-minio"}
+                                      }
+                                  }
+                              },
+                              "providerConfigRef": { "name": "provider-kubernetes", "kind": "ProviderConfig" },
+                              "readiness": { "policy": "SuccessfulCreate" },
+                              "watch": False
+                          }
+                      })
+
     - step: check-if-requested-policies-exist
       functionRef:
-        name: crossplane-contrib-function-go-templating
+        name: crossplane-contrib-function-python
       input:
-        apiVersion: gotemplating.fn.crossplane.io/v1beta1
-        kind: GoTemplate
-        source: Inline
-        inline:
-          template: |
-            {{ $owner := .observed.composite.resource.spec.owner }}
-            {{- range $i, $bucket := .observed.composite.resource.spec.bucketAccessRequests }}
-            ---
-            apiVersion: kubernetes.crossplane.io/v1alpha2
-            kind: Object
-            metadata:
-              annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: check-policy-{{ $owner }}.{{ $bucket.permission | lower }}.{{ $bucket.bucketName }}
-              name: policy-observer-{{ $owner}}.{{ $bucket.permission | lower }}.{{ $bucket.bucketName }}
-            spec:
-              managementPolicies: ["Observe"]
-              forProvider:
-                manifest:
-                  apiVersion: minio.crossplane.io/v1
-                  kind: Policy
-                  metadata:
-                    name: {{ $owner}}.{{ $bucket.permission | lower }}.{{ $bucket.bucketName }}
-              providerConfigRef:
-                name: storage-kubernetes
-            {{- end }}
+        apiVersion: python.fn.crossplane.io/v1beta1
+        kind: Script
+        script: |
+          from crossplane.function.proto.v1 import run_function_pb2 as fnv1
+          from google.protobuf import json_format
+          def _to_dict(struct):
+              return {} if struct is None else (struct if isinstance(struct, dict) else json_format.MessageToDict(struct, preserving_proto_field_name=True))
+          def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
+              xr = _to_dict(req.observed.composite.resource)
+              meta = xr.get("metadata", {}) or {}
+              spec = xr.get("spec", {}) or {}
+              name = meta.get("name") or (spec.get("claimRef", {}) or {}).get("name") or "<name-missing>"
+              ns = meta.get("namespace") or (spec.get("claimRef", {}) or {}).get("namespace") or "default"
+              for reqpol in spec.get("bucketAccessRequests", []) or []:
+                  bucket = reqpol.get("bucketName")
+                  perm = (reqpol.get("permission") or "").lower()
+                  if not bucket or perm not in ("readwrite", "readonly"):
+                      continue
+                  polname = f"{name}.{perm}.{bucket}"
+                  key = f"check-policy-{polname}"
+                  rsp.desired.resources[key].resource.update({
+                      "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
+                      "kind": "Object",
+                      "metadata": {"name": f"policy-observer-{name}-{perm}-{bucket}", "namespace": ns, "annotations": {"crossplane.io/composition-resource-name": key}},
+                      "spec": {
+                          "managementPolicies": ["Observe"],
+                          "forProvider": {
+                              "manifest": {
+                                  "apiVersion": "minio.crossplane.io/v1",
+                                  "kind": "Policy",
+                                  "metadata": {"name": polname}
+                              }
+                          },
+                          "providerConfigRef": { "name": "provider-kubernetes", "kind": "ProviderConfig" },
+                          "readiness": { "policy": "SuccessfulCreate" },
+                          "watch": False
+                      }
+                  })
+
     - step: create-user-with-policies
       functionRef:
-        name: crossplane-contrib-function-go-templating
+        name: crossplane-contrib-function-python
       input:
-        apiVersion: gotemplating.fn.crossplane.io/v1beta1
-        kind: GoTemplate
-        source: Inline
-        inline:
-          template: |
-            {{ $owner := .observed.composite.resource.spec.owner }}
-            {{ $namespace := index .observed.composite.resource.metadata.labels "crossplane.io/claim-namespace" }}
-            {{ $root := . }}
-            ---
-            apiVersion: minio.crossplane.io/v1
-            kind: User
-            metadata:
-              name: {{ $owner }}
-              annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: user-{{ $owner }}
-            spec:
-              forProvider:
-                userName: {{ $owner }}
-                policies:
-                {{- range $i, $bucket := .observed.composite.resource.spec.buckets }}
-                  - {{ $owner }}.owner.{{ $bucket.bucketName }}
-                {{- end }}
-                {{- range $i, $bucket := .observed.composite.resource.spec.bucketAccessRequests }}
-                  {{ $policyCheckName := printf "check-policy-%s.%s.%s" $owner ($bucket.permission | lower) $bucket.bucketName }}
-                  {{ $policyCheck := get $root.observed.resources $policyCheckName | default dict }}
-                  {{- if $policyCheck.resource.status.atProvider }}
-                  - {{ $owner }}.{{ $bucket.permission | lower }}.{{ $bucket.bucketName }}
-                  {{- end }}
-                {{- end }}
-              providerConfigRef:
-                name: storage-minio
-              writeConnectionSecretToRef:
-                name: {{ $owner }}
-                namespace: {{ $namespace }}
+        apiVersion: python.fn.crossplane.io/v1beta1
+        kind: Script
+        script: |
+          from crossplane.function.proto.v1 import run_function_pb2 as fnv1
+          from google.protobuf import json_format
+          def _to_dict(struct):
+              return {} if struct is None else (struct if isinstance(struct, dict) else json_format.MessageToDict(struct, preserving_proto_field_name=True))
+          def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
+              xr = _to_dict(req.observed.composite.resource)
+              meta = xr.get("metadata", {}) or {}
+              spec = xr.get("spec", {}) or {}
+              name = meta.get("name") or (spec.get("claimRef", {}) or {}).get("name") or "<name-missing>"
+              ns = meta.get("namespace") or (spec.get("claimRef", {}) or {}).get("namespace") or "default"
+              policies = []
+              for b in spec.get("buckets", []) or []:
+                  bucket = b.get("bucketName")
+                  if bucket:
+                      policies.append(f"{name}.owner.{bucket}")
+              for reqpol in spec.get("bucketAccessRequests", []) or []:
+                  bucket = reqpol.get("bucketName")
+                  perm = (reqpol.get("permission") or "").lower()
+                  if not bucket or perm not in ("readwrite", "readonly"):
+                      continue
+                  check_key = f"check-policy-{name}.{perm}.{bucket}"
+                  oc = getattr(req.observed, "resources", {}).get(check_key) if hasattr(req.observed, "resources") else None
+                  exists = False
+                  if oc and getattr(oc, "resource", None):
+                      od = _to_dict(oc.resource)
+                      exists = bool(od.get("status", {}).get("atProvider"))
+                  if exists:
+                      policies.append(f"{name}.{perm}.{bucket}")
+              key = f"user-{name}"
+              rsp.desired.resources[key].resource.update({
+                  "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
+                  "kind": "Object",
+                  "metadata": {"name": key, "namespace": ns, "annotations": {"crossplane.io/composition-resource-name": key}},
+                  "spec": {
+                      "forProvider": {
+                          "manifest": {
+                              "apiVersion": "minio.crossplane.io/v1",
+                              "kind": "User",
+                              "metadata": {"name": name},
+                              "spec": {
+                                  "forProvider": {"userName": name, "policies": policies},
+                                  "providerConfigRef": {"name": "provider-minio"},
+                                  "writeConnectionSecretToRef": {"name": name, "namespace": ns}
+                              }
+                          }
+                      },
+                      "providerConfigRef": { "name": "provider-kubernetes", "kind": "ProviderConfig" },
+                      "readiness": { "policy": "SuccessfulCreate" },
+                      "watch": False
+                  }
+              })
+
     - step: automatically-detect-ready-composed-resources
       functionRef:
         name: crossplane-contrib-function-auto-ready

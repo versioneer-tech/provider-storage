@@ -2,12 +2,11 @@
 # (examples/observed/001-buckets is empty)
 # Test if XR creates expected resource manifests (buckets, policies, user)
 apiVersion: pkg.internal/v1beta1
-kind: XStorage
+kind: Storage
 metadata:
-  labels:
-    crossplane.io/claim-name: alice-001
-    crossplane.io/claim-namespace: default
   name: alice-001
+  namespace: storage
+  uid: xyz # for testing
 spec:
   owner: alice-001
   buckets:

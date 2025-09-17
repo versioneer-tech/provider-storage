@@ -31,16 +31,16 @@ jobs:
           cp xrd.yaml minio/xrd.yaml
           crossplane xpkg build --package-root=minio --ignore="tests/observed/*,tests/expected/*" --package-file=minio/storage-minio.xpkg --verbose
           crossplane xpkg push --package-files=minio/storage-minio.xpkg "ghcr.io/versioneer-tech/provider-storage/minio:${{ github.ref_name }}" --verbose
-      - name: Build and publish storage-aws Configuration Package
-        run: |
-          cp xrd.yaml aws/xrd.yaml
-          crossplane xpkg build --package-root=aws --ignore="tests/observed/*,tests/expected/*,tests/required/*" --package-file=aws/storage-aws.xpkg --verbose
-          crossplane xpkg push --package-files=aws/storage-aws.xpkg "ghcr.io/versioneer-tech/provider-storage/aws:${{ github.ref_name }}" --verbose
-      - name: Build and publish storage-scaleway Configuration Package
-        run: |
-          cp xrd.yaml aws/xrd.yaml
-          crossplane xpkg build --package-root=scaleway --ignore="tests/observed/*,tests/expected/*,tests/required/*" --package-file=aws/storage-scaleway.xpkg --verbose
-          crossplane xpkg push --package-files=aws/storage-scaleway.xpkg "ghcr.io/versioneer-tech/provider-storage/scaleway:${{ github.ref_name }}" --verbose
+      # - name: Build and publish storage-aws Configuration Package
+      #   run: |
+      #     cp xrd.yaml aws/xrd.yaml
+      #     crossplane xpkg build --package-root=aws --ignore="tests/observed/*,tests/expected/*,tests/required/*" --package-file=aws/storage-aws.xpkg --verbose
+      #     crossplane xpkg push --package-files=aws/storage-aws.xpkg "ghcr.io/versioneer-tech/provider-storage/aws:${{ github.ref_name }}" --verbose
+      # - name: Build and publish storage-scaleway Configuration Package
+      #   run: |
+      #     cp xrd.yaml aws/xrd.yaml
+      #     crossplane xpkg build --package-root=scaleway --ignore="tests/observed/*,tests/expected/*,tests/required/*" --package-file=aws/storage-scaleway.xpkg --verbose
+      #     crossplane xpkg push --package-files=aws/storage-scaleway.xpkg "ghcr.io/versioneer-tech/provider-storage/scaleway:${{ github.ref_name }}" --verbose
   build_docs:
     runs-on: ubuntu-latest
     needs: build_and_publish_configuration_packages

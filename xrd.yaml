@@ -1,15 +1,13 @@
 apiVersion: apiextensions.crossplane.io/v1
 kind: CompositeResourceDefinition
 metadata:
-  name: xstorages.pkg.internal
+  name: storages.pkg.internal
 spec:
   group: pkg.internal
   names:
-    kind: XStorage
-    plural: xstorages
-  claimNames:
     kind: Storage
     plural: storages
+  scope: Namespaced
   versions:
     - name: v1beta1
       served: true
@@ -116,21 +114,3 @@ spec:
                               - Requested
                               - Granted
                               - Denied
-                    connectionDetails:
-                      description: Connection details for the owner to access buckets.
-                      type: object
-                      properties:
-                        accessKey:
-                          description: This is the AWS_ACCESS_KEY_ID or username.
-                          type: string
-                        accessSecret:
-                          description: This is the AWS_SECRET_ACCESS_KEY or password.
-                          type: string
-                        endpoint:
-                          description: The endpoint to connect and authenticate to.
-                          type: string
-                        region:
-                          description: The region the buckets are created in.
-                          type: string
-          required:
-            - spec

@@ -1,0 +1,20 @@
+apiVersion: minio.crossplane.io/v1
+kind: ProviderConfig
+metadata:
+  name: provider-minio
+spec:
+  credentials:
+    apiSecretRef:
+      name: minio-secret
+      namespace: storage
+    source: InjectedIdentity
+  minioURL: http://default-hl.minio:9000
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: ProviderConfig
+metadata:
+  name: provider-kubernetes
+  namespace: storage
+spec:
+  credentials:
+    source: InjectedIdentity

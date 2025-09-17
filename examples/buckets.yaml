@@ -2,40 +2,57 @@
 apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
-  name: alice
-  namespace: alice
+  name: ws-alice
+  namespace: storage
 spec:
   owner: alice
   buckets:
-  - bucketName: alice
-  - bucketName: alice-shared
+  - bucketName: ws-alice
+  - bucketName: ws-alice-shared
     discoverable: true
   bucketAccessRequests:
-  - bucketName: bob-shared
+  - bucketName: ws-bob-share1
+    permission: ReadWrite
+  - bucketName: ws-bob-share2
     permission: ReadWrite
   bucketAccessGrants:
-  - bucketName: alice-shared
+  - bucketName: ws-alice-shared
     permission: ReadOnly
     grantees:
-    - bob
+    - ws-bob
+    - ws-eric
 ---
 apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
-  name: bob
-  namespace: bob
+  name: ws-bob
+  namespace: workspace
 spec:
   owner: bob
   buckets:
-  - bucketName: bob
-  - bucketName: bob-shared
+  - bucketName: ws-bob
+  - bucketName: ws-bob-share1
+    discoverable: true
+  - bucketName: ws-bob-share2
     discoverable: true
   bucketAccessRequests:
-  - bucketName: alice-shared
+  - bucketName: ws-alice-shared
     permission: ReadOnly
   bucketAccessGrants:
-  - bucketName: bob-shared
+  - bucketName: ws-bob-share1
     permission: ReadWrite
     grantees:
-    - alice
-
+    - ws-alice
+---
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  name: ws-eric
+  namespace: workspace
+spec:
+  owner: eric
+  buckets:
+  - bucketName: ws-eric
+  bucketAccessRequests:
+  - bucketName: ws-alice-shared
+    permission: ReadWrite

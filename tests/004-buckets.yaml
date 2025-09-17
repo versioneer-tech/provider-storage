@@ -1,12 +1,13 @@
 # Test if XR is ready since the request has been granted
 # Test if XR creates expected resource manifests (buckets, policies, user)
 apiVersion: pkg.internal/v1beta1
-kind: XStorage
+kind: Storage
 metadata:
   labels:
     crossplane.io/claim-name: alice-004
     crossplane.io/claim-namespace: default
   name: alice-004
+  namespace: storage
 spec:
   owner: alice-004
   buckets:
