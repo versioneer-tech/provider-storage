@@ -45,7 +45,7 @@ jobs:
 
           crossplane xpkg push \
             --package-files=minio/storage-minio.xpkg \
-            "ghcr.io/${ORG}/${REPO}/storage-minio:${GITHUB_REF_NAME##*/}" \
+            "ghcr.io/${ORG}/${REPO}/minio:${GITHUB_REF_NAME##*/}" \
             --verbose
       # - name: Build and publish storage-aws Configuration Package
       #   run: |
