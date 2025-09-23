@@ -8,7 +8,7 @@ for file in tests/00*-buckets.yaml; do
 
   crossplane render "$file" minio/composition.yaml minio/dependencies/functions.yaml \
     --observed-resources "minio/tests/observed/00${i}-buckets.yaml" \
-    --required-resources "minio/tests/environmentconfig.yaml" -x \
+    -x \
     > "minio/tests/00${i}-buckets.yaml"
 
     dyff between \
