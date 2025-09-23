@@ -5,8 +5,8 @@ metadata:
 spec:
   credentials:
     apiSecretRef:
-      name: minio-secret
-      namespace: storage
+      name: default-env-configuration
+      namespace: minio
     source: InjectedIdentity
   minioURL: http://default-hl.minio:9000
 ---
@@ -14,7 +14,7 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: ProviderConfig
 metadata:
   name: provider-kubernetes
-  namespace: storage
+  # don't specify namespace
 spec:
   credentials:
     source: InjectedIdentity

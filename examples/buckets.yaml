@@ -1,9 +1,7 @@
----
 apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
   name: ws-alice
-  namespace: storage
 spec:
   owner: alice
   buckets:
@@ -26,7 +24,6 @@ apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
   name: ws-bob
-  namespace: workspace
 spec:
   owner: bob
   buckets:
@@ -48,7 +45,6 @@ apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
   name: ws-eric
-  namespace: workspace
 spec:
   owner: eric
   buckets:
