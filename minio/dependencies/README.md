@@ -20,7 +20,6 @@ This Composition expects the following Crossplane components to be installed (ve
 
 - **Functions**
   - `crossplane-contrib-function-python`  
-  - `crossplane-contrib-function-environment-configs`  
   - `crossplane-contrib-function-auto-ready`
 
   > Pin exact versions (or digests) and upgrade intentionally.

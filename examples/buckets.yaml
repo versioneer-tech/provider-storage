@@ -1,3 +1,7 @@
+# Storage claim for user Alice.
+# - Buckets: "ws-alice" (personal) and "ws-alice-shared" (discoverable).
+# - Access requests: wants ReadWrite access to Bob’s shared buckets.
+# - Access grants: grants Bob and Eric ReadOnly access to "ws-alice-shared".
 apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
@@ -20,6 +24,10 @@ spec:
     - ws-bob
     - ws-eric
 ---
+# Storage claim for user Bob.
+# - Buckets: "ws-bob" (personal), plus "ws-bob-share1" and "ws-bob-share2" (both discoverable).
+# - Access requests: wants ReadOnly access to Alice’s shared bucket.
+# - Access grants: grants Alice ReadWrite access to "ws-bob-share1".
 apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
@@ -41,6 +49,10 @@ spec:
     grantees:
     - ws-alice
 ---
+# Storage claim for user Eric.
+# - Buckets: "ws-eric" (personal).
+# - Access requests: wants ReadWrite access to Alice’s shared bucket.
+# - No grants defined.
 apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:

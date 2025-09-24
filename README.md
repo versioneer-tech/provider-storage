@@ -1,107 +1,63 @@
-# provider-storage
-This repository offers a collection of different Crossplane Configuration Packages under the name `provider-storage`. The Configuration Packages provide a simple abstraction that creates S3-compatible buckets, controls access through Bucket/IAM Policies and creates API/Access Keys. Currently, we support the following backends: [MinIO](https://www.min.io/), [AWS](https://aws.amazon.com/), [Scaleway](https://www.scaleway.com/)
+# Storage Provider
 
-## Documentation
-The [documentation](https://versioneer-tech.github.io/provider-storage/) includes tutorials and how-to guides to install and work with all Configuration Packages in `provider-storage`. Furthermore, it includes discussions about some of the inner workings of the different configuration packages and the reasoning behind the implementation details.
+This package provides the **Storage** Composite Resource Definition (XRD) and ready-to-use Crossplane v2 Compositions to provision S3-compatible storage for users and teams.  
+It abstracts bucket creation, access policies, and cross-user sharing into a single spec.
 
-## Usage Notes
-The different Configuration Packages are built for Crossplane v2.0 and make use of alpha features such as [Operations](https://docs.crossplane.io/latest/operations/). Therefore, the packages will not work without them.
+✨ For a full introduction, see the [documentation](https://versioneer-tech.github.io/provider-storage/).
 
-```bash
-helm install crossplane \
---namespace crossplane-system \
---create-namespace crossplane-stable/crossplane \
---version 2.0.2 \
---set provider.defaultActivations={} \
---set args={"--enable-operations"}
+## API Reference
+
+The published XRD with all fields is documented here:  
+👉 [API Reference Guide](https://versioneer-tech.github.io/provider-storage/latest/reference-guides/api/)
+
+## Install the Configuration Package
+
+Install the configuration package into your cluster. Providers and functions should typically be managed by your GitOps process.
+
+```yaml
+apiVersion: pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: storage
+spec:
+  package: ghcr.io/versioneer-tech/provider-storage/minio:latest
+  skipDependencyResolution: true
 ```
+## Storage Spec
 
-### Example Claims
-We create buckets named `alice` and `alice-shared` for a user named `alice`. In the future, the `discoverable` field can be used e.g. to list the bucket in a catalog. This way other users know which buckets they can request access to.
+### Minimal example
 
 ```yaml
 apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
-  name: alice
+  name: ws-alice
 spec:
   owner: alice
   buckets:
-  - bucketName: alice
-  - bucketName: alice-shared
-    discoverable: true
+  - bucketName: ws-alice
 ```
 
-In order to request access to the bucket `bob-shared` which is owned by the user `bob`, we can add the bucket name to `bucketAccessRequests`. We can request either `ReadWrite` or `ReadOnly` permissions.
+### More examples
 
-```yaml
----
-apiVersion: pkg.internal/v1beta1
-kind: Storage
-metadata:
-  name: alice
-  namespace: alice
-spec:
-  owner: alice
-  buckets:
-  - bucketName: alice
-  - bucketName: alice-shared
-    discoverable: true
-  bucketAccessRequests:
-  - bucketName: bob-shared
-    permission: ReadWrite
----
-apiVersion: pkg.internal/v1beta1
-kind: Storage
-metadata:
-  name: bob
-  namespace: bob
-spec:
-  owner: bob
-  buckets:
-  - bucketName: bob
-  - bucketName: bob-shared
-    discoverable: true
-```
+See [`examples/buckets.yaml`](examples/buckets.yaml) for complete scenarios, including:
+- Storage claims with multiple buckets (personal + shared)
+- Access requests to other users’ buckets (`bucketAccessRequests`)
+- Access grants for discoverable buckets (`bucketAccessGrants`)
 
-The user `bob` can now decide to grant `alice` access to `bob-shared` by referencing her explicitly in `bucketAccessGrants`.
+## Storage Credentials
 
-```yaml
----
-apiVersion: pkg.internal/v1beta1
-kind: Storage
-metadata:
-  name: alice
-  namespace: alice
-spec:
-  owner: alice
-  buckets:
-  - bucketName: alice
-  - bucketName: alice-shared
-    discoverable: true
-  bucketAccessRequests:
-  - bucketName: bob-shared
-    permission: ReadWrite
----
-apiVersion: pkg.internal/v1beta1
-kind: Storage
-metadata:
-  name: bob
-  namespace: bob
-spec:
-  owner: bob
-  buckets:
-  - bucketName: bob
-  - bucketName: bob-shared
-    discoverable: true
-  bucketAccessGrants:
-  - bucketName: bob-shared
-    permission: ReadWrite
-    grantees:
-    - alice
-```
+For each `Storage` resource, the provider automatically provisions a Kubernetes Secret in the same namespace.  
+The Secret has the same name as the `Storage` resource (e.g. `ws-alice`) and contains S3-compatible access credentials.
 
-## Getting Help
+These keys are always included:
 
-The best way to get help and ask questions is by simply an issue on [GitHub](https://github.com/versioneer-tech/provider-storage/issues).
+- `AWS_ACCESS_KEY_ID`  
+- `AWS_SECRET_ACCESS_KEY` 
 
+Workloads and other compositions can mount or reference this Secret directly to authenticate against the provisioned storage backend.
+
+## License
+
+Apache 2.0 (Apache License Version 2.0, January 2004)  
+<https://www.apache.org/licenses/LICENSE-2.0>
