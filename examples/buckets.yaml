@@ -1,39 +1,40 @@
-# Storage claim for user Alice.
+# Storage claim for principal Alice.
 # - Buckets: "ws-alice" (personal) and "ws-alice-shared" (discoverable).
-# - Access requests: wants ReadWrite access to Bob’s shared buckets.
-# - Access grants: grants Bob and Eric ReadOnly access to "ws-alice-shared".
+# - Access requests: wants access to Bob’s shared buckets (reasons provided).
+# - Access grants: grants Bob and Eric permissions on "ws-alice-shared".
 apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
   name: ws-alice
 spec:
-  owner: alice
+  principal: ws-alice
   buckets:
   - bucketName: ws-alice
   - bucketName: ws-alice-shared
     discoverable: true
   bucketAccessRequests:
   - bucketName: ws-bob-share1
-    permission: ReadWrite
+    reason: Needs to collaborate with Bob on dataset 1
   - bucketName: ws-bob-share2
-    permission: ReadWrite
+    reason: Joint analysis with Bob on dataset 2
   bucketAccessGrants:
   - bucketName: ws-alice-shared
+    grantee: ws-bob
     permission: ReadOnly
-    grantees:
-    - ws-bob
-    - ws-eric
+  - bucketName: ws-alice-shared
+    grantee: ws-eric
+    permission: ReadWrite
 ---
-# Storage claim for user Bob.
+# Storage claim for principal Bob.
 # - Buckets: "ws-bob" (personal), plus "ws-bob-share1" and "ws-bob-share2" (both discoverable).
-# - Access requests: wants ReadOnly access to Alice’s shared bucket.
+# - Access requests: wants access to Alice’s shared bucket.
 # - Access grants: grants Alice ReadWrite access to "ws-bob-share1".
 apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
   name: ws-bob
 spec:
-  owner: bob
+  principal: ws-bob
   buckets:
   - bucketName: ws-bob
   - bucketName: ws-bob-share1
@@ -42,25 +43,24 @@ spec:
     discoverable: true
   bucketAccessRequests:
   - bucketName: ws-alice-shared
-    permission: ReadOnly
+    reason: Needs to integrate Alice’s data into analysis
   bucketAccessGrants:
   - bucketName: ws-bob-share1
+    grantee: ws-alice
     permission: ReadWrite
-    grantees:
-    - ws-alice
 ---
-# Storage claim for user Eric.
+# Storage claim for principal Eric.
 # - Buckets: "ws-eric" (personal).
-# - Access requests: wants ReadWrite access to Alice’s shared bucket.
+# - Access requests: wants access to Alice’s shared bucket.
 # - No grants defined.
 apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
   name: ws-eric
 spec:
-  owner: eric
+  principal: ws-eric
   buckets:
   - bucketName: ws-eric
   bucketAccessRequests:
   - bucketName: ws-alice-shared
-    permission: ReadWrite
+    reason: Needs read access to Alice’s shared data

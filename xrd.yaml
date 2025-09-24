@@ -17,14 +17,14 @@ spec:
           type: object
           properties:
             spec:
-              description: Spec defines the desired state of Storage.
+              description: Spec defines the desired state of a Storage resource.
               type: object
               properties:
-                owner:
-                  description: Owner of the buckets to create.
+                principal:
+                  description: Identifier of the storage principal.
                   type: string
                 buckets:
-                  description: List of buckets to create and which are owned by the owner.
+                  description: Buckets to create as part of this Storage.
                   type: array
                   items:
                     type: object
@@ -33,84 +33,53 @@ spec:
                         description: Name of the bucket to create.
                         type: string
                       discoverable:
-                        description: Whether this bucket should be discoverable through the catalog by other owners (defined in separate Storage claims).
+                        description: Whether this bucket is discoverable in the catalog by others.
                         type: boolean
                         default: false
                     required:
                       - bucketName
                 bucketAccessRequests:
-                  description: List of buckets where the owner requests either ReadWrite or ReadOnly permissions from other owners (defined in separate Storage claims).
+                  description: Requests for access to buckets owned by others. Each request specifies the bucket name and a free-form reason.
                   type: array
                   items:
                     type: object
                     properties:
                       bucketName:
-                        description: Name of the bucket to request permissions to.
+                        description: Name of the bucket to request access to.
                         type: string
-                      permission:
-                        description: Permission that is requested.
+                      reason:
+                        description: Free-form text describing why access is requested.
                         type: string
-                        enum:
-                          - ReadWrite
-                          - ReadOnly
                     required:
                       - bucketName
-                      - permission
                 bucketAccessGrants:
-                  description: List of buckets where the owner grants either ReadWrite or ReadOnly permissions to other owners (defined in separate Storage claims).
+                  description: Grants of access permissions from this principal to other principals. Each entry specifies the bucket, the grantee, and the granted permission.
                   type: array
                   items:
                     type: object
                     properties:
                       bucketName:
-                        description: Name of the bucket to grant permissions to.
+                        description: Name of the bucket for which the permission is granted.
+                        type: string
+                      grantee:
+                        description: Identifier of the principal receiving the permission.
                         type: string
                       permission:
-                        description: Permission that is granted.
+                        description: Granted permission level.
                         type: string
                         enum:
                           - ReadWrite
                           - ReadOnly
-                      grantees:
-                        description: List of owners (defined in separate Storage claims) that the permission is granted to.
-                        type: array
-                        items:
-                          type: string
+                          - WriteOnly
+                          - None
                     required:
                       - bucketName
+                      - grantee
                       - permission
-                      - grantees
               required:
-                - owner
+                - principal
                 - buckets
             status:
-              description: Status defines the observed status of Storage.
+              description: Status defines the observed state of a Storage resource.
               type: object
-              properties:
-                storage:
-                  description: Information about connection details and buckets associated to the owner.
-                  type: object
-                  properties:
-                    buckets:
-                      description: List of buckets to associated with the owner.
-                      type: array
-                      items:
-                        type: object
-                        properties:
-                          bucketName:
-                            description: Name of the bucket.
-                            type: string
-                          permission:
-                            description: Permission asssociated with the bucket.
-                            type: string
-                            enum:
-                              - ReadWrite
-                              - ReadOnly
-                          status:
-                            description: Status of the permission access to the bucket.
-                            type: string
-                            enum:
-                              - Owned
-                              - Requested
-                              - Granted
-                              - Denied
+              properties: {}
