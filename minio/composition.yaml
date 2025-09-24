@@ -63,9 +63,6 @@ spec:
                       }
                   })
 
-          def RunFunction(req, rsp):
-              compose(req, rsp)
-
     - step: create-owner-policies
       functionRef:
         name: crossplane-contrib-function-python
@@ -128,9 +125,6 @@ spec:
                           "watch": False
                       }
                   })
-
-          def RunFunction(req, rsp):
-              compose(req, rsp)
 
     - step: create-grant-bucket-access-policies
       functionRef:
@@ -201,9 +195,6 @@ spec:
                           }
                       })
 
-          def RunFunction(req, rsp):
-              compose(req, rsp)
-
     - step: check-if-requested-policies-exist
       functionRef:
         name: crossplane-contrib-function-python
@@ -253,9 +244,6 @@ spec:
                           "watch": False
                       }
                   })
-
-          def RunFunction(req, rsp):
-              compose(req, rsp)
 
     - step: create-user-with-policies
       functionRef:
@@ -324,9 +312,6 @@ spec:
                       "watch": False
                   }
               })
-
-          def RunFunction(req, rsp):
-              compose(req, rsp)
 
     - step: automatically-detect-ready-composed-resources
       functionRef:
