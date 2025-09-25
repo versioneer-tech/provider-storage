@@ -1,0 +1,21 @@
+apiVersion: aws.m.upbound.io/v1beta1
+kind: ProviderConfig
+metadata:
+  name: provider-aws
+  # don't specify namespace
+spec:
+  credentials:
+    source: Secret
+    secretRef:
+      name: aws-provider-creds
+      namespace: aws
+      key: credentials
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: ProviderConfig
+metadata:
+  name: provider-kubernetes
+  # don't specify namespace
+spec:
+  credentials:
+    source: InjectedIdentity

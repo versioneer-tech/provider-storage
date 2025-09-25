@@ -1,12 +1,11 @@
 ---
-apiVersion: s3.aws.upbound.io/v1beta2
+apiVersion: minio.crossplane.io/v1
 kind: Bucket
 metadata:
   annotations:
     crossplane.io/claim-name: alice-003
     crossplane.io/claim-namespace: default
     crossplane.io/composition-resource-name: bucket-alice-003-alice-003
-  name: alice-003
 spec: {}
 status:
   conditions:
@@ -19,14 +18,13 @@ status:
     status: "True"
     type: Synced
 ---
-apiVersion: s3.aws.upbound.io/v1beta2
+apiVersion: minio.crossplane.io/v1
 kind: Bucket
 metadata:
   annotations:
     crossplane.io/claim-name: alice-003
     crossplane.io/claim-namespace: default
     crossplane.io/composition-resource-name: bucket-alice-003-alice-shared-003
-  name: alice-shared-003
 spec: {}
 status:
   conditions:
@@ -39,14 +37,13 @@ status:
     status: "True"
     type: Synced
 ---
-apiVersion: iam.aws.upbound.io/v1beta1
+apiVersion: minio.crossplane.io/v1
 kind: Policy
 metadata:
   annotations:
     crossplane.io/claim-name: alice-003
     crossplane.io/claim-namespace: default
     crossplane.io/composition-resource-name: policy-alice-003.owner.alice-003
-  name: alice-003.owner.alice-003
 spec: {}
 status:
   conditions:
@@ -59,14 +56,13 @@ status:
     status: "True"
     type: Synced
 ---
-apiVersion: iam.aws.upbound.io/v1beta1
+apiVersion: minio.crossplane.io/v1
 kind: Policy
 metadata:
   annotations:
     crossplane.io/claim-name: alice-003
     crossplane.io/claim-namespace: default
     crossplane.io/composition-resource-name: policy-alice-003.owner.alice-shared-003
-  name: alice-003.owner.alice-shared-003
 spec: {}
 status:
   conditions:
@@ -79,74 +75,13 @@ status:
     status: "True"
     type: Synced
 ---
-apiVersion: iam.aws.upbound.io/v1beta1
+apiVersion: minio.crossplane.io/v1
 kind: User
 metadata:
   annotations:
     crossplane.io/claim-name: alice-003
     crossplane.io/claim-namespace: default
     crossplane.io/composition-resource-name: user-alice-003
-  name: alice-003
-spec: {}
-status:
-  conditions:
-  - lastTransitionTime: "1970-01-01T00:00:00Z"
-    reason: Available
-    status: "True"
-    type: Ready
-  - lastTransitionTime: "1970-01-01T00:00:00Z"
-    reason: ReconcileSuccess
-    status: "True"
-    type: Synced
----
-apiVersion: iam.aws.upbound.io/v1beta1
-kind: UserPolicyAttachment
-metadata:
-  annotations:
-    crossplane.io/claim-name: alice-003
-    crossplane.io/claim-namespace: default
-    crossplane.io/composition-resource-name: user-policy-attachement-alice-003.owner.alice-003
-  name: alice-003.owner.alice-003
-spec: {}
-status:
-  conditions:
-  - lastTransitionTime: "1970-01-01T00:00:00Z"
-    reason: Available
-    status: "True"
-    type: Ready
-  - lastTransitionTime: "1970-01-01T00:00:00Z"
-    reason: ReconcileSuccess
-    status: "True"
-    type: Synced
----
-apiVersion: iam.aws.upbound.io/v1beta1
-kind: UserPolicyAttachment
-metadata:
-  annotations:
-    crossplane.io/claim-name: alice-003
-    crossplane.io/claim-namespace: default
-    crossplane.io/composition-resource-name: user-policy-attachement-alice-003.owner.alice-shared-003
-  name: alice-003.owner.alice-shared-003
-spec: {}
-status:
-  conditions:
-  - lastTransitionTime: "1970-01-01T00:00:00Z"
-    reason: Available
-    status: "True"
-    type: Ready
-  - lastTransitionTime: "1970-01-01T00:00:00Z"
-    reason: ReconcileSuccess
-    status: "True"
-    type: Synced
----
-apiVersion: iam.aws.upbound.io/v1beta1
-kind: AccessKey
-metadata:
-  annotations:
-    crossplane.io/claim-name: alice-003
-    crossplane.io/claim-namespace: default
-    crossplane.io/composition-resource-name: access-key-alice-003
-  name: alice-003
 spec: {}
 status:
   conditions:

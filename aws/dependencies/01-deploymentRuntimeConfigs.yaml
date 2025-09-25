@@ -1,0 +1,124 @@
+apiVersion: pkg.crossplane.io/v1beta1
+kind: DeploymentRuntimeConfig
+metadata:
+  name: provider-aws-s3
+spec:
+  deploymentTemplate:
+    metadata:
+      labels:
+        runtime: provider-aws-s3
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          runtime: provider-aws-s3
+      template:
+        metadata:
+          labels:
+            runtime: provider-aws-s3
+        spec:
+          containers:
+          - name: package-runtime
+            # args:
+            # - --debug
+            resources:
+              requests:
+                cpu: 100m
+                memory: 128Mi
+              limits:
+                cpu: 500m
+                memory: 512Mi
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: DeploymentRuntimeConfig
+metadata:
+  name: provider-aws-iam
+spec:
+  deploymentTemplate:
+    metadata:
+      labels:
+        runtime: provider-aws-iam
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          runtime: provider-aws-iam
+      template:
+        metadata:
+          labels:
+            runtime: provider-aws-iam
+        spec:
+          containers:
+          - name: package-runtime
+            # args:
+            # - --debug
+            resources:
+              requests:
+                cpu: 100m
+                memory: 128Mi
+              limits:
+                cpu: 500m
+                memory: 512Mi
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: DeploymentRuntimeConfig
+metadata:
+  name: upbound-provider-family-aws
+spec:
+  deploymentTemplate:
+    metadata:
+      labels:
+        runtime: upbound-provider-family-aws
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          runtime: upbound-provider-family-aws
+      template:
+        metadata:
+          labels:
+            runtime: upbound-provider-family-aws
+        spec:
+          containers:
+          - name: package-runtime
+            # args:
+            # - --debug
+            resources:
+              requests:
+                cpu: 100m
+                memory: 128Mi
+              limits:
+                cpu: 500m
+                memory: 512Mi
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: DeploymentRuntimeConfig
+metadata:
+  name: provider-kubernetes
+spec:
+  deploymentTemplate:
+    metadata:
+      labels:
+        runtime: provider-kubernetes
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          runtime: provider-kubernetes
+      template:
+        metadata:
+          labels:
+            runtime: provider-kubernetes
+        spec:
+          serviceAccountName: provider-kubernetes
+          containers:
+          - name: package-runtime
+            # args:
+            # - --debug
+            resources:
+              requests:
+                cpu: 100m
+                memory: 128Mi
+              limits:
+                cpu: 500m
+                memory: 512Mi

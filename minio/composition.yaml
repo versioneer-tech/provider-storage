@@ -1,7 +1,23 @@
+# Copyright 2025, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
-  name: provider-storage
+  name: storage-minio
+  labels:
+    provider: minio
 spec:
   compositeTypeRef:
     apiVersion: pkg.internal/v1beta1
@@ -28,7 +44,7 @@ spec:
               ns   = meta.get("namespace") or "default"
 
               for b in (spec.get("buckets") or []):
-                  bucket = b.get("bucketName")
+                  bucket = (b.get("bucketName") or "").strip()
                   if not bucket:
                       continue
                   discoverable = str(bool(b.get("discoverable", False))).lower()
@@ -37,14 +53,23 @@ spec:
                   rsp.desired.resources[key].resource.update({
                       "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
                       "kind": "Object",
-                      "metadata": {"name": objname, "namespace": ns, "annotations": {"crossplane.io/composition-resource-name": key}},
+                      "metadata": {
+                          "name": objname,
+                          "namespace": ns,
+                          "annotations": {"crossplane.io/composition-resource-name": key}
+                      },
                       "spec": {
                           "forProvider": {
                               "manifest": {
                                   "apiVersion": "minio.crossplane.io/v1",
                                   "kind": "Bucket",
-                                  "metadata": {"name": bucket, "annotations": {"storages.pkg.internal/discoverable": discoverable}},
-                                  "spec": {"providerConfigRef": {"name": "provider-minio"}}
+                                  "metadata": {
+                                      "name": bucket,
+                                      "annotations": {"storages.pkg.internal/discoverable": discoverable}
+                                  },
+                                  "spec": {
+                                      "providerConfigRef": {"name": "provider-minio"}
+                                  }
                               }
                           },
                           "providerConfigRef": {"name": "provider-kubernetes", "kind": "ProviderConfig"},
@@ -72,10 +97,10 @@ spec:
               meta = xr.get("metadata", {}) or {}
               spec = xr.get("spec", {}) or {}
               ns   = meta.get("namespace") or "default"
-              principal = spec.get("principal") or meta.get("name") or "<principal-missing>"
+              principal = (spec.get("principal") or meta.get("name") or "<principal-missing>").strip()
 
               for b in (spec.get("buckets") or []):
-                  bucket = b.get("bucketName")
+                  bucket = (b.get("bucketName") or "").strip()
                   if not bucket:
                       continue
                   polname = f"{principal}.owner.{bucket}"
@@ -93,14 +118,21 @@ spec:
                   rsp.desired.resources[key].resource.update({
                       "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
                       "kind": "Object",
-                      "metadata": {"name": objname, "namespace": ns, "annotations": {"crossplane.io/composition-resource-name": key}},
+                      "metadata": {
+                          "name": objname,
+                          "namespace": ns,
+                          "annotations": {"crossplane.io/composition-resource-name": key}
+                      },
                       "spec": {
                           "forProvider": {
                               "manifest": {
                                   "apiVersion": "minio.crossplane.io/v1",
                                   "kind": "Policy",
                                   "metadata": {"name": polname},
-                                  "spec": {"forProvider": {"rawPolicy": raw}, "providerConfigRef": {"name": "provider-minio"}}
+                                  "spec": {
+                                      "forProvider": {"rawPolicy": raw},
+                                      "providerConfigRef": {"name": "provider-minio"}
+                                  }
                               }
                           },
                           "providerConfigRef": {"name": "provider-kubernetes", "kind": "ProviderConfig"},
@@ -124,7 +156,7 @@ spec:
               return {} if struct is None else (struct if isinstance(struct, dict) else json_format.MessageToDict(struct, preserving_proto_field_name=True))
 
           def _raw_policy(bucket, perm):
-              p = (perm or "").lower()
+              p = (perm or "").strip().lower()
               if p == "readwrite":
                   stmt = [{
                       "Effect": "Allow",
@@ -161,19 +193,26 @@ spec:
                       continue
 
                   raw = _raw_policy(bucket, perm)
-                  polname = f"{grantee}.{bucket}"  # no permission in the name
+                  polname = f"{grantee}.{bucket}"
                   key = f"policy-grant-{grantee}-{bucket}"
                   rsp.desired.resources[key].resource.update({
                       "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
                       "kind": "Object",
-                      "metadata": {"name": key, "namespace": ns, "annotations": {"crossplane.io/composition-resource-name": key}},
+                      "metadata": {
+                          "name": key,
+                          "namespace": ns,
+                          "annotations": {"crossplane.io/composition-resource-name": key}
+                      },
                       "spec": {
                           "forProvider": {
                               "manifest": {
                                   "apiVersion": "minio.crossplane.io/v1",
                                   "kind": "Policy",
                                   "metadata": {"name": polname},
-                                  "spec": {"forProvider": {"rawPolicy": raw}, "providerConfigRef": {"name": "provider-minio"}}
+                                  "spec": {
+                                      "forProvider": {"rawPolicy": raw},
+                                      "providerConfigRef": {"name": "provider-minio"}
+                                  }
                               }
                           },
                           "providerConfigRef": {"name": "provider-kubernetes", "kind": "ProviderConfig"},
@@ -200,10 +239,10 @@ spec:
               meta = xr.get("metadata", {}) or {}
               spec = xr.get("spec", {}) or {}
               ns   = meta.get("namespace") or "default"
-              principal = spec.get("principal") or meta.get("name") or "<principal-missing>"
+              principal = (spec.get("principal") or meta.get("name") or "<principal-missing>").strip()
 
               for r in (spec.get("bucketAccessRequests") or []):
-                  bucket = r.get("bucketName")
+                  bucket = (r.get("bucketName") or "").strip()
                   if not bucket:
                       continue
                   polname = f"{principal}.{bucket}"
@@ -211,7 +250,11 @@ spec:
                   rsp.desired.resources[key].resource.update({
                       "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
                       "kind": "Object",
-                      "metadata": {"name": f"policy-observer-{principal}-{bucket}", "namespace": ns, "annotations": {"crossplane.io/composition-resource-name": key}},
+                      "metadata": {
+                          "name": f"policy-observer-{principal}-{bucket}",
+                          "namespace": ns,
+                          "annotations": {"crossplane.io/composition-resource-name": key}
+                      },
                       "spec": {
                           "managementPolicies": ["Observe"],
                           "forProvider": {
@@ -245,16 +288,16 @@ spec:
               meta = xr.get("metadata", {}) or {}
               spec = xr.get("spec", {}) or {}
               ns   = meta.get("namespace") or "default"
-              principal = spec.get("principal") or meta.get("name") or "<principal-missing>"
+              principal = (spec.get("principal") or meta.get("name") or "<principal-missing>").strip()
 
               policies = []
               for b in (spec.get("buckets") or []):
-                  bucket = b.get("bucketName")
+                  bucket = (b.get("bucketName") or "").strip()
                   if bucket:
                       policies.append(f"{principal}.owner.{bucket}")
 
               for r in (spec.get("bucketAccessRequests") or []):
-                  bucket = r.get("bucketName")
+                  bucket = (r.get("bucketName") or "").strip()
                   if not bucket:
                       continue
                   check_key = f"check-policy-{principal}.{bucket}"
@@ -270,7 +313,11 @@ spec:
               rsp.desired.resources[key].resource.update({
                   "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
                   "kind": "Object",
-                  "metadata": {"name": key, "namespace": ns, "annotations": {"crossplane.io/composition-resource-name": key}},
+                  "metadata": {
+                      "name": key,
+                      "namespace": ns,
+                      "annotations": {"crossplane.io/composition-resource-name": key}
+                  },
                   "spec": {
                       "forProvider": {
                           "manifest": {

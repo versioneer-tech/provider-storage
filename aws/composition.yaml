@@ -1,293 +1,292 @@
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
-  name: provider-storage
+  name: storage-aws
   labels:
-    storage: aws
+    provider: aws
 spec:
   compositeTypeRef:
     apiVersion: pkg.internal/v1beta1
-    kind: XStorage
+    kind: Storage
   mode: Pipeline
   pipeline:
     - step: create-buckets
       functionRef:
         name: crossplane-contrib-function-python
-      requirements:
-        requiredResources:
-          - requirementName: random-string-config-map
-            apiVersion: v1
-            kind: ConfigMap
-            name: random-string
-            namespace: crossplane-system
       input:
         apiVersion: python.fn.crossplane.io/v1beta1
         kind: Script
         script: |
-          from crossplane.function import request
-
-          def compose(req, rsp):
-            observed_xr = req.observed.composite.resource
-            owner = observed_xr["spec"]["owner"]
-            buckets = observed_xr["spec"]["buckets"]
-
-            config_map = request.get_required_resource(req, "random-string-config-map")
-            if not config_map:
-              return
-
-            random_string = config_map["data"]["random-string"]
-
-            for bucket in buckets:
-              bucket_name = bucket["bucketName"]
-
-              rsp.desired.resources[f"bucket-{owner}-{bucket_name}"].resource.update({
-                "apiVersion": "s3.aws.upbound.io/v1beta2",
-                "kind": "Bucket",
-                "metadata": {
-                  "name": f"{owner}-{bucket_name}-{random_string}"
-                },
-                "spec": {
-                  "forProvider": {
-                    "region": "eu-central-1"
-                  },
-                  "providerConfigRef": {
-                    "name": "storage-aws"
-                  }
-                }
-              })
+          from crossplane.function.proto.v1 import run_function_pb2 as fnv1
+          from google.protobuf import json_format
+          def _to_dict(struct):
+              return {} if struct is None else (struct if isinstance(struct, dict) else json_format.MessageToDict(struct, preserving_proto_field_name=True))
+          
+          def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
+              xr = _to_dict(req.observed.composite.resource)
+              meta = xr.get("metadata", {}) or {}
+              spec = xr.get("spec", {}) or {}
+              ns   = (meta.get("labels", {}) or {}).get("crossplane.io/claim-namespace") or meta.get("namespace") or "default"
+              region = (spec.get("region") or "eu-central-1").strip()
+              
+              for b in (spec.get("buckets") or []):
+                  bucket = (b.get("bucketName") or "").strip()
+                  if not bucket:
+                      continue
+                  key = f"bucket-{bucket}"
+                  rsp.desired.resources[key].resource.update({
+                      "apiVersion": "s3.aws.m.upbound.io/v1beta1",
+                      "kind": "Bucket",
+                      "metadata": {
+                          "name": bucket,
+                          "namespace": ns,
+                          "annotations": {"crossplane.io/composition-resource-name": key}
+                      },
+                      "spec": {
+                          "forProvider": {"region": region},
+                          "providerConfigRef": {"name": "provider-aws", "kind": "ProviderConfig"},
+                      }
+                  })
     - step: create-owner-policies
       functionRef:
-        name: crossplane-contrib-function-go-templating
+        name: crossplane-contrib-function-python
       input:
-        apiVersion: gotemplating.fn.crossplane.io/v1beta1
-        kind: GoTemplate
-        source: Inline
-        inline:
-          template: |
-            {{ $owner := .observed.composite.resource.spec.owner }}
-            {{ $root := . }}
-            {{- range $i, $bucket := .observed.composite.resource.spec.buckets }}
-              {{ $bucketObject := get $root.observed.resources (printf "bucket-%s-%s" $owner $bucket.bucketName) | default dict }}
-            ---
-            apiVersion: iam.aws.upbound.io/v1beta1
-            kind: Policy
-            metadata:
-              name: {{ $owner }}.owner.{{ $bucket.bucketName }}
-              annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: policy-{{ $owner }}.owner.{{ $bucket.bucketName }}
-            spec:
-              forProvider:
-                policy: |
-                  {
-                    "Version": "2012-10-17",
-                    "Statement": [
-                      {
-                        "Effect": "Allow",
-                        "Action": [ "s3:*" ],
-                        "Resource": [
-                          "arn:aws:s3:::{{ $bucketObject.resource.metadata.name }}",
-                          "arn:aws:s3:::{{ $bucketObject.resource.metadata.name }}/*"
-                        ]
-                      }
-                    ]
+        apiVersion: python.fn.crossplane.io/v1beta1
+        kind: Script
+        script: |
+          import json
+          from crossplane.function.proto.v1 import run_function_pb2 as fnv1
+          from google.protobuf import json_format
+          def _to_dict(struct):
+              return {} if struct is None else (struct if isinstance(struct, dict) else json_format.MessageToDict(struct, preserving_proto_field_name=True))
+          
+          def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
+              xr = _to_dict(req.observed.composite.resource)
+              meta = xr.get("metadata", {}) or {}
+              spec = xr.get("spec", {}) or {}
+              ns   = (meta.get("labels", {}) or {}).get("crossplane.io/claim-namespace") or meta.get("namespace") or "default"
+              principal = (spec.get("principal") or meta.get("name") or "<principal>").strip()
+              
+              for b in (spec.get("buckets") or []):
+                  bucket = (b.get("bucketName") or "").strip()
+                  if not bucket:
+                      continue
+                  polname = f"{principal}.owner.{bucket}"
+                  policy_doc = {
+                      "Version": "2012-10-17",
+                      "Statement": [{
+                          "Effect": "Allow",
+                          "Action": ["s3:*"],
+                          "Resource": [f"arn:aws:s3:::{bucket}", f"arn:aws:s3:::{bucket}/*"]
+                      }]
                   }
-              providerConfigRef:
-                name: storage-aws
-            {{- end }}
+                  key = f"policy-owner-{bucket}"
+                  rsp.desired.resources[key].resource.update({
+                      "apiVersion": "iam.aws.m.upbound.io/v1beta1",
+                      "kind": "Policy",
+                      "metadata": {
+                          "name": polname,
+                          "namespace": ns,
+                          "annotations": {"crossplane.io/composition-resource-name": key}
+                      },
+                      "spec": {
+                          "forProvider": {"policy": json.dumps(policy_doc, indent=2)},
+                          "providerConfigRef": {"name": "provider-aws", "kind": "ProviderConfig"},
+                      }
+                  })
     - step: create-grant-bucket-access-policies
       functionRef:
-        name: crossplane-contrib-function-go-templating
+        name: crossplane-contrib-function-python
       input:
-        apiVersion: gotemplating.fn.crossplane.io/v1beta1
-        kind: GoTemplate
-        source: Inline
-        inline:
-          template: |
-            {{ $owner := .observed.composite.resource.spec.owner }}
-            {{ $root := . }}
-            {{- range $i, $bucket := .observed.composite.resource.spec.bucketAccessGrants }}
-              {{ $bucketObject := get $root.observed.resources (printf "bucket-%s-%s" $owner $bucket.bucketName) | default dict }}
-              {{- range $j, $grantee := $bucket.grantees }}
-            ---
-            apiVersion: iam.aws.upbound.io/v1beta1
-            kind: Policy
-            metadata:
-              name: {{ $grantee }}.{{ $bucket.permission | lower }}.{{ $bucket.bucketName }}
-              annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: policy-{{ $grantee }}.{{ $bucket.permission | lower }}.{{ $bucket.bucketName }}
-            spec:
-              forProvider:
-                {{- if eq $bucket.permission "ReadWrite"}}
-                policy: |
-                  {
-                    "Version": "2012-10-17",
-                    "Statement": [
-                      {
-                        "Effect": "Allow",
-                        "Action": [
-                          "s3:ListBucket",
-                          "s3:GetObject",
-                          "s3:PutObject",
-                          "s3:DeleteObject"
-                        ],
-                        "Resource": [
-                          "arn:aws:s3:::{{ $bucketObject.resource.metadata.name }}",
-                          "arn:aws:s3:::{{ $bucketObject.resource.metadata.name }}/*"
-                        ]
+        apiVersion: python.fn.crossplane.io/v1beta1
+        kind: Script
+        script: |
+          import json
+          from crossplane.function.proto.v1 import run_function_pb2 as fnv1
+          from google.protobuf import json_format
+          def _to_dict(struct):
+              return {} if struct is None else (struct if isinstance(struct, dict) else json_format.MessageToDict(struct, preserving_proto_field_name=True))
+          
+          def _policy_for(bucket, perm):
+              p = (perm or "").strip().lower()
+              if p == "readwrite":
+                  stmts = [{
+                      "Effect": "Allow",
+                      "Action": ["s3:ListBucket","s3:GetObject","s3:PutObject","s3:DeleteObject"],
+                      "Resource": [f"arn:aws:s3:::{bucket}", f"arn:aws:s3:::{bucket}/*"]
+                  }]
+              elif p == "readonly":
+                  stmts = [
+                      {"Effect":"Allow","Action":["s3:ListBucket"],"Resource":[f"arn:aws:s3:::{bucket}"]},
+                      {"Effect":"Allow","Action":["s3:GetObject"],"Resource":[f"arn:aws:s3:::{bucket}/*"]}
+                  ]
+              elif p == "writeonly":
+                  stmts = [
+                      {"Effect":"Allow","Action":["s3:ListBucket"],"Resource":[f"arn:aws:s3:::{bucket}"]},
+                      {"Effect":"Allow","Action":["s3:PutObject","s3:DeleteObject"],"Resource":[f"arn:aws:s3:::{bucket}/*"]}
+                  ]
+              else:
+                  stmts = []
+              return {"Version": "2012-10-17", "Statement": stmts}
+          def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
+              xr = _to_dict(req.observed.composite.resource)
+              meta = xr.get("metadata", {}) or {}
+              spec = xr.get("spec", {}) or {}
+              ns   = (meta.get("labels", {}) or {}).get("crossplane.io/claim-namespace") or meta.get("namespace") or "default"
+              
+              for g in (spec.get("bucketAccessGrants") or []):
+                  bucket  = (g.get("bucketName") or "").strip()
+                  grantee = (g.get("grantee") or "").strip()
+                  perm    = (g.get("permission") or "").strip()
+                  if not bucket or not grantee:
+                      continue
+                  policy_doc = _policy_for(bucket, perm)
+                  pname = f"{grantee}.{perm.lower()}.{bucket}"
+                  key = f"policy-grant-{grantee}-{perm.lower()}-{bucket}"
+                  rsp.desired.resources[key].resource.update({
+                      "apiVersion": "iam.aws.m.upbound.io/v1beta1",
+                      "kind": "Policy",
+                      "metadata": {
+                          "name": pname,
+                          "namespace": ns,
+                          "annotations": {"crossplane.io/composition-resource-name": key}
+                      },
+                      "spec": {
+                          "forProvider": {"policy": json.dumps(policy_doc, indent=2)},
+                          "providerConfigRef": {"name": "provider-aws", "kind": "ProviderConfig"},
                       }
-                    ]
-                  }
-                {{- end }}
-                {{- if eq $bucket.permission "ReadOnly"}}
-                policy: |
-                  {
-                    "Version": "2012-10-17",
-                    "Statement": [
-                      {
-                        "Effect": "Allow",
-                        "Action": [
-                          "s3:ListBucket",
-                          "s3:GetObject"
-                        ],
-                        "Resource": [
-                          "arn:aws:s3:::{{ $bucketObject.resource.metadata.name }}",
-                          "arn:aws:s3:::{{ $bucketObject.resource.metadata.name }}/*"
-                        ]
-                      }
-                    ]
-                  }
-                {{- end }}
-              providerConfigRef:
-                name: storage-aws
-              {{- end }}
-            {{- end }}
-    - step: check-if-requested-policies-exist
-      functionRef:
-        name: crossplane-contrib-function-go-templating
-      input:
-        apiVersion: gotemplating.fn.crossplane.io/v1beta1
-        kind: GoTemplate
-        source: Inline
-        inline:
-          template: |
-            {{ $owner := .observed.composite.resource.spec.owner }}
-            {{- range $i, $bucket := .observed.composite.resource.spec.bucketAccessRequests }}
-            ---
-            apiVersion: kubernetes.crossplane.io/v1alpha2
-            kind: Object
-            metadata:
-              annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: check-policy-{{ $owner }}.{{ $bucket.permission | lower }}.{{ $bucket.bucketName }}
-              name: policy-observer-{{ $owner}}.{{ $bucket.permission | lower }}.{{ $bucket.bucketName }}
-            spec:
-              managementPolicies: ["Observe"]
-              forProvider:
-                manifest:
-                  apiVersion: iam.aws.upbound.io/v1beta1
-                  kind: Policy
-                  metadata:
-                    name: {{ $owner}}.{{ $bucket.permission | lower }}.{{ $bucket.bucketName }}
-              providerConfigRef:
-                name: storage-kubernetes
-            {{- end }}
+                  })
     - step: create-user
       functionRef:
-        name: crossplane-contrib-function-go-templating
+        name: crossplane-contrib-function-python
       input:
-        apiVersion: gotemplating.fn.crossplane.io/v1beta1
-        kind: GoTemplate
-        source: Inline
-        inline:
-          template: |
-            {{ $owner := .observed.composite.resource.spec.owner }}
-            {{ $namespace := index .observed.composite.resource.metadata.labels "crossplane.io/claim-namespace" }}
-            ---
-            apiVersion: iam.aws.upbound.io/v1beta1
-            kind: User
-            metadata:
-              name: {{ $owner }}
-              annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: user-{{ $owner }}
-            spec:
-              forProvider: {}
-              providerConfigRef:
-                name: storage-aws
+        apiVersion: python.fn.crossplane.io/v1beta1
+        kind: Script
+        script: |
+          from crossplane.function.proto.v1 import run_function_pb2 as fnv1
+          from google.protobuf import json_format
+          def _to_dict(struct):
+              return {} if struct is None else (struct if isinstance(struct, dict) else json_format.MessageToDict(struct, preserving_proto_field_name=True))
+          
+          def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
+              xr = _to_dict(req.observed.composite.resource)
+              meta = xr.get("metadata", {}) or {}
+              spec = xr.get("spec", {}) or {}
+              ns   = (meta.get("labels", {}) or {}).get("crossplane.io/claim-namespace") or meta.get("namespace") or "default"
+              principal = (spec.get("principal") or meta.get("name") or "<principal>").strip()
+              
+              key = f"user-{principal}"
+              rsp.desired.resources[key].resource.update({
+                  "apiVersion": "iam.aws.m.upbound.io/v1beta1",
+                  "kind": "User",
+                  "metadata": {
+                      "name": principal,
+                      "namespace": ns,
+                      "annotations": {"crossplane.io/composition-resource-name": key}
+                  },
+                  "spec": {
+                      "forProvider": {},
+                      "providerConfigRef": {"name": "provider-aws", "kind": "ProviderConfig"},
+                  }
+              })
     - step: attach-policies-to-user
       functionRef:
-        name: crossplane-contrib-function-go-templating
+        name: crossplane-contrib-function-python
       input:
-        apiVersion: gotemplating.fn.crossplane.io/v1beta1
-        kind: GoTemplate
-        source: Inline
-        inline:
-          template: |
-            {{ $owner := .observed.composite.resource.spec.owner }}
-            {{ $root := . }}
-            {{- range $i, $bucket := .observed.composite.resource.spec.buckets }}
-            ---
-            apiVersion: iam.aws.upbound.io/v1beta1
-            kind: UserPolicyAttachment
-            metadata:
-              name: {{ $owner }}.owner.{{ $bucket.bucketName }}
-              annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: user-policy-attachement-{{ $owner }}.owner.{{ $bucket.bucketName }}
-            spec:
-              forProvider:
-                userRef:
-                  name: {{ $owner }}
-                policyArnRef:
-                  name: {{ $owner }}.owner.{{ $bucket.bucketName }}
-              providerConfigRef:
-                name: storage-aws
-            {{- end }}
-            {{- range $i, $bucket := .observed.composite.resource.spec.bucketAccessRequests }}
-              {{ $policyCheckName := printf "check-policy-%s.%s.%s" $owner ($bucket.permission | lower) $bucket.bucketName }}
-              {{ $policyCheck := get $root.observed.resources $policyCheckName | default dict }}
-              {{- if $policyCheck.resource.status.atProvider }}
-            ---
-            apiVersion: iam.aws.upbound.io/v1beta1
-            kind: UserPolicyAttachment
-            metadata:
-              name: {{ $owner }}.{{ $bucket.permission | lower }}.{{ $bucket.bucketName }}
-              annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: user-policy-attachement-{{ $owner }}.{{ $bucket.permission | lower }}.{{ $bucket.bucketName }}
-            spec:
-              forProvider:
-                userRef:
-                  name: {{ $owner }}
-                policyArnRef:
-                  name: {{ $owner }}.{{ $bucket.permission | lower }}.{{ $bucket.bucketName }}
-              providerConfigRef:
-                name: storage-aws
-              {{- end }}
-            {{- end }}
+        apiVersion: python.fn.crossplane.io/v1beta1
+        kind: Script
+        script: |
+          from crossplane.function.proto.v1 import run_function_pb2 as fnv1
+          from google.protobuf import json_format
+          def _to_dict(struct):
+              return {} if struct is None else (struct if isinstance(struct, dict) else json_format.MessageToDict(struct, preserving_proto_field_name=True))
+          
+          def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
+              xr = _to_dict(req.observed.composite.resource)
+              meta = xr.get("metadata", {}) or {}
+              spec = xr.get("spec", {}) or {}
+              ns   = (meta.get("labels", {}) or {}).get("crossplane.io/claim-namespace") or meta.get("namespace") or "default"
+              principal = (spec.get("principal") or meta.get("name") or "<principal>").strip()
+              
+              for b in (spec.get("buckets") or []):
+                  bucket = (b.get("bucketName") or "").strip()
+                  if not bucket:
+                      continue
+                  polname = f"{principal}.owner.{bucket}"
+                  key = f"upa-owner-{bucket}"
+                  rsp.desired.resources[key].resource.update({
+                      "apiVersion": "iam.aws.m.upbound.io/v1beta1",
+                      "kind": "UserPolicyAttachment",
+                      "metadata": {
+                          "name": f"{principal}.owner.{bucket}",
+                          "namespace": ns,
+                          "annotations": {"crossplane.io/composition-resource-name": key}
+                      },
+                      "spec": {
+                          "forProvider": {
+                              "userRef": {"name": principal},
+                              "policyArnRef": {"name": polname}
+                          },
+                          "providerConfigRef": {"name": "provider-aws", "kind": "ProviderConfig"},
+                      }
+                  })
+              for r in (spec.get("bucketAccessRequests") or []):
+                  bucket = (r.get("bucketName") or "").strip()
+                  perm   = (r.get("permission") or "").strip()
+                  if not bucket or not perm:
+                      continue
+                  polname = f"{principal}.{perm.lower()}.{bucket}"
+                  key = f"upa-request-{perm.lower()}-{bucket}"
+                  rsp.desired.resources[key].resource.update({
+                      "apiVersion": "iam.aws.m.upbound.io/v1beta1",
+                      "kind": "UserPolicyAttachment",
+                      "metadata": {
+                          "name": f"{principal}.{perm.lower()}.{bucket}",
+                          "namespace": ns,
+                          "annotations": {"crossplane.io/composition-resource-name": key}
+                      },
+                      "spec": {
+                          "forProvider": {
+                              "userRef": {"name": principal},
+                              "policyArnRef": {"name": polname}
+                          },
+                          "providerConfigRef": {"name": "provider-aws", "kind": "ProviderConfig"},
+                      }
+                  })
     - step: create-user-access-key
       functionRef:
-        name: crossplane-contrib-function-go-templating
+        name: crossplane-contrib-function-python
       input:
-        apiVersion: gotemplating.fn.crossplane.io/v1beta1
-        kind: GoTemplate
-        source: Inline
-        inline:
-          template: |
-            {{ $owner := .observed.composite.resource.spec.owner }}
-            {{ $namespace := index .observed.composite.resource.metadata.labels "crossplane.io/claim-namespace" }}
-            ---
-            apiVersion: iam.aws.upbound.io/v1beta1
-            kind: AccessKey
-            metadata:
-              name: {{ $owner }}
-              annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: access-key-{{ $owner }}
-            spec:
-              forProvider:
-                userRef:
-                  name: {{ $owner }}
-              providerConfigRef:
-                name: storage-aws
-              writeConnectionSecretToRef:
-                name: {{ $owner }}
-                namespace: {{ $namespace }}
+        apiVersion: python.fn.crossplane.io/v1beta1
+        kind: Script
+        script: |
+          from crossplane.function.proto.v1 import run_function_pb2 as fnv1
+          from google.protobuf import json_format
+          def _to_dict(struct):
+              return {} if struct is None else (struct if isinstance(struct, dict) else json_format.MessageToDict(struct, preserving_proto_field_name=True))
+          
+          def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
+              xr = _to_dict(req.observed.composite.resource)
+              meta = xr.get("metadata", {}) or {}
+              spec = xr.get("spec", {}) or {}
+              ns   = (meta.get("labels", {}) or {}).get("crossplane.io/claim-namespace") or meta.get("namespace") or "default"
+              
+              principal = (spec.get("principal") or meta.get("name") or "<principal>").strip()
+              key = f"access-key-{principal}"
+              rsp.desired.resources[key].resource.update({
+                  "apiVersion": "iam.aws.m.upbound.io/v1beta1",
+                  "kind": "AccessKey",
+                  "metadata": {
+                      "name": principal,
+                      "namespace": ns,
+                      "annotations": {"crossplane.io/composition-resource-name": key}
+                  },
+                  "spec": {
+                      "forProvider": {"userRef": {"name": principal}},
+                      "providerConfigRef": {"name": "provider-aws", "kind": "ProviderConfig"},
+                      "writeConnectionSecretToRef": {"name": principal}
+                  }
+              })
     - step: automatically-detect-ready-composed-resources
       functionRef:
         name: crossplane-contrib-function-auto-ready

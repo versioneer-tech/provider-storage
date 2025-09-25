@@ -1,0 +1,19 @@
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: ManagedResourceActivationPolicy
+metadata:
+  name: provider-aws
+spec:
+  activate:
+    - buckets.s3.aws.m.upbound.io
+    - accesskeys.iam.aws.m.upbound.io
+    - policies.iam.aws.m.upbound.io
+    - users.iam.aws.m.upbound.io
+    - userpolicyattachments.iam.aws.m.upbound.io
+---
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: ManagedResourceActivationPolicy
+metadata:
+  name: provider-kubernetes
+spec:
+  activate:
+    - objects.kubernetes.m.crossplane.io

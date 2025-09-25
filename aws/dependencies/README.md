@@ -1,19 +1,19 @@
 # Dependencies
 
-These manifests declare the dependencies required for the **`storage-minio`** Composition.  
+These manifests declare the dependencies required for the **`storage-aws`** Composition.  
 They set up the Crossplane runtime (providers, configs, and permissions) that the Storage resources rely on.
 
 ## Runtime prerequisites
 
 - A Kubernetes cluster with Crossplane **v2.0.2+** installed and healthy.
-- **MinIO** installed in the cluster. This Composition targets that runtime and was tested with the MinIO **Operator** (chart: `operator`, version: **7.1.1**). Installation instructions are available at: https://github.com/minio/operator  
 
 ## Providers and Functions
 
 This Composition expects the following Crossplane components to be installed (versions are examples — pin to the versions you have validated):
 
 - **Providers**
-  - `provider-minio` (e.g., `xpkg.upbound.io/crossplane-contrib/provider-minio:v0.4.4`)
+  - `provider-aws-s3` (e.g., `xpkg.upbound.io/upbound/provider-aws-s3:v2.1.0`)
+  - `provider-aws-iam` (e.g., `xpkg.upbound.io/upbound/provider-aws-iam:v2.1.0`)
   - `provider-kubernetes` (e.g., `xpkg.upbound.io/crossplane-contrib/provider-kubernetes:v1.0.0`)
 
 - **Functions**
@@ -22,10 +22,10 @@ This Composition expects the following Crossplane components to be installed (ve
 
   > Pin exact versions (or digests) and upgrade intentionally.
 
-## MinIO notes
+## AWS notes
 
-S3 buckets are managed via **MinIO** using `provider-minio`. You must supply:
-- A reachable MinIO endpoint and credentials (referenced by the **`ProviderConfig`**).
+S3 buckets are managed via **AWS** using `provider-aws`. You must supply:
+- A reachable AWS endpoint and credentials (referenced by the **`ProviderConfig`**).
 
 ## Best practices
 
