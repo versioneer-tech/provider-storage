@@ -1,0 +1,223 @@
+---
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  name: s-jeff
+spec:
+  bucketAccessGrants:
+  - bucketName: b-jeff-shared
+    grantee: joe
+    permission: ReadOnly
+  bucketAccessRequests:
+  - bucketName: b-joe
+    reason: Need access
+  buckets:
+  - bucketName: b-jeff
+  - bucketName: b-jeff-shared
+    discoverable: true
+  principal: jeff
+status:
+  conditions:
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    message: 'Unready resources: access-key-jeff, bucket-b-jeff, bucket-b-jeff-shared,
+      and 3 more'
+    reason: Creating
+    status: "False"
+    type: Ready
+---
+apiVersion: kubernetes.crossplane.io/v1alpha2
+kind: Object
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: access-key-jeff
+  labels:
+    crossplane.io/composite: s-jeff
+  name: access-key-jeff
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-jeff
+    uid: ""
+spec:
+  forProvider:
+    manifest:
+      apiVersion: identity.opentelekomcloud.crossplane.io/v1alpha1
+      kind: CredentialV3
+      metadata:
+        name: jeff-aksk
+      spec:
+        forProvider:
+          type: AK
+          userIdRef:
+            name: jeff
+        providerConfigRef:
+          name: provider-otc
+        writeConnectionSecretToRef:
+          name: jeff
+          namespace: default
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-kubernetes
+---
+apiVersion: kubernetes.crossplane.io/v1alpha2
+kind: Object
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: bucket-b-jeff
+  labels:
+    crossplane.io/composite: s-jeff
+  name: bucket-b-jeff
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-jeff
+    uid: ""
+spec:
+  forProvider:
+    manifest:
+      apiVersion: s3.opentelekomcloud.crossplane.io/v1alpha1
+      kind: Bucket
+      metadata:
+        name: b-jeff
+      spec:
+        forProvider:
+          bucket: b-jeff
+          region: eu-de
+        providerConfigRef:
+          name: provider-otc
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-kubernetes
+---
+apiVersion: kubernetes.crossplane.io/v1alpha2
+kind: Object
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: bucket-b-jeff-shared
+  labels:
+    crossplane.io/composite: s-jeff
+  name: bucket-b-jeff-shared
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-jeff
+    uid: ""
+spec:
+  forProvider:
+    manifest:
+      apiVersion: s3.opentelekomcloud.crossplane.io/v1alpha1
+      kind: Bucket
+      metadata:
+        name: b-jeff-shared
+      spec:
+        forProvider:
+          bucket: b-jeff-shared
+          region: eu-de
+        providerConfigRef:
+          name: provider-otc
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-kubernetes
+---
+apiVersion: kubernetes.crossplane.io/v1alpha2
+kind: Object
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: observe-jeff-restricted-b-joe
+  labels:
+    crossplane.io/composite: s-jeff
+  name: observe-jeff-restricted-b-joe
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-jeff
+    uid: ""
+spec:
+  forProvider:
+    manifest:
+      apiVersion: s3.opentelekomcloud.crossplane.io/v1alpha1
+      kind: BucketPolicy
+      metadata:
+        name: bucketpolicy-b-joe
+  managementPolicies:
+  - Observe
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-kubernetes
+---
+apiVersion: kubernetes.crossplane.io/v1alpha2
+kind: Object
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: observe-user-joe
+  labels:
+    crossplane.io/composite: s-jeff
+  name: observe-user-joe
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-jeff
+    uid: ""
+spec:
+  forProvider:
+    manifest:
+      apiVersion: identity.opentelekomcloud.crossplane.io/v1alpha1
+      kind: UserV3
+      metadata:
+        name: joe
+  managementPolicies:
+  - Observe
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-kubernetes
+---
+apiVersion: kubernetes.crossplane.io/v1alpha2
+kind: Object
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: user-jeff
+  labels:
+    crossplane.io/composite: s-jeff
+  name: user-jeff
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-jeff
+    uid: ""
+spec:
+  forProvider:
+    manifest:
+      apiVersion: identity.opentelekomcloud.crossplane.io/v1alpha1
+      kind: UserV3
+      metadata:
+        name: jeff
+      spec:
+        forProvider:
+          enabled: true
+          name: jeff
+        providerConfigRef:
+          name: provider-otc
+        writeConnectionSecretToRef:
+          name: jeff-user
+          namespace: default
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-kubernetes

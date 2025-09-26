@@ -1,0 +1,62 @@
+apiVersion: pkg.crossplane.io/v1beta1
+kind: DeploymentRuntimeConfig
+metadata:
+  name: provider-otc
+spec:
+  deploymentTemplate:
+    metadata:
+      labels:
+        runtime: provider-otc
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          runtime: provider-otc
+      template:
+        metadata:
+          labels:
+            runtime: provider-otc
+        spec:
+          containers:
+          - name: package-runtime
+            # args:
+            # - --debug
+            resources:
+              requests:
+                cpu: 100m
+                memory: 128Mi
+              limits:
+                cpu: 500m
+                memory: 512Mi
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: DeploymentRuntimeConfig
+metadata:
+  name: provider-kubernetes
+spec:
+  deploymentTemplate:
+    metadata:
+      labels:
+        runtime: provider-kubernetes
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          runtime: provider-kubernetes
+      template:
+        metadata:
+          labels:
+            runtime: provider-kubernetes
+        spec:
+          serviceAccountName: provider-kubernetes
+          containers:
+          - name: package-runtime
+            # args:
+            # - --debug
+            resources:
+              requests:
+                cpu: 100m
+                memory: 128Mi
+              limits:
+                cpu: 500m
+                memory: 512Mi

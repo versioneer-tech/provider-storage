@@ -1,0 +1,97 @@
+---
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  name: s-jane
+spec:
+  bucketAccessRequests:
+  - bucketName: b-john
+    reason: Need WriteOnly access
+  buckets: []
+  principal: jane
+status:
+  conditions:
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    message: 'Unready resources: access-key-jane, observe-jane-restricted-b-john,
+      and user-jane'
+    reason: Creating
+    status: "False"
+    type: Ready
+---
+apiVersion: iam.aws.m.upbound.io/v1beta1
+kind: AccessKey
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: access-key-jane
+  labels:
+    crossplane.io/composite: s-jane
+  name: jane
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-jane
+    uid: ""
+spec:
+  forProvider:
+    userRef:
+      name: jane
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-aws
+  writeConnectionSecretToRef:
+    name: jane
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: observe-jane-restricted-b-john
+  labels:
+    crossplane.io/composite: s-jane
+  name: observe-jane-restricted-b-john
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-jane
+    uid: ""
+spec:
+  forProvider:
+    manifest:
+      apiVersion: iam.aws.m.upbound.io/v1beta1
+      kind: Policy
+      metadata:
+        name: jane.restricted.b-john
+        namespace: default
+  managementPolicies:
+  - Observe
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-kubernetes
+---
+apiVersion: iam.aws.m.upbound.io/v1beta1
+kind: User
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: user-jane
+  labels:
+    crossplane.io/composite: s-jane
+  name: jane
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-jane
+    uid: ""
+spec:
+  forProvider: {}
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-aws

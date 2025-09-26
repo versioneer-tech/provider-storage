@@ -1,0 +1,17 @@
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-otc
+spec:
+  package: xpkg.upbound.io/opentelekomcloud/provider-opentelekomcloud:v0.5.0 
+  runtimeConfigRef:
+    name: provider-otc
+---
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-kubernetes
+spec:
+  package: xpkg.upbound.io/crossplane-contrib/provider-kubernetes:v1.0.0
+  runtimeConfigRef:
+    name: provider-kubernetes

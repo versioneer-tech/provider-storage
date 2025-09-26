@@ -1,0 +1,17 @@
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: ManagedResourceActivationPolicy
+metadata:
+  name: provider-otc
+spec:
+  activate:
+    - buckets.obs.otc.upbound.io
+    - policies.iam.otc.upbound.io
+    - users.iam.otc.upbound.io
+---
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: ManagedResourceActivationPolicy
+metadata:
+  name: provider-kubernetes
+spec:
+  activate:
+    - objects.kubernetes.m.crossplane.io
