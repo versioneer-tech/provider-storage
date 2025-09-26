@@ -1,17 +1,3 @@
-# Copyright 2025, EOX (https://eox.at) and Versioneer (https://versioneer.at)
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
@@ -48,13 +34,12 @@ spec:
                   if not bucket:
                       continue
                   discoverable = str(bool(b.get("discoverable", False))).lower()
-                  objname = f"bucket-{bucket}"
                   key = f"bucket-{bucket}"
                   rsp.desired.resources[key].resource.update({
                       "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
                       "kind": "Object",
                       "metadata": {
-                          "name": objname,
+                          "name": key,
                           "namespace": ns,
                           "annotations": {"crossplane.io/composition-resource-name": key}
                       },
@@ -72,9 +57,7 @@ spec:
                                   }
                               }
                           },
-                          "providerConfigRef": {"name": "provider-kubernetes", "kind": "ProviderConfig"},
-                          "readiness": {"policy": "SuccessfulCreate"},
-                          "watch": False
+                          "providerConfigRef": {"name": "provider-kubernetes", "kind": "ProviderConfig"}
                       }
                   })
 
@@ -103,8 +86,8 @@ spec:
                   bucket = (b.get("bucketName") or "").strip()
                   if not bucket:
                       continue
-                  polname = f"{principal}.owner.{bucket}"
-                  objname = f"policy-owner-{bucket}"
+                  polname = f"{principal}.full.{bucket}"
+                  key = f"policy-full-{bucket}"
                   raw = json.dumps({
                       "Version": "2012-10-17",
                       "Statement": [{
@@ -114,12 +97,11 @@ spec:
                       }]
                   }, indent=2)
 
-                  key = f"policy-owner-{bucket}"
                   rsp.desired.resources[key].resource.update({
                       "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
                       "kind": "Object",
                       "metadata": {
-                          "name": objname,
+                          "name": key,
                           "namespace": ns,
                           "annotations": {"crossplane.io/composition-resource-name": key}
                       },
@@ -135,13 +117,11 @@ spec:
                                   }
                               }
                           },
-                          "providerConfigRef": {"name": "provider-kubernetes", "kind": "ProviderConfig"},
-                          "readiness": {"policy": "SuccessfulCreate"},
-                          "watch": False
+                          "providerConfigRef": {"name": "provider-kubernetes", "kind": "ProviderConfig"}
                       }
                   })
 
-    - step: create-grant-bucket-access-policies
+    - step: create-restricted-policies
       functionRef:
         name: crossplane-contrib-function-python
       input:
@@ -189,12 +169,12 @@ spec:
                   bucket  = (grant.get("bucketName") or "").strip()
                   grantee = (grant.get("grantee") or "").strip()
                   perm    = (grant.get("permission") or "").strip()
-                  if not bucket or not grantee:
+                  if not bucket or not grantee or not perm:
                       continue
 
                   raw = _raw_policy(bucket, perm)
-                  polname = f"{grantee}.{bucket}"
-                  key = f"policy-grant-{grantee}-{bucket}"
+                  polname = f"{grantee}.restricted.{bucket}"
+                  key = f"policy-{grantee}-restricted-{bucket}"
                   rsp.desired.resources[key].resource.update({
                       "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
                       "kind": "Object",
@@ -215,9 +195,7 @@ spec:
                                   }
                               }
                           },
-                          "providerConfigRef": {"name": "provider-kubernetes", "kind": "ProviderConfig"},
-                          "readiness": {"policy": "SuccessfulCreate"},
-                          "watch": False
+                          "providerConfigRef": {"name": "provider-kubernetes", "kind": "ProviderConfig"}
                       }
                   })
 
@@ -245,13 +223,13 @@ spec:
                   bucket = (r.get("bucketName") or "").strip()
                   if not bucket:
                       continue
-                  polname = f"{principal}.{bucket}"
-                  key = f"check-policy-{polname}"
+                  polname = f"{principal}.restricted.{bucket}"
+                  key = f"observe-{principal}-restricted-{bucket}"
                   rsp.desired.resources[key].resource.update({
                       "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
                       "kind": "Object",
                       "metadata": {
-                          "name": f"policy-observer-{principal}-{bucket}",
+                          "name": key,
                           "namespace": ns,
                           "annotations": {"crossplane.io/composition-resource-name": key}
                       },
@@ -264,9 +242,7 @@ spec:
                                   "metadata": {"name": polname}
                               }
                           },
-                          "providerConfigRef": {"name": "provider-kubernetes", "kind": "ProviderConfig"},
-                          "readiness": {"policy": "SuccessfulCreate"},
-                          "watch": False
+                          "providerConfigRef": {"name": "provider-kubernetes", "kind": "ProviderConfig"}
                       }
                   })
 
@@ -294,20 +270,22 @@ spec:
               for b in (spec.get("buckets") or []):
                   bucket = (b.get("bucketName") or "").strip()
                   if bucket:
-                      policies.append(f"{principal}.owner.{bucket}")
+                      policies.append(f"{principal}.full.{bucket}")
 
+              observed_resources = getattr(req.observed, "resources", {}) or {}
               for r in (spec.get("bucketAccessRequests") or []):
                   bucket = (r.get("bucketName") or "").strip()
                   if not bucket:
                       continue
-                  check_key = f"check-policy-{principal}.{bucket}"
-                  oc = (getattr(req.observed, "resources", {}) or {}).get(check_key)
+                  obs_key = f"policy-observe-restricted-{principal}-{bucket}"
+                  oc = observed_resources.get(obs_key)
                   exists = False
                   if oc and getattr(oc, "resource", None):
                       od = _to_dict(oc.resource)
-                      exists = bool(od.get("status", {}).get("atProvider"))
+                      atp = ((od.get("status") or {}).get("atProvider") or {})
+                      exists = bool(atp.get("manifest"))
                   if exists:
-                      policies.append(f"{principal}.{bucket}")
+                      policies.append(f"{principal}.restricted.{bucket}")
 
               key = f"user-{principal}"
               rsp.desired.resources[key].resource.update({
@@ -331,9 +309,7 @@ spec:
                               }
                           }
                       },
-                      "providerConfigRef": {"name": "provider-kubernetes", "kind": "ProviderConfig"},
-                      "readiness": {"policy": "SuccessfulCreate"},
-                      "watch": False
+                      "providerConfigRef": {"name": "provider-kubernetes", "kind": "ProviderConfig"}
                   }
               })
 

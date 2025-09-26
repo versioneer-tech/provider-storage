@@ -1,0 +1,39 @@
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  name: ws-jeff
+spec:
+  crossplane:
+    compositionSelector:
+      matchLabels:
+        provider: aws
+  principal: ws-jeff
+  buckets:
+  - bucketName: ws-jeff
+  - bucketName: ws-jeff-shared
+    discoverable: true
+  bucketAccessRequests:
+  - bucketName: ws-joe
+    reason: Need access
+  bucketAccessGrants:
+  - bucketName: ws-jeff-shared
+    grantee: ws-joe
+    permission: ReadWrite
+---
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  name: ws-joe
+spec:
+  crossplane:
+    compositionSelector:
+      matchLabels:
+        provider: aws
+  principal: ws-joe
+  buckets:
+  - bucketName: ws-joe
+  - bucketName: ws-joe-shared
+    discoverable: true
+  bucketAccessRequests:
+  - bucketName: ws-jeff
+    reason: Need access

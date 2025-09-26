@@ -38,6 +38,12 @@ spec:
   - bucketName: ws-alice
 ```
 
+```
+kubectl get storage -A -o name \
+| xargs -I{} kubectl patch {} --type='merge' \
+  -p '{"spec":{"crossplane":{"compositionSelector":{"matchLabels":{"provider":"minio"}}}}}'
+```
+
 ### More examples
 
 See [`examples/buckets.yaml`](examples/buckets.yaml) for complete scenarios, including:

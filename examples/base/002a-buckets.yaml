@@ -1,0 +1,39 @@
+---
+# Storage definition for Jane.
+# - Creates no buckets.
+# - Requests ReadOnly access to John's bucket b-john.
+# - Note: Until John grants access, this request remains pending and unusable.
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  name: s-jane
+spec:
+  principal: jane
+  buckets: []
+  bucketAccessRequests:
+  - bucketName: b-john
+    reason: Need ReadOnly access
+---
+# Storage definition for John.
+# - Creates one bucket: b-john (private by default).
+# - Requests access to:
+#   * Joe's discoverable bucket b-joe
+#   * Jeff's private bucket b-jeff
+#   * Jane's bucket b-jane (does not exist yet)
+# - Note: No grants are in place yet, so these requests are pending; the request
+#   to b-jane cannot resolve until that bucket exists.
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  name: s-john
+spec:
+  principal: john
+  buckets:
+  - bucketName: b-john
+  bucketAccessRequests:
+  - bucketName: b-joe
+    reason: Need access
+  - bucketName: b-jeff
+    reason: Need access
+  - bucketName: b-jane
+    reason: Need access

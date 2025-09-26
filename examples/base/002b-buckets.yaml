@@ -1,0 +1,43 @@
+---
+# Storage definition for Jane.
+# - Creates no buckets.
+# - Requests ReadOnly access to John's bucket b-john.
+# - Status: John has now granted ReadOnly on b-john; once reconciled, this request
+#   results in an effective policy for Jane (no further action required on Jane's side).
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  name: s-jane
+spec:
+  principal: jane
+  buckets: []
+  bucketAccessRequests:
+  - bucketName: b-john
+    reason: Need ReadOnly access
+---
+# Storage definition for John.
+# - Creates one bucket: b-john (private by default).
+# - Outbound requests: Previously requested access to b-joe, b-jeff, and b-jane;
+#   these incorrect/unused requests have been withdrawn (see commented section below).
+# - Grants: Gives Jane ReadOnly access to b-john (active).
+# - Note: Only the grant remains; no outbound access requests are currently active.
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  name: s-john
+spec:
+  principal: john
+  buckets:
+  - bucketName: b-john
+  # Withdrawn requests (kept here as comments for traceability):
+  # bucketAccessRequests:
+  # - bucketName: b-joe
+  #   reason: Need access
+  # - bucketName: b-jeff
+  #   reason: Need access
+  # - bucketName: b-jane
+  #   reason: Need access
+  bucketAccessGrants:
+  - bucketName: b-john
+    grantee: jane
+    permission: ReadOnly
