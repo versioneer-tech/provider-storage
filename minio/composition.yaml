@@ -277,13 +277,16 @@ spec:
                   bucket = (r.get("bucketName") or "").strip()
                   if not bucket:
                       continue
-                  obs_key = f"policy-observe-restricted-{principal}-{bucket}"
+                  obs_key = f"observe-{principal}-restricted-{bucket}"
                   oc = observed_resources.get(obs_key)
                   exists = False
                   if oc and getattr(oc, "resource", None):
                       od = _to_dict(oc.resource)
-                      atp = ((od.get("status") or {}).get("atProvider") or {})
-                      exists = bool(atp.get("manifest"))
+                      st = (od.get("status") or {})
+                      has_manifest = bool((st.get("atProvider") or {}).get("manifest"))
+                      conds = st.get("conditions") or []
+                      is_ready = any(c.get("type") == "Ready" and c.get("status") in ("True", True) for c in conds)
+                      exists = has_manifest or is_ready
                   if exists:
                       policies.append(f"{principal}.restricted.{bucket}")
 

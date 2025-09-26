@@ -4,16 +4,30 @@ You can unit-test your Crossplane v2 Composition locally with `crossplane render
 
 ```sh
 for file in examples/base/00*-buckets.yaml; do
-  i=$(basename "$file" | sed -E 's/^00(.+)-buckets\.yaml$/\1/')
+  name="$(basename "$file")"
+  idx="${name#00}"
+  idx="${idx%-buckets.yaml}"
 
   crossplane render "$file" minio/composition.yaml minio/dependencies/functions.yaml \
-    --observed-resources "minio/tests/observed/00${i}-buckets.yaml" \
     -x \
-    > "minio/tests/00${i}-buckets.yaml"
+    > "minio/tests/00${idx}-buckets.yaml"
+
+  dyff between \
+    "minio/tests/00${idx}-buckets.yaml" \
+    "minio/tests/expected/00${idx}-buckets.yaml" \
+    -s
+
+  obs="minio/tests/observed/00${idx}-buckets.yaml"
+  if [[ -f "$obs" ]]; then
+    crossplane render "$file" minio/composition.yaml minio/dependencies/functions.yaml \
+      --observed-resources "$obs" \
+      -x \
+      > "minio/tests/00${idx}x-buckets.yaml"
 
     dyff between \
-    "minio/tests/00${i}-buckets.yaml" \
-    "minio/tests/expected/00${i}-buckets.yaml" \
-    -s
+      "minio/tests/00${idx}x-buckets.yaml" \
+      "minio/tests/expected/00${idx}x-buckets.yaml" \
+      -s
+  fi
 done
 ```

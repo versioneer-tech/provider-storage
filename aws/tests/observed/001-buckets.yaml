@@ -1,0 +1,16 @@
+apiVersion: kubernetes.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  name: observe-joe-restricted-b-jeff-shared
+  annotations:
+    crossplane.io/composition-resource-name: observe-joe-restricted-b-jeff-shared
+status:
+  atProvider:
+    manifest:
+      apiVersion: iam.aws.m.upbound.io/v1beta1
+      kind: Policy
+      metadata:
+        name: joe.restricted.b-jeff-shared
+  conditions:
+  - type: Ready
+    status: "True"

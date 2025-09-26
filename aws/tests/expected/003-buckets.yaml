@@ -2,26 +2,18 @@
 apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
-  labels:
-    crossplane.io/claim-name: alice-003
-    crossplane.io/claim-namespace: default
-  name: alice-003
-  namespace: storage
+  name: s-jane
 spec:
   bucketAccessRequests:
-  - bucketName: bob-shared-003
-    permission: ReadWrite
-  buckets:
-  - bucketName: alice-003
-    discoverable: false
-  - bucketName: alice-shared-003
-    discoverable: true
-  owner: alice-003
+  - bucketName: b-john
+    reason: Need WriteOnly access
+  buckets: []
+  principal: jane
 status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: access-key-alice-003, bucket-alice-003, bucket-alice-shared-003,
-      and 5 more'
+    message: 'Unready resources: access-key-jane, observe-jane-restricted-b-john,
+      and user-jane'
     reason: Creating
     status: "False"
     type: Ready
@@ -30,242 +22,73 @@ apiVersion: iam.aws.m.upbound.io/v1beta1
 kind: AccessKey
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: access-key-alice-003
+    crossplane.io/composition-resource-name: access-key-jane
   labels:
-    crossplane.io/composite: alice-003
-  name: alice-003
+    crossplane.io/composite: s-jane
+  name: jane
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
     blockOwnerDeletion: true
     controller: true
     kind: Storage
-    name: alice-003
+    name: s-jane
     uid: ""
 spec:
   forProvider:
     userRef:
-      name: alice-003
+      name: jane
   providerConfigRef:
     kind: ProviderConfig
     name: provider-aws
   writeConnectionSecretToRef:
-    name: alice-003
+    name: jane
 ---
-apiVersion: s3.aws.m.upbound.io/v1beta1
-kind: Bucket
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: bucket-alice-003
+    crossplane.io/composition-resource-name: observe-jane-restricted-b-john
   labels:
-    crossplane.io/composite: alice-003
-  name: alice-003
+    crossplane.io/composite: s-jane
+  name: observe-jane-restricted-b-john
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
     blockOwnerDeletion: true
     controller: true
     kind: Storage
-    name: alice-003
+    name: s-jane
     uid: ""
 spec:
   forProvider:
-    region: eu-central-1
+    manifest:
+      apiVersion: iam.aws.m.upbound.io/v1beta1
+      kind: Policy
+      metadata:
+        name: jane.restricted.b-john
+        namespace: default
+  managementPolicies:
+  - Observe
   providerConfigRef:
     kind: ProviderConfig
-    name: provider-aws
----
-apiVersion: s3.aws.m.upbound.io/v1beta1
-kind: Bucket
-metadata:
-  annotations:
-    crossplane.io/composition-resource-name: bucket-alice-shared-003
-  labels:
-    crossplane.io/composite: alice-003
-  name: alice-shared-003
-  namespace: default
-  ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: alice-003
-    uid: ""
-spec:
-  forProvider:
-    region: eu-central-1
-  providerConfigRef:
-    kind: ProviderConfig
-    name: provider-aws
----
-apiVersion: iam.aws.m.upbound.io/v1beta1
-kind: Policy
-metadata:
-  annotations:
-    crossplane.io/composition-resource-name: policy-owner-alice-003
-  labels:
-    crossplane.io/composite: alice-003
-  name: alice-003.owner.alice-003
-  namespace: default
-  ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: alice-003
-    uid: ""
-spec:
-  forProvider:
-    policy: |-
-      {
-        "Version": "2012-10-17",
-        "Statement": [
-          {
-            "Effect": "Allow",
-            "Action": [
-              "s3:*"
-            ],
-            "Resource": [
-              "arn:aws:s3:::alice-003",
-              "arn:aws:s3:::alice-003/*"
-            ]
-          }
-        ]
-      }
-  providerConfigRef:
-    kind: ProviderConfig
-    name: provider-aws
----
-apiVersion: iam.aws.m.upbound.io/v1beta1
-kind: Policy
-metadata:
-  annotations:
-    crossplane.io/composition-resource-name: policy-owner-alice-shared-003
-  labels:
-    crossplane.io/composite: alice-003
-  name: alice-003.owner.alice-shared-003
-  namespace: default
-  ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: alice-003
-    uid: ""
-spec:
-  forProvider:
-    policy: |-
-      {
-        "Version": "2012-10-17",
-        "Statement": [
-          {
-            "Effect": "Allow",
-            "Action": [
-              "s3:*"
-            ],
-            "Resource": [
-              "arn:aws:s3:::alice-shared-003",
-              "arn:aws:s3:::alice-shared-003/*"
-            ]
-          }
-        ]
-      }
-  providerConfigRef:
-    kind: ProviderConfig
-    name: provider-aws
----
-apiVersion: iam.aws.m.upbound.io/v1beta1
-kind: UserPolicyAttachment
-metadata:
-  annotations:
-    crossplane.io/composition-resource-name: upa-owner-alice-003
-  labels:
-    crossplane.io/composite: alice-003
-  name: alice-003.owner.alice-003
-  namespace: default
-  ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: alice-003
-    uid: ""
-spec:
-  forProvider:
-    policyArnRef:
-      name: alice-003.owner.alice-003
-    userRef:
-      name: alice-003
-  providerConfigRef:
-    kind: ProviderConfig
-    name: provider-aws
----
-apiVersion: iam.aws.m.upbound.io/v1beta1
-kind: UserPolicyAttachment
-metadata:
-  annotations:
-    crossplane.io/composition-resource-name: upa-owner-alice-shared-003
-  labels:
-    crossplane.io/composite: alice-003
-  name: alice-003.owner.alice-shared-003
-  namespace: default
-  ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: alice-003
-    uid: ""
-spec:
-  forProvider:
-    policyArnRef:
-      name: alice-003.owner.alice-shared-003
-    userRef:
-      name: alice-003
-  providerConfigRef:
-    kind: ProviderConfig
-    name: provider-aws
----
-apiVersion: iam.aws.m.upbound.io/v1beta1
-kind: UserPolicyAttachment
-metadata:
-  annotations:
-    crossplane.io/composition-resource-name: upa-request-readwrite-bob-shared-003
-  labels:
-    crossplane.io/composite: alice-003
-  name: alice-003.readwrite.bob-shared-003
-  namespace: default
-  ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: alice-003
-    uid: ""
-spec:
-  forProvider:
-    policyArnRef:
-      name: alice-003.readwrite.bob-shared-003
-    userRef:
-      name: alice-003
-  providerConfigRef:
-    kind: ProviderConfig
-    name: provider-aws
+    name: provider-kubernetes
 ---
 apiVersion: iam.aws.m.upbound.io/v1beta1
 kind: User
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: user-alice-003
-  generateName: alice-003-
+    crossplane.io/composition-resource-name: user-jane
   labels:
-    crossplane.io/composite: alice-003
+    crossplane.io/composite: s-jane
+  name: jane
+  namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
     blockOwnerDeletion: true
     controller: true
     kind: Storage
-    name: alice-003
+    name: s-jane
     uid: ""
 spec:
   forProvider: {}

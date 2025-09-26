@@ -3,3 +3,5 @@ kind: Kustomization
 resources:
   - 001-buckets.yaml
   - 002-buckets.yaml
+  # - 003-buckets.yaml
+  # - 004-buckets.yaml

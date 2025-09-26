@@ -18,8 +18,8 @@ spec:
 status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: bucket-b-joe, observe-joe-restricted-b-jeff-shared,
-      policy-full-b-joe, and 2 more'
+    message: 'Unready resources: bucket-b-joe, policy-full-b-joe, policy-jeff-restricted-b-joe,
+      and 1 more'
     reason: Creating
     status: "False"
     type: Ready
@@ -64,7 +64,6 @@ metadata:
   labels:
     crossplane.io/composite: s-joe
   name: observe-joe-restricted-b-jeff-shared
-  namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
     blockOwnerDeletion: true
@@ -210,6 +209,7 @@ spec:
         forProvider:
           policies:
           - joe.full.b-joe
+          - joe.restricted.b-jeff-shared
           userName: joe
         providerConfigRef:
           name: provider-minio

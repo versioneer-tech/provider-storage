@@ -6,7 +6,7 @@ metadata:
 spec:
   bucketAccessRequests:
   - bucketName: b-john
-    reason: Need ReadOnly access
+    reason: Need WriteOnly access
   buckets: []
   principal: jane
 status:

@@ -1,0 +1,21 @@
+# Storage definition for Jeff.
+# - Creates two buckets: b-jeff (private) and b-jeff-shared (discoverable).
+# - Requests access to Joe's bucket b-joe.
+# - Grants Joe ReadOnly access to b-jeff-shared.
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  name: s-jeff
+spec:
+  principal: jeff
+  buckets:
+  - bucketName: b-jeff
+  - bucketName: b-jeff-shared
+    discoverable: true
+  bucketAccessRequests:
+  - bucketName: b-joe
+    reason: Need access
+  bucketAccessGrants:
+  - bucketName: b-jeff-shared
+    grantee: joe
+    permission: ReadOnly

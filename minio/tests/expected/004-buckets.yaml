@@ -21,46 +21,20 @@ spec:
 status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: access-key-john, bucket-b-john, observe-john-restricted-b-jane,
-      and 6 more'
+    message: 'Unready resources: bucket-b-john, observe-john-restricted-b-jane, observe-john-restricted-b-jeff,
+      and 4 more'
     reason: Creating
     status: "False"
     type: Ready
 ---
-apiVersion: iam.aws.m.upbound.io/v1beta1
-kind: AccessKey
-metadata:
-  annotations:
-    crossplane.io/composition-resource-name: access-key-john
-  labels:
-    crossplane.io/composite: s-john
-  name: john
-  namespace: default
-  ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-john
-    uid: ""
-spec:
-  forProvider:
-    userRef:
-      name: john
-  providerConfigRef:
-    kind: ProviderConfig
-    name: provider-aws
-  writeConnectionSecretToRef:
-    name: john
----
-apiVersion: s3.aws.m.upbound.io/v1beta1
-kind: Bucket
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
 metadata:
   annotations:
     crossplane.io/composition-resource-name: bucket-b-john
   labels:
     crossplane.io/composite: s-john
-  name: b-john
+  name: bucket-b-john
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -71,10 +45,19 @@ metadata:
     uid: ""
 spec:
   forProvider:
-    region: eu-central-1
+    manifest:
+      apiVersion: minio.crossplane.io/v1
+      kind: Bucket
+      metadata:
+        annotations:
+          storages.pkg.internal/discoverable: "false"
+        name: b-john
+      spec:
+        providerConfigRef:
+          name: provider-minio
   providerConfigRef:
     kind: ProviderConfig
-    name: provider-aws
+    name: provider-kubernetes
 ---
 apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
@@ -95,11 +78,10 @@ metadata:
 spec:
   forProvider:
     manifest:
-      apiVersion: iam.aws.m.upbound.io/v1beta1
+      apiVersion: minio.crossplane.io/v1
       kind: Policy
       metadata:
         name: john.restricted.b-jane
-        namespace: default
   managementPolicies:
   - Observe
   providerConfigRef:
@@ -125,11 +107,10 @@ metadata:
 spec:
   forProvider:
     manifest:
-      apiVersion: iam.aws.m.upbound.io/v1beta1
+      apiVersion: minio.crossplane.io/v1
       kind: Policy
       metadata:
         name: john.restricted.b-jeff
-        namespace: default
   managementPolicies:
   - Observe
   providerConfigRef:
@@ -155,25 +136,24 @@ metadata:
 spec:
   forProvider:
     manifest:
-      apiVersion: iam.aws.m.upbound.io/v1beta1
+      apiVersion: minio.crossplane.io/v1
       kind: Policy
       metadata:
         name: john.restricted.b-joe
-        namespace: default
   managementPolicies:
   - Observe
   providerConfigRef:
     kind: ProviderConfig
     name: provider-kubernetes
 ---
-apiVersion: iam.aws.m.upbound.io/v1beta1
-kind: Policy
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
 metadata:
   annotations:
     crossplane.io/composition-resource-name: policy-full-b-john
   labels:
     crossplane.io/composite: s-john
-  name: john.full.b-john
+  name: policy-full-b-john
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -184,34 +164,43 @@ metadata:
     uid: ""
 spec:
   forProvider:
-    policy: |-
-      {
-        "Version": "2012-10-17",
-        "Statement": [
-          {
-            "Effect": "Allow",
-            "Action": [
-              "s3:*"
-            ],
-            "Resource": [
-              "arn:aws:s3:::b-john",
-              "arn:aws:s3:::b-john/*"
-            ]
-          }
-        ]
-      }
+    manifest:
+      apiVersion: minio.crossplane.io/v1
+      kind: Policy
+      metadata:
+        name: john.full.b-john
+      spec:
+        forProvider:
+          rawPolicy: |-
+            {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:*"
+                  ],
+                  "Resource": [
+                    "arn:aws:s3:::b-john",
+                    "arn:aws:s3:::b-john/*"
+                  ]
+                }
+              ]
+            }
+        providerConfigRef:
+          name: provider-minio
   providerConfigRef:
     kind: ProviderConfig
-    name: provider-aws
+    name: provider-kubernetes
 ---
-apiVersion: iam.aws.m.upbound.io/v1beta1
-kind: Policy
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
 metadata:
   annotations:
     crossplane.io/composition-resource-name: policy-jane-restricted-b-john
   labels:
     crossplane.io/composite: s-john
-  name: jane.restricted.b-john
+  name: policy-jane-restricted-b-john
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -222,69 +211,53 @@ metadata:
     uid: ""
 spec:
   forProvider:
-    policy: |-
-      {
-        "Version": "2012-10-17",
-        "Statement": [
-          {
-            "Effect": "Allow",
-            "Action": [
-              "s3:ListBucket"
-            ],
-            "Resource": [
-              "arn:aws:s3:::b-john"
-            ]
-          },
-          {
-            "Effect": "Allow",
-            "Action": [
-              "s3:PutObject",
-              "s3:DeleteObject"
-            ],
-            "Resource": [
-              "arn:aws:s3:::b-john/*"
-            ]
-          }
-        ]
-      }
+    manifest:
+      apiVersion: minio.crossplane.io/v1
+      kind: Policy
+      metadata:
+        name: jane.restricted.b-john
+      spec:
+        forProvider:
+          rawPolicy: |-
+            {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:GetBucketLocation",
+                    "s3:ListBucket"
+                  ],
+                  "Resource": [
+                    "arn:aws:s3:::b-john"
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:PutObject",
+                    "s3:DeleteObject"
+                  ],
+                  "Resource": [
+                    "arn:aws:s3:::b-john/*"
+                  ]
+                }
+              ]
+            }
+        providerConfigRef:
+          name: provider-minio
   providerConfigRef:
     kind: ProviderConfig
-    name: provider-aws
+    name: provider-kubernetes
 ---
-apiVersion: iam.aws.m.upbound.io/v1beta1
-kind: UserPolicyAttachment
-metadata:
-  annotations:
-    crossplane.io/composition-resource-name: upa-full-b-john
-  labels:
-    crossplane.io/composite: s-john
-  name: john.full.b-john
-  namespace: default
-  ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-john
-    uid: ""
-spec:
-  forProvider:
-    policyArnRef:
-      name: john.full.b-john
-    userRef:
-      name: john
-  providerConfigRef:
-    kind: ProviderConfig
-    name: provider-aws
----
-apiVersion: iam.aws.m.upbound.io/v1beta1
-kind: User
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
 metadata:
   annotations:
     crossplane.io/composition-resource-name: user-john
   labels:
     crossplane.io/composite: s-john
-  name: john
+  name: user-john
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -294,7 +267,22 @@ metadata:
     name: s-john
     uid: ""
 spec:
-  forProvider: {}
+  forProvider:
+    manifest:
+      apiVersion: minio.crossplane.io/v1
+      kind: User
+      metadata:
+        name: john
+      spec:
+        forProvider:
+          policies:
+          - john.full.b-john
+          userName: john
+        providerConfigRef:
+          name: provider-minio
+        writeConnectionSecretToRef:
+          name: john
+          namespace: default
   providerConfigRef:
     kind: ProviderConfig
-    name: provider-aws
+    name: provider-kubernetes
