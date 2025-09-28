@@ -18,13 +18,13 @@ spec:
 status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: access-key-joe, bucket-b-joe, observe-user-jeff,
-      and 1 more'
+    message: 'Unready resources: access-key-joe, bucket-b-joe, bucketpolicy-b-joe,
+      and 4 more'
     reason: Creating
     status: "False"
     type: Ready
 ---
-apiVersion: kubernetes.crossplane.io/v1alpha2
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
@@ -46,12 +46,11 @@ spec:
       apiVersion: identity.opentelekomcloud.crossplane.io/v1alpha1
       kind: CredentialV3
       metadata:
-        name: joe-aksk
+        name: aksk-joe
       spec:
         forProvider:
           type: AK
-          userIdRef:
-            name: joe
+          userId: "111"
         providerConfigRef:
           name: provider-otc
         writeConnectionSecretToRef:
@@ -61,7 +60,7 @@ spec:
     kind: ProviderConfig
     name: provider-kubernetes
 ---
-apiVersion: kubernetes.crossplane.io/v1alpha2
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
@@ -80,28 +79,29 @@ metadata:
 spec:
   forProvider:
     manifest:
-      apiVersion: s3.opentelekomcloud.crossplane.io/v1alpha1
+      apiVersion: obs.opentelekomcloud.crossplane.io/v1alpha1
       kind: Bucket
       metadata:
         name: b-joe
       spec:
         forProvider:
           bucket: b-joe
-          region: eu-de
+          region: eu-nl
         providerConfigRef:
           name: provider-otc
   providerConfigRef:
     kind: ProviderConfig
     name: provider-kubernetes
 ---
-apiVersion: kubernetes.crossplane.io/v1alpha2
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: observe-joe-restricted-b-jeff-shared
+    crossplane.io/composition-resource-name: bucketpolicy-b-joe
   labels:
     crossplane.io/composite: s-joe
-  name: observe-joe-restricted-b-jeff-shared
+  name: bucketpolicy-b-joe
+  namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
     blockOwnerDeletion: true
@@ -112,17 +112,114 @@ metadata:
 spec:
   forProvider:
     manifest:
-      apiVersion: s3.opentelekomcloud.crossplane.io/v1alpha1
+      apiVersion: obs.opentelekomcloud.crossplane.io/v1alpha1
       kind: BucketPolicy
       metadata:
-        name: bucketpolicy-b-jeff-shared
+        name: bucketpolicy-b-joe
+      spec:
+        forProvider:
+          bucket: b-joe
+          policy: |-
+            {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ListBucket"
+                  ],
+                  "Resource": [
+                    "b-joe"
+                  ],
+                  "Principal": {
+                    "ID": [
+                      "domain/222:user/111"
+                    ]
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "GetObject",
+                    "PutObject",
+                    "DeleteObject"
+                  ],
+                  "Resource": [
+                    "b-joe/*"
+                  ],
+                  "Principal": {
+                    "ID": [
+                      "domain/222:user/111"
+                    ]
+                  }
+                }
+              ]
+            }
+        providerConfigRef:
+          name: provider-otc
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-kubernetes
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: observe-bucketpolicy-b-joe
+  labels:
+    crossplane.io/composite: s-joe
+  name: observe-bucketpolicy-b-joe
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-joe
+    uid: ""
+spec:
+  forProvider:
+    manifest:
+      apiVersion: obs.opentelekomcloud.crossplane.io/v1alpha1
+      kind: BucketPolicy
+      metadata:
+        name: bucketpolicy-b-joe
   managementPolicies:
   - Observe
   providerConfigRef:
     kind: ProviderConfig
     name: provider-kubernetes
 ---
-apiVersion: kubernetes.crossplane.io/v1alpha2
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: observe-credential-joe
+  labels:
+    crossplane.io/composite: s-joe
+  name: observe-credential-joe
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-joe
+    uid: ""
+spec:
+  forProvider:
+    manifest:
+      apiVersion: identity.opentelekomcloud.crossplane.io/v1alpha1
+      kind: CredentialV3
+      metadata:
+        name: aksk-joe
+  managementPolicies:
+  - Observe
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-kubernetes
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
@@ -151,7 +248,7 @@ spec:
     kind: ProviderConfig
     name: provider-kubernetes
 ---
-apiVersion: kubernetes.crossplane.io/v1alpha2
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
@@ -180,9 +277,6 @@ spec:
           name: joe
         providerConfigRef:
           name: provider-otc
-        writeConnectionSecretToRef:
-          name: joe-user
-          namespace: default
   providerConfigRef:
     kind: ProviderConfig
     name: provider-kubernetes

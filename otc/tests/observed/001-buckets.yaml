@@ -1,16 +1,36 @@
-apiVersion: kubernetes.crossplane.io/v1alpha1
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
-  name: observe-joe-restricted-b-jeff-shared
   annotations:
-    crossplane.io/composition-resource-name: observe-joe-restricted-b-jeff-shared
+    crossplane.io/composition-resource-name: user-joe
+  labels:
+    crossplane.io/composite: s-joe
+  name: user-joe
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-joe
+    uid: ""
+spec:
+  forProvider:
+    manifest:
+      apiVersion: identity.opentelekomcloud.crossplane.io/v1alpha1
+      kind: UserV3
+      metadata:
+        name: joe
+      spec:
+        forProvider:
+          enabled: true
+          name: joe
+        providerConfigRef:
+          name: provider-otc
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-kubernetes
 status:
   atProvider:
-    manifest:
-      apiVersion: iam.aws.m.upbound.io/v1beta1
-      kind: Policy
-      metadata:
-        name: joe.restricted.b-jeff-shared
-  conditions:
-  - type: Ready
-    status: "True"
+    id: "111"
+    domainId: "222"

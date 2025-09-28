@@ -12,46 +12,19 @@ spec:
 status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: access-key-jane, observe-jane-restricted-b-john,
-      and user-jane'
+    message: 'Unready resources: observe-credential-jane, user-jane'
     reason: Creating
     status: "False"
     type: Ready
----
-apiVersion: iam.aws.m.upbound.io/v1beta1
-kind: AccessKey
-metadata:
-  annotations:
-    crossplane.io/composition-resource-name: access-key-jane
-  labels:
-    crossplane.io/composite: s-jane
-  name: jane
-  namespace: default
-  ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-jane
-    uid: ""
-spec:
-  forProvider:
-    userRef:
-      name: jane
-  providerConfigRef:
-    kind: ProviderConfig
-    name: provider-aws
-  writeConnectionSecretToRef:
-    name: jane
 ---
 apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: observe-jane-restricted-b-john
+    crossplane.io/composition-resource-name: observe-credential-jane
   labels:
     crossplane.io/composite: s-jane
-  name: observe-jane-restricted-b-john
+  name: observe-credential-jane
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -63,25 +36,24 @@ metadata:
 spec:
   forProvider:
     manifest:
-      apiVersion: iam.aws.m.upbound.io/v1beta1
-      kind: Policy
+      apiVersion: identity.opentelekomcloud.crossplane.io/v1alpha1
+      kind: CredentialV3
       metadata:
-        name: jane.restricted.b-john
-        namespace: default
+        name: aksk-jane
   managementPolicies:
   - Observe
   providerConfigRef:
     kind: ProviderConfig
     name: provider-kubernetes
 ---
-apiVersion: iam.aws.m.upbound.io/v1beta1
-kind: User
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
 metadata:
   annotations:
     crossplane.io/composition-resource-name: user-jane
   labels:
     crossplane.io/composite: s-jane
-  name: jane
+  name: user-jane
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -91,7 +63,18 @@ metadata:
     name: s-jane
     uid: ""
 spec:
-  forProvider: {}
+  forProvider:
+    manifest:
+      apiVersion: identity.opentelekomcloud.crossplane.io/v1alpha1
+      kind: UserV3
+      metadata:
+        name: jane
+      spec:
+        forProvider:
+          enabled: true
+          name: jane
+        providerConfigRef:
+          name: provider-otc
   providerConfigRef:
     kind: ProviderConfig
-    name: provider-aws
+    name: provider-kubernetes

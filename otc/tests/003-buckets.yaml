@@ -12,20 +12,19 @@ spec:
 status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: access-key-jane, observe-jane-restricted-b-john,
-      and user-jane'
+    message: 'Unready resources: observe-credential-jane, user-jane'
     reason: Creating
     status: "False"
     type: Ready
 ---
-apiVersion: kubernetes.crossplane.io/v1alpha2
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: access-key-jane
+    crossplane.io/composition-resource-name: observe-credential-jane
   labels:
     crossplane.io/composite: s-jane
-  name: access-key-jane
+  name: observe-credential-jane
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -40,51 +39,14 @@ spec:
       apiVersion: identity.opentelekomcloud.crossplane.io/v1alpha1
       kind: CredentialV3
       metadata:
-        name: jane-aksk
-      spec:
-        forProvider:
-          type: AK
-          userIdRef:
-            name: jane
-        providerConfigRef:
-          name: provider-otc
-        writeConnectionSecretToRef:
-          name: jane
-          namespace: default
-  providerConfigRef:
-    kind: ProviderConfig
-    name: provider-kubernetes
----
-apiVersion: kubernetes.crossplane.io/v1alpha2
-kind: Object
-metadata:
-  annotations:
-    crossplane.io/composition-resource-name: observe-jane-restricted-b-john
-  labels:
-    crossplane.io/composite: s-jane
-  name: observe-jane-restricted-b-john
-  namespace: default
-  ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-jane
-    uid: ""
-spec:
-  forProvider:
-    manifest:
-      apiVersion: s3.opentelekomcloud.crossplane.io/v1alpha1
-      kind: BucketPolicy
-      metadata:
-        name: bucketpolicy-b-john
+        name: aksk-jane
   managementPolicies:
   - Observe
   providerConfigRef:
     kind: ProviderConfig
     name: provider-kubernetes
 ---
-apiVersion: kubernetes.crossplane.io/v1alpha2
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
@@ -113,9 +75,6 @@ spec:
           name: jane
         providerConfigRef:
           name: provider-otc
-        writeConnectionSecretToRef:
-          name: jane-user
-          namespace: default
   providerConfigRef:
     kind: ProviderConfig
     name: provider-kubernetes
