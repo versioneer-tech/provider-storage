@@ -4,9 +4,10 @@ metadata:
   name: provider-otc
 spec:
   activate:
-    - buckets.obs.otc.upbound.io
-    - policies.iam.otc.upbound.io
-    - users.iam.otc.upbound.io
+    - userv3.identity.opentelekomcloud.crossplane.io
+    - credentialv3.identity.opentelekomcloud.crossplane.io
+    - bucket.obs.opentelekomcloud.crossplane.io
+    - bucketpolicy.obs.opentelekomcloud.crossplane.io
 ---
 apiVersion: apiextensions.crossplane.io/v1alpha1
 kind: ManagedResourceActivationPolicy

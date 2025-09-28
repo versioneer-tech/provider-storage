@@ -19,8 +19,8 @@ spec:
         spec:
           containers:
           - name: package-runtime
-            # args:
-            # - --debug
+            args:
+            - --debug
             resources:
               requests:
                 cpu: 100m

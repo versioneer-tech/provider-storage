@@ -11,7 +11,7 @@ metadata:
 rules:
 - apiGroups:
   - "identity.opentelekomcloud.crossplane.io"
-  - "s3.opentelekomcloud.crossplane.io"
+  - "obs.opentelekomcloud.crossplane.io"
   resources:
   - "*"
   verbs:
