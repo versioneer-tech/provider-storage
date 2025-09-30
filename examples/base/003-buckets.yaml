@@ -1,7 +1,7 @@
 ---
 # Storage definition for Jane.
 # - Creates no buckets.
-# - Requests access to John's bucket b-john (stated need: WriteOnly).
+# - Requests access to John's bucket s-john (stated need: WriteOnly).
 # - Note: This is only a request; access becomes effective only after John grants it.
 apiVersion: pkg.internal/v1beta1
 kind: Storage
@@ -11,5 +11,6 @@ spec:
   principal: jane
   buckets: []
   bucketAccessRequests:
-  - bucketName: b-john
-    reason: Need WriteOnly access
+    - bucketName: s-john
+      reason: Need WriteOnly access
+      requestedAt: "2025-09-29T10:20:00Z"

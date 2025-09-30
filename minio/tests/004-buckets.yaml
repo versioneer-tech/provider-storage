@@ -5,23 +5,27 @@ metadata:
   name: s-john
 spec:
   bucketAccessGrants:
-  - bucketName: b-john
+  - bucketName: s-john
+    grantedAt: "2025-09-29T10:28:00Z"
     grantee: jane
     permission: WriteOnly
   bucketAccessRequests:
-  - bucketName: b-joe
+  - bucketName: s-joe
     reason: Need access
-  - bucketName: b-jeff
+    requestedAt: "2025-09-29T10:25:00Z"
+  - bucketName: s-jeff
     reason: Need access
-  - bucketName: b-jane
+    requestedAt: "2025-09-29T10:26:00Z"
+  - bucketName: s-jane
     reason: Need access
+    requestedAt: "2025-09-29T10:27:00Z"
   buckets:
-  - bucketName: b-john
+  - bucketName: s-john
   principal: john
 status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: bucket-b-john, observe-john-restricted-b-jane, observe-john-restricted-b-jeff,
+    message: 'Unready resources: bucket-s-john, observe-john-restricted-s-jane, observe-john-restricted-s-jeff,
       and 4 more'
     reason: Creating
     status: "False"
@@ -31,10 +35,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: bucket-b-john
+    crossplane.io/composition-resource-name: bucket-s-john
   labels:
     crossplane.io/composite: s-john
-  name: bucket-b-john
+  name: bucket-s-john
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -51,7 +55,7 @@ spec:
       metadata:
         annotations:
           storages.pkg.internal/discoverable: "false"
-        name: b-john
+        name: s-john
       spec:
         providerConfigRef:
           name: provider-minio
@@ -63,10 +67,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: observe-john-restricted-b-jane
+    crossplane.io/composition-resource-name: observe-john-restricted-s-jane
   labels:
     crossplane.io/composite: s-john
-  name: observe-john-restricted-b-jane
+  name: observe-john-restricted-s-jane
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -81,7 +85,7 @@ spec:
       apiVersion: minio.crossplane.io/v1
       kind: Policy
       metadata:
-        name: john.restricted.b-jane
+        name: john.restricted.s-jane
   managementPolicies:
   - Observe
   providerConfigRef:
@@ -92,10 +96,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: observe-john-restricted-b-jeff
+    crossplane.io/composition-resource-name: observe-john-restricted-s-jeff
   labels:
     crossplane.io/composite: s-john
-  name: observe-john-restricted-b-jeff
+  name: observe-john-restricted-s-jeff
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -110,7 +114,7 @@ spec:
       apiVersion: minio.crossplane.io/v1
       kind: Policy
       metadata:
-        name: john.restricted.b-jeff
+        name: john.restricted.s-jeff
   managementPolicies:
   - Observe
   providerConfigRef:
@@ -121,10 +125,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: observe-john-restricted-b-joe
+    crossplane.io/composition-resource-name: observe-john-restricted-s-joe
   labels:
     crossplane.io/composite: s-john
-  name: observe-john-restricted-b-joe
+  name: observe-john-restricted-s-joe
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -139,7 +143,7 @@ spec:
       apiVersion: minio.crossplane.io/v1
       kind: Policy
       metadata:
-        name: john.restricted.b-joe
+        name: john.restricted.s-joe
   managementPolicies:
   - Observe
   providerConfigRef:
@@ -150,10 +154,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: policy-full-b-john
+    crossplane.io/composition-resource-name: policy-full-s-john
   labels:
     crossplane.io/composite: s-john
-  name: policy-full-b-john
+  name: policy-full-s-john
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -168,7 +172,7 @@ spec:
       apiVersion: minio.crossplane.io/v1
       kind: Policy
       metadata:
-        name: john.full.b-john
+        name: john.full.s-john
       spec:
         forProvider:
           rawPolicy: |-
@@ -181,8 +185,8 @@ spec:
                     "s3:*"
                   ],
                   "Resource": [
-                    "arn:aws:s3:::b-john",
-                    "arn:aws:s3:::b-john/*"
+                    "arn:aws:s3:::s-john",
+                    "arn:aws:s3:::s-john/*"
                   ]
                 }
               ]
@@ -197,10 +201,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: policy-jane-restricted-b-john
+    crossplane.io/composition-resource-name: policy-jane-restricted-s-john
   labels:
     crossplane.io/composite: s-john
-  name: policy-jane-restricted-b-john
+  name: policy-jane-restricted-s-john
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -215,7 +219,7 @@ spec:
       apiVersion: minio.crossplane.io/v1
       kind: Policy
       metadata:
-        name: jane.restricted.b-john
+        name: jane.restricted.s-john
       spec:
         forProvider:
           rawPolicy: |-
@@ -229,7 +233,7 @@ spec:
                     "s3:ListBucket"
                   ],
                   "Resource": [
-                    "arn:aws:s3:::b-john"
+                    "arn:aws:s3:::s-john"
                   ]
                 },
                 {
@@ -239,7 +243,7 @@ spec:
                     "s3:DeleteObject"
                   ],
                   "Resource": [
-                    "arn:aws:s3:::b-john/*"
+                    "arn:aws:s3:::s-john/*"
                   ]
                 }
               ]
@@ -276,7 +280,7 @@ spec:
       spec:
         forProvider:
           policies:
-          - john.full.b-john
+          - john.full.s-john
           userName: john
         providerConfigRef:
           name: provider-minio

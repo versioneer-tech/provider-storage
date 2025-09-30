@@ -5,20 +5,22 @@ metadata:
   name: s-joe
 spec:
   bucketAccessGrants:
-  - bucketName: b-joe
+  - bucketName: s-joe
+    grantedAt: "2025-09-29T10:05:00Z"
     grantee: jeff
     permission: ReadWrite
   bucketAccessRequests:
-  - bucketName: b-jeff-shared
+  - bucketName: s-jeff-shared
     reason: Need access
+    requestedAt: "2025-09-29T10:00:00Z"
   buckets:
-  - bucketName: b-joe
+  - bucketName: s-joe
     discoverable: true
   principal: joe
 status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: bucket-b-joe, observe-bucketpolicy-b-joe, observe-credential-joe,
+    message: 'Unready resources: bucket-s-joe, observe-bucketpolicy-s-joe, observe-credential-joe,
       and 2 more'
     reason: Creating
     status: "False"
@@ -28,10 +30,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: bucket-b-joe
+    crossplane.io/composition-resource-name: bucket-s-joe
   labels:
     crossplane.io/composite: s-joe
-  name: bucket-b-joe
+  name: bucket-s-joe
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -46,10 +48,10 @@ spec:
       apiVersion: obs.opentelekomcloud.crossplane.io/v1alpha1
       kind: Bucket
       metadata:
-        name: b-joe
+        name: s-joe
       spec:
         forProvider:
-          bucket: b-joe
+          bucket: s-joe
           region: eu-nl
         providerConfigRef:
           name: provider-otc
@@ -61,10 +63,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: observe-bucketpolicy-b-joe
+    crossplane.io/composition-resource-name: observe-bucketpolicy-s-joe
   labels:
     crossplane.io/composite: s-joe
-  name: observe-bucketpolicy-b-joe
+  name: observe-bucketpolicy-s-joe
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -79,7 +81,7 @@ spec:
       apiVersion: obs.opentelekomcloud.crossplane.io/v1alpha1
       kind: BucketPolicy
       metadata:
-        name: bucketpolicy-b-joe
+        name: bucketpolicy-s-joe
   managementPolicies:
   - Observe
   providerConfigRef:

@@ -5,21 +5,23 @@ metadata:
   name: s-jeff
 spec:
   bucketAccessGrants:
-  - bucketName: b-jeff-shared
+  - bucketName: s-jeff-shared
+    grantedAt: "2025-09-29T10:15:00Z"
     grantee: joe
     permission: ReadOnly
   bucketAccessRequests:
-  - bucketName: b-joe
+  - bucketName: s-joe
     reason: Need access
+    requestedAt: "2025-09-29T10:10:00Z"
   buckets:
-  - bucketName: b-jeff
-  - bucketName: b-jeff-shared
+  - bucketName: s-jeff
+  - bucketName: s-jeff-shared
     discoverable: true
   principal: jeff
 status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: bucket-b-jeff, bucket-b-jeff-shared, observe-jeff-restricted-b-joe,
+    message: 'Unready resources: bucket-s-jeff, bucket-s-jeff-shared, observe-jeff-restricted-s-joe,
       and 4 more'
     reason: Creating
     status: "False"
@@ -29,10 +31,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: bucket-b-jeff
+    crossplane.io/composition-resource-name: bucket-s-jeff
   labels:
     crossplane.io/composite: s-jeff
-  name: bucket-b-jeff
+  name: bucket-s-jeff
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -49,7 +51,7 @@ spec:
       metadata:
         annotations:
           storages.pkg.internal/discoverable: "false"
-        name: b-jeff
+        name: s-jeff
       spec:
         providerConfigRef:
           name: provider-minio
@@ -61,10 +63,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: bucket-b-jeff-shared
+    crossplane.io/composition-resource-name: bucket-s-jeff-shared
   labels:
     crossplane.io/composite: s-jeff
-  name: bucket-b-jeff-shared
+  name: bucket-s-jeff-shared
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -81,7 +83,7 @@ spec:
       metadata:
         annotations:
           storages.pkg.internal/discoverable: "true"
-        name: b-jeff-shared
+        name: s-jeff-shared
       spec:
         providerConfigRef:
           name: provider-minio
@@ -93,10 +95,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: observe-jeff-restricted-b-joe
+    crossplane.io/composition-resource-name: observe-jeff-restricted-s-joe
   labels:
     crossplane.io/composite: s-jeff
-  name: observe-jeff-restricted-b-joe
+  name: observe-jeff-restricted-s-joe
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -111,7 +113,7 @@ spec:
       apiVersion: minio.crossplane.io/v1
       kind: Policy
       metadata:
-        name: jeff.restricted.b-joe
+        name: jeff.restricted.s-joe
   managementPolicies:
   - Observe
   providerConfigRef:
@@ -122,10 +124,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: policy-full-b-jeff
+    crossplane.io/composition-resource-name: policy-full-s-jeff
   labels:
     crossplane.io/composite: s-jeff
-  name: policy-full-b-jeff
+  name: policy-full-s-jeff
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -140,7 +142,7 @@ spec:
       apiVersion: minio.crossplane.io/v1
       kind: Policy
       metadata:
-        name: jeff.full.b-jeff
+        name: jeff.full.s-jeff
       spec:
         forProvider:
           rawPolicy: |-
@@ -153,8 +155,8 @@ spec:
                     "s3:*"
                   ],
                   "Resource": [
-                    "arn:aws:s3:::b-jeff",
-                    "arn:aws:s3:::b-jeff/*"
+                    "arn:aws:s3:::s-jeff",
+                    "arn:aws:s3:::s-jeff/*"
                   ]
                 }
               ]
@@ -169,10 +171,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: policy-full-b-jeff-shared
+    crossplane.io/composition-resource-name: policy-full-s-jeff-shared
   labels:
     crossplane.io/composite: s-jeff
-  name: policy-full-b-jeff-shared
+  name: policy-full-s-jeff-shared
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -187,7 +189,7 @@ spec:
       apiVersion: minio.crossplane.io/v1
       kind: Policy
       metadata:
-        name: jeff.full.b-jeff-shared
+        name: jeff.full.s-jeff-shared
       spec:
         forProvider:
           rawPolicy: |-
@@ -200,8 +202,8 @@ spec:
                     "s3:*"
                   ],
                   "Resource": [
-                    "arn:aws:s3:::b-jeff-shared",
-                    "arn:aws:s3:::b-jeff-shared/*"
+                    "arn:aws:s3:::s-jeff-shared",
+                    "arn:aws:s3:::s-jeff-shared/*"
                   ]
                 }
               ]
@@ -216,10 +218,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: policy-joe-restricted-b-jeff-shared
+    crossplane.io/composition-resource-name: policy-joe-restricted-s-jeff-shared
   labels:
     crossplane.io/composite: s-jeff
-  name: policy-joe-restricted-b-jeff-shared
+  name: policy-joe-restricted-s-jeff-shared
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -234,7 +236,7 @@ spec:
       apiVersion: minio.crossplane.io/v1
       kind: Policy
       metadata:
-        name: joe.restricted.b-jeff-shared
+        name: joe.restricted.s-jeff-shared
       spec:
         forProvider:
           rawPolicy: |-
@@ -248,7 +250,7 @@ spec:
                     "s3:ListBucket"
                   ],
                   "Resource": [
-                    "arn:aws:s3:::b-jeff-shared"
+                    "arn:aws:s3:::s-jeff-shared"
                   ]
                 },
                 {
@@ -257,7 +259,7 @@ spec:
                     "s3:GetObject"
                   ],
                   "Resource": [
-                    "arn:aws:s3:::b-jeff-shared/*"
+                    "arn:aws:s3:::s-jeff-shared/*"
                   ]
                 }
               ]
@@ -294,8 +296,8 @@ spec:
       spec:
         forProvider:
           policies:
-          - jeff.full.b-jeff
-          - jeff.full.b-jeff-shared
+          - jeff.full.s-jeff
+          - jeff.full.s-jeff-shared
           userName: jeff
         providerConfigRef:
           name: provider-minio

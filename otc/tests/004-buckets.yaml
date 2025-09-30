@@ -5,23 +5,27 @@ metadata:
   name: s-john
 spec:
   bucketAccessGrants:
-  - bucketName: b-john
+  - bucketName: s-john
+    grantedAt: "2025-09-29T10:28:00Z"
     grantee: jane
     permission: WriteOnly
   bucketAccessRequests:
-  - bucketName: b-joe
+  - bucketName: s-joe
     reason: Need access
-  - bucketName: b-jeff
+    requestedAt: "2025-09-29T10:25:00Z"
+  - bucketName: s-jeff
     reason: Need access
-  - bucketName: b-jane
+    requestedAt: "2025-09-29T10:26:00Z"
+  - bucketName: s-jane
     reason: Need access
+    requestedAt: "2025-09-29T10:27:00Z"
   buckets:
-  - bucketName: b-john
+  - bucketName: s-john
   principal: john
 status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: bucket-b-john, observe-bucketpolicy-b-john, observe-credential-john,
+    message: 'Unready resources: bucket-s-john, observe-bucketpolicy-s-john, observe-credential-john,
       and 2 more'
     reason: Creating
     status: "False"
@@ -31,10 +35,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: bucket-b-john
+    crossplane.io/composition-resource-name: bucket-s-john
   labels:
     crossplane.io/composite: s-john
-  name: bucket-b-john
+  name: bucket-s-john
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -49,10 +53,10 @@ spec:
       apiVersion: obs.opentelekomcloud.crossplane.io/v1alpha1
       kind: Bucket
       metadata:
-        name: b-john
+        name: s-john
       spec:
         forProvider:
-          bucket: b-john
+          bucket: s-john
           region: eu-nl
         providerConfigRef:
           name: provider-otc
@@ -64,10 +68,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: observe-bucketpolicy-b-john
+    crossplane.io/composition-resource-name: observe-bucketpolicy-s-john
   labels:
     crossplane.io/composite: s-john
-  name: observe-bucketpolicy-b-john
+  name: observe-bucketpolicy-s-john
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -82,7 +86,7 @@ spec:
       apiVersion: obs.opentelekomcloud.crossplane.io/v1alpha1
       kind: BucketPolicy
       metadata:
-        name: bucketpolicy-b-john
+        name: bucketpolicy-s-john
   managementPolicies:
   - Observe
   providerConfigRef:

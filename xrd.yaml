@@ -1,16 +1,5 @@
 # Copyright 2025, EOX (https://eox.at) and Versioneer (https://versioneer.at)
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# SPDX-License-Identifier: Apache-2.0
 
 apiVersion: apiextensions.crossplane.io/v2
 kind: CompositeResourceDefinition
@@ -31,125 +20,122 @@ spec:
           type: object
           properties:
             spec:
-              description: >
-                Spec defines the desired state of a Storage resource.
               type: object
-              # x-kubernetes-validations:
-              #   - rule: >
-              #       !has(self.buckets) || (
-              #         self.buckets.all(b, has(b.bucketName) && b.bucketName != "") &&
-              #         self.buckets.all(b,
-              #           self.buckets.exists_one(bb, bb.bucketName == b.bucketName)
-              #         )
-              #       )
-              #     message: "spec.buckets: bucketName must be non-empty and unique."
-              #   - rule: >
-              #       !has(self.bucketAccessRequests) || (
-              #         self.bucketAccessRequests.all(r, has(r.bucketName) && r.bucketName != "") &&
-              #         self.bucketAccessRequests.all(r,
-              #           self.bucketAccessRequests.exists_one(rr, rr.bucketName == r.bucketName)
-              #         )
-              #       )
-              #     message: "spec.bucketAccessRequests: bucketName must be non-empty and unique."
-              #   - rule: >
-              #       !has(self.bucketAccessGrants) || (
-              #         self.bucketAccessGrants.all(g,
-              #           has(g.bucketName) && g.bucketName != "" &&
-              #           has(g.grantee) && g.grantee != ""
-              #         ) &&
-              #         self.bucketAccessGrants.all(g,
-              #           self.bucketAccessGrants.exists_one(gg,
-              #             gg.bucketName == g.bucketName && gg.grantee == g.grantee
-              #           )
-              #         )
-              #       )
-              #     message: "spec.bucketAccessGrants: (bucketName, grantee) must be non-empty and unique."
+              description: >
+                Desired configuration of a Storage resource. Defines which buckets are
+                created under the principal, which external buckets are requested,
+                and which grants are issued to other principals.
               properties:
                 principal:
-                  description: >
-                    Identifier of the storage principal (owning user or service account)
-                    under which buckets, access requests, and grants are managed.
                   type: string
-                buckets:
                   description: >
-                    Buckets to create as part of this Storage. Each bucket must be unique by
-                    `bucketName` within this resource. The list is a map keyed by `bucketName`,
-                    enabling key-based merges; ordering has no semantic meaning.
+                    Unique identifier of the storage principal (typically a user or
+                    service account). All buckets, access requests, and grants in
+                    this resource are owned and managed under this principal.
+                buckets:
                   type: array
+                  description: >
+                    Buckets to create as part of this Storage. Each entry is keyed by
+                    `bucketName`, ensuring uniqueness within the resource. Ordering
+                    has no semantic meaning.
                   x-kubernetes-list-type: map
                   x-kubernetes-list-map-keys: ["bucketName"]
                   items:
                     type: object
                     properties:
                       bucketName:
-                        description: >
-                          Name of the bucket to create. Acts as the unique key in this list.
                         type: string
-                      discoverable:
                         description: >
-                          Whether this bucket is discoverable in a catalog by other principals.
-                          Defaults to false if not specified.
+                          Name of the bucket to create. This value acts as the unique
+                          key for the list element.
+                      discoverable:
                         type: boolean
+                        description: >
+                          If true, the bucket is advertised for discovery by other
+                          principals. Defaults to false when omitted.
                         default: false
                     required:
                       - bucketName
                 bucketAccessRequests:
-                  description: >
-                    Requests for access to buckets owned by others. Always from `spec.principal`
-                    to a single foreign bucket. Unique by `bucketName`; updates replace the request
-                    for that bucket. Ordering has no semantic meaning.
                   type: array
+                  description: >
+                    Outbound requests for access to buckets owned by other principals.
+                    Each request originates from `spec.principal` and targets a single
+                    foreign bucket. The list is keyed by `bucketName`.
                   x-kubernetes-list-type: map
                   x-kubernetes-list-map-keys: ["bucketName"]
                   items:
                     type: object
                     properties:
                       bucketName:
-                        description: >
-                          Name of the bucket to request access to. Acts as the unique key here.
                         type: string
+                        description: >
+                          Name of the bucket for which access is requested. This value
+                          is the unique key for the request.
                       reason:
-                        description: >
-                          Free-form reason for the request; informational only.
                         type: string
+                        description: >
+                          Optional free-text justification for the request. For
+                          informational and auditing purposes only.
+                      requestedAt:
+                        type: string
+                        format: date-time
+                        description: >
+                          RFC3339 timestamp indicating when the request was created.
+                          Used to track request lifecycle. Typically set by the
+                          controller.
                     required:
                       - bucketName
+                      - requestedAt
                 bucketAccessGrants:
-                  description: >
-                    Grants from this principal to other principals. Unique per `(bucketName, grantee)`.
-                    The list is a map keyed by `bucketName` and `grantee`; updates replace the grant
-                    for that pair. Ordering has no semantic meaning.
                   type: array
+                  description: >
+                    Grants issued by this principal to other principals. Each grant is
+                    uniquely identified by `(bucketName, grantee)` and defines the
+                    permission level on the target bucket.
                   x-kubernetes-list-type: map
                   x-kubernetes-list-map-keys: ["bucketName","grantee"]
                   items:
                     type: object
                     properties:
                       bucketName:
-                        description: >
-                          Bucket for which the permission is granted (part of the unique key).
                         type: string
+                        description: >
+                          Name of the bucket for which the permission is granted.
+                          This forms part of the unique key.
                       grantee:
-                        description: >
-                          Principal receiving the permission (part of the unique key).
                         type: string
+                        description: >
+                          Identifier of the principal receiving the grant. This forms
+                          part of the unique key.
                       permission:
-                        description: >
-                          Granted permission level for the grantee on the specified bucket.
                         type: string
+                        description: >
+                          Permission level granted to the grantee on the specified
+                          bucket. Setting `None` explicitly removes access.
                         enum:
                           - ReadWrite
                           - ReadOnly
                           - WriteOnly
                           - None
+                      grantedAt:
+                        type: string
+                        format: date-time
+                        description: >
+                          RFC3339 timestamp indicating when the grant became active.
+                          Used to track grant lifecycle. Typically set by the
+                          controller.
                     required:
                       - bucketName
                       - grantee
                       - permission
+                      - grantedAt
               required:
                 - principal
                 - buckets
             status:
-              description: Status defines the observed state of a Storage resource.
+              description: >
+                Observed state of the Storage resource, including reconciliation
+                results and any conditions applied by the controller.
               type: object
               properties: {}

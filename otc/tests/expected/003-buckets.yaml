@@ -5,8 +5,9 @@ metadata:
   name: s-jane
 spec:
   bucketAccessRequests:
-  - bucketName: b-john
+  - bucketName: s-john
     reason: Need WriteOnly access
+    requestedAt: "2025-09-29T10:20:00Z"
   buckets: []
   principal: jane
 status:

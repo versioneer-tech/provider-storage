@@ -1,7 +1,7 @@
 # Storage definition for Joe.
-# - Creates one discoverable bucket: b-joe.
-# - Requests access to Jeff's bucket b-jeff-shared.
-# - Grants Jeff ReadWrite access to b-joe.
+# - Creates one discoverable bucket: s-joe.
+# - Requests access to Jeff's bucket s-jeff-shared.
+# - Grants Jeff ReadWrite access to s-joe.
 apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
@@ -9,12 +9,14 @@ metadata:
 spec:
   principal: joe
   buckets:
-  - bucketName: b-joe
-    discoverable: true
+    - bucketName: s-joe
+      discoverable: true
   bucketAccessRequests:
-  - bucketName: b-jeff-shared
-    reason: Need access
+    - bucketName: s-jeff-shared
+      reason: Need access
+      requestedAt: "2025-09-29T10:00:00Z"
   bucketAccessGrants:
-  - bucketName: b-joe
-    grantee: jeff
-    permission: ReadWrite
+    - bucketName: s-joe
+      grantee: jeff
+      permission: ReadWrite
+      grantedAt: "2025-09-29T10:05:00Z"

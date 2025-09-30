@@ -5,20 +5,22 @@ metadata:
   name: s-joe
 spec:
   bucketAccessGrants:
-  - bucketName: b-joe
+  - bucketName: s-joe
+    grantedAt: "2025-09-29T10:05:00Z"
     grantee: jeff
     permission: ReadWrite
   bucketAccessRequests:
-  - bucketName: b-jeff-shared
+  - bucketName: s-jeff-shared
     reason: Need access
+    requestedAt: "2025-09-29T10:00:00Z"
   buckets:
-  - bucketName: b-joe
+  - bucketName: s-joe
     discoverable: true
   principal: joe
 status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: access-key-joe, bucket-b-joe, observe-joe-restricted-b-jeff-shared,
+    message: 'Unready resources: access-key-joe, bucket-s-joe, observe-joe-restricted-s-jeff-shared,
       and 4 more'
     reason: Creating
     status: "False"
@@ -54,10 +56,10 @@ apiVersion: s3.aws.m.upbound.io/v1beta1
 kind: Bucket
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: bucket-b-joe
+    crossplane.io/composition-resource-name: bucket-s-joe
   labels:
     crossplane.io/composite: s-joe
-  name: b-joe
+  name: s-joe
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -77,10 +79,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: observe-joe-restricted-b-jeff-shared
+    crossplane.io/composition-resource-name: observe-joe-restricted-s-jeff-shared
   labels:
     crossplane.io/composite: s-joe
-  name: observe-joe-restricted-b-jeff-shared
+  name: observe-joe-restricted-s-jeff-shared
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -95,7 +97,7 @@ spec:
       apiVersion: iam.aws.m.upbound.io/v1beta1
       kind: Policy
       metadata:
-        name: joe.restricted.b-jeff-shared
+        name: joe.restricted.s-jeff-shared
         namespace: default
   managementPolicies:
   - Observe
@@ -107,10 +109,10 @@ apiVersion: iam.aws.m.upbound.io/v1beta1
 kind: Policy
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: policy-full-b-joe
+    crossplane.io/composition-resource-name: policy-full-s-joe
   labels:
     crossplane.io/composite: s-joe
-  name: joe.full.b-joe
+  name: joe.full.s-joe
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -131,8 +133,8 @@ spec:
               "s3:*"
             ],
             "Resource": [
-              "arn:aws:s3:::b-joe",
-              "arn:aws:s3:::b-joe/*"
+              "arn:aws:s3:::s-joe",
+              "arn:aws:s3:::s-joe/*"
             ]
           }
         ]
@@ -145,10 +147,10 @@ apiVersion: iam.aws.m.upbound.io/v1beta1
 kind: Policy
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: policy-jeff-restricted-b-joe
+    crossplane.io/composition-resource-name: policy-jeff-restricted-s-joe
   labels:
     crossplane.io/composite: s-joe
-  name: jeff.restricted.b-joe
+  name: jeff.restricted.s-joe
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -172,8 +174,8 @@ spec:
               "s3:DeleteObject"
             ],
             "Resource": [
-              "arn:aws:s3:::b-joe",
-              "arn:aws:s3:::b-joe/*"
+              "arn:aws:s3:::s-joe",
+              "arn:aws:s3:::s-joe/*"
             ]
           }
         ]
@@ -186,10 +188,10 @@ apiVersion: iam.aws.m.upbound.io/v1beta1
 kind: UserPolicyAttachment
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: upa-full-b-joe
+    crossplane.io/composition-resource-name: upa-full-s-joe
   labels:
     crossplane.io/composite: s-joe
-  name: joe.full.b-joe
+  name: joe.full.s-joe
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -201,7 +203,7 @@ metadata:
 spec:
   forProvider:
     policyArnRef:
-      name: joe.full.b-joe
+      name: joe.full.s-joe
     userRef:
       name: joe
   providerConfigRef:

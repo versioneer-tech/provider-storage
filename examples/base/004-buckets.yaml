@@ -1,9 +1,9 @@
 # Storage definition for John.
-# - Creates one bucket: b-john (private by default).
-# - Requests access to b-joe (discoverable), b-jeff (private), and b-jane (not existing).
-# - Grants Jane WriteOnly access to b-john.
+# - Creates one bucket: s-john (private by default).
+# - Requests access to s-joe (discoverable), s-jeff (private), and s-jane (not existing).
+# - Grants Jane WriteOnly access to s-john.
 # - Note: Outbound requests are active; access depends on the respective owners granting it.
-#   The request to b-jane cannot resolve until that bucket exists.
+#   The request to s-jane cannot resolve until that bucket exists.
 apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
@@ -11,15 +11,19 @@ metadata:
 spec:
   principal: john
   buckets:
-  - bucketName: b-john
+    - bucketName: s-john
   bucketAccessRequests:
-  - bucketName: b-joe
-    reason: Need access
-  - bucketName: b-jeff
-    reason: Need access
-  - bucketName: b-jane
-    reason: Need access
+    - bucketName: s-joe
+      reason: Need access
+      requestedAt: "2025-09-29T10:25:00Z"
+    - bucketName: s-jeff
+      reason: Need access
+      requestedAt: "2025-09-29T10:26:00Z"
+    - bucketName: s-jane
+      reason: Need access
+      requestedAt: "2025-09-29T10:27:00Z"
   bucketAccessGrants:
-  - bucketName: b-john
-    grantee: jane
-    permission: WriteOnly
+    - bucketName: s-john
+      grantee: jane
+      permission: WriteOnly
+      grantedAt: "2025-09-29T10:28:00Z"

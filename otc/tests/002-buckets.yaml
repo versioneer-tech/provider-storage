@@ -5,21 +5,23 @@ metadata:
   name: s-jeff
 spec:
   bucketAccessGrants:
-  - bucketName: b-jeff-shared
+  - bucketName: s-jeff-shared
+    grantedAt: "2025-09-29T10:15:00Z"
     grantee: joe
     permission: ReadOnly
   bucketAccessRequests:
-  - bucketName: b-joe
+  - bucketName: s-joe
     reason: Need access
+    requestedAt: "2025-09-29T10:10:00Z"
   buckets:
-  - bucketName: b-jeff
-  - bucketName: b-jeff-shared
+  - bucketName: s-jeff
+  - bucketName: s-jeff-shared
     discoverable: true
   principal: jeff
 status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: bucket-b-jeff, bucket-b-jeff-shared, observe-bucketpolicy-b-jeff,
+    message: 'Unready resources: bucket-s-jeff, bucket-s-jeff-shared, observe-bucketpolicy-s-jeff,
       and 4 more'
     reason: Creating
     status: "False"
@@ -29,10 +31,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: bucket-b-jeff
+    crossplane.io/composition-resource-name: bucket-s-jeff
   labels:
     crossplane.io/composite: s-jeff
-  name: bucket-b-jeff
+  name: bucket-s-jeff
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -47,10 +49,10 @@ spec:
       apiVersion: obs.opentelekomcloud.crossplane.io/v1alpha1
       kind: Bucket
       metadata:
-        name: b-jeff
+        name: s-jeff
       spec:
         forProvider:
-          bucket: b-jeff
+          bucket: s-jeff
           region: eu-nl
         providerConfigRef:
           name: provider-otc
@@ -62,10 +64,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: bucket-b-jeff-shared
+    crossplane.io/composition-resource-name: bucket-s-jeff-shared
   labels:
     crossplane.io/composite: s-jeff
-  name: bucket-b-jeff-shared
+  name: bucket-s-jeff-shared
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -80,10 +82,10 @@ spec:
       apiVersion: obs.opentelekomcloud.crossplane.io/v1alpha1
       kind: Bucket
       metadata:
-        name: b-jeff-shared
+        name: s-jeff-shared
       spec:
         forProvider:
-          bucket: b-jeff-shared
+          bucket: s-jeff-shared
           region: eu-nl
         providerConfigRef:
           name: provider-otc
@@ -95,10 +97,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: observe-bucketpolicy-b-jeff
+    crossplane.io/composition-resource-name: observe-bucketpolicy-s-jeff
   labels:
     crossplane.io/composite: s-jeff
-  name: observe-bucketpolicy-b-jeff
+  name: observe-bucketpolicy-s-jeff
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -113,7 +115,7 @@ spec:
       apiVersion: obs.opentelekomcloud.crossplane.io/v1alpha1
       kind: BucketPolicy
       metadata:
-        name: bucketpolicy-b-jeff
+        name: bucketpolicy-s-jeff
   managementPolicies:
   - Observe
   providerConfigRef:
@@ -124,10 +126,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: observe-bucketpolicy-b-jeff-shared
+    crossplane.io/composition-resource-name: observe-bucketpolicy-s-jeff-shared
   labels:
     crossplane.io/composite: s-jeff
-  name: observe-bucketpolicy-b-jeff-shared
+  name: observe-bucketpolicy-s-jeff-shared
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -142,7 +144,7 @@ spec:
       apiVersion: obs.opentelekomcloud.crossplane.io/v1alpha1
       kind: BucketPolicy
       metadata:
-        name: bucketpolicy-b-jeff-shared
+        name: bucketpolicy-s-jeff-shared
   managementPolicies:
   - Observe
   providerConfigRef:

@@ -5,14 +5,15 @@ metadata:
   name: s-jane
 spec:
   bucketAccessRequests:
-  - bucketName: b-john
+  - bucketName: s-john
     reason: Need WriteOnly access
+    requestedAt: "2025-09-29T10:20:00Z"
   buckets: []
   principal: jane
 status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: observe-jane-restricted-b-john, user-jane'
+    message: 'Unready resources: observe-jane-restricted-s-john, user-jane'
     reason: Creating
     status: "False"
     type: Ready
@@ -21,10 +22,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: observe-jane-restricted-b-john
+    crossplane.io/composition-resource-name: observe-jane-restricted-s-john
   labels:
     crossplane.io/composite: s-jane
-  name: observe-jane-restricted-b-john
+  name: observe-jane-restricted-s-john
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -39,7 +40,7 @@ spec:
       apiVersion: minio.crossplane.io/v1
       kind: Policy
       metadata:
-        name: jane.restricted.b-john
+        name: jane.restricted.s-john
   managementPolicies:
   - Observe
   providerConfigRef:
