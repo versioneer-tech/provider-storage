@@ -1,3 +1,6 @@
+# Copyright 2025, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
 ---
 apiVersion: pkg.internal/v1beta1
 kind: Storage
@@ -20,7 +23,7 @@ spec:
 status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: access-key-joe, bucket-s-joe, policy-full-s-joe,
+    message: 'Unready resources: access-key-joe, bucket-s-joe, observe-joe-s-jeff-shared,
       and 4 more'
     reason: Creating
     status: "False"
@@ -79,10 +82,11 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: observe-joe-restricted-s-jeff-shared
+    crossplane.io/composition-resource-name: observe-joe-s-jeff-shared
   labels:
     crossplane.io/composite: s-joe
-  name: observe-joe-restricted-s-jeff-shared
+  name: observe-joe-s-jeff-shared
+  namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
     blockOwnerDeletion: true
@@ -96,7 +100,7 @@ spec:
       apiVersion: iam.aws.m.upbound.io/v1beta1
       kind: Policy
       metadata:
-        name: joe.restricted.s-jeff-shared
+        name: joe.s-jeff-shared
         namespace: default
   managementPolicies:
   - Observe
@@ -108,48 +112,10 @@ apiVersion: iam.aws.m.upbound.io/v1beta1
 kind: Policy
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: policy-full-s-joe
+    crossplane.io/composition-resource-name: policy-jeff-s-joe
   labels:
     crossplane.io/composite: s-joe
-  name: joe.full.s-joe
-  namespace: default
-  ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-joe
-    uid: ""
-spec:
-  forProvider:
-    policy: |-
-      {
-        "Version": "2012-10-17",
-        "Statement": [
-          {
-            "Effect": "Allow",
-            "Action": [
-              "s3:*"
-            ],
-            "Resource": [
-              "arn:aws:s3:::s-joe",
-              "arn:aws:s3:::s-joe/*"
-            ]
-          }
-        ]
-      }
-  providerConfigRef:
-    kind: ProviderConfig
-    name: provider-aws
----
-apiVersion: iam.aws.m.upbound.io/v1beta1
-kind: Policy
-metadata:
-  annotations:
-    crossplane.io/composition-resource-name: policy-jeff-restricted-s-joe
-  labels:
-    crossplane.io/composite: s-joe
-  name: jeff.restricted.s-joe
+  name: jeff.s-joe
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -184,13 +150,13 @@ spec:
     name: provider-aws
 ---
 apiVersion: iam.aws.m.upbound.io/v1beta1
-kind: UserPolicyAttachment
+kind: Policy
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: upa-full-s-joe
+    crossplane.io/composition-resource-name: policy-s-joe
   labels:
     crossplane.io/composite: s-joe
-  name: joe.full.s-joe
+  name: joe.s-joe
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -201,10 +167,22 @@ metadata:
     uid: ""
 spec:
   forProvider:
-    policyArnRef:
-      name: joe.full.s-joe
-    userRef:
-      name: joe
+    policy: |-
+      {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Action": [
+              "s3:*"
+            ],
+            "Resource": [
+              "arn:aws:s3:::s-joe",
+              "arn:aws:s3:::s-joe/*"
+            ]
+          }
+        ]
+      }
   providerConfigRef:
     kind: ProviderConfig
     name: provider-aws
@@ -213,10 +191,10 @@ apiVersion: iam.aws.m.upbound.io/v1beta1
 kind: UserPolicyAttachment
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: upa-restricted-s-jeff-shared
+    crossplane.io/composition-resource-name: upa-s-joe
   labels:
     crossplane.io/composite: s-joe
-  name: joe.restricted.s-jeff-shared
+  name: joe.s-joe
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -228,7 +206,7 @@ metadata:
 spec:
   forProvider:
     policyArnRef:
-      name: joe.restricted.s-jeff-shared
+      name: joe.s-joe
     userRef:
       name: joe
   providerConfigRef:

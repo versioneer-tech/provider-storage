@@ -1,3 +1,6 @@
+# Copyright 2025, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
 ---
 apiVersion: pkg.internal/v1beta1
 kind: Storage
@@ -21,7 +24,7 @@ spec:
 status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: bucket-s-jeff, bucket-s-jeff-shared, observe-jeff-restricted-s-joe,
+    message: 'Unready resources: bucket-s-jeff, bucket-s-jeff-shared, observe-jeff-s-joe,
       and 4 more'
     reason: Creating
     status: "False"
@@ -95,10 +98,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: observe-jeff-restricted-s-joe
+    crossplane.io/composition-resource-name: observe-jeff-s-joe
   labels:
     crossplane.io/composite: s-jeff
-  name: observe-jeff-restricted-s-joe
+  name: observe-jeff-s-joe
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -113,7 +116,7 @@ spec:
       apiVersion: minio.crossplane.io/v1
       kind: Policy
       metadata:
-        name: jeff.restricted.s-joe
+        name: jeff.s-joe
   managementPolicies:
   - Observe
   providerConfigRef:
@@ -142,7 +145,7 @@ spec:
       apiVersion: minio.crossplane.io/v1
       kind: Policy
       metadata:
-        name: jeff.full.s-jeff
+        name: jeff.s-jeff
       spec:
         forProvider:
           rawPolicy: |-
@@ -189,7 +192,7 @@ spec:
       apiVersion: minio.crossplane.io/v1
       kind: Policy
       metadata:
-        name: jeff.full.s-jeff-shared
+        name: jeff.s-jeff-shared
       spec:
         forProvider:
           rawPolicy: |-
@@ -218,10 +221,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: policy-joe-restricted-s-jeff-shared
+    crossplane.io/composition-resource-name: policy-joe-s-jeff-shared
   labels:
     crossplane.io/composite: s-jeff
-  name: policy-joe-restricted-s-jeff-shared
+  name: policy-joe-s-jeff-shared
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -236,7 +239,7 @@ spec:
       apiVersion: minio.crossplane.io/v1
       kind: Policy
       metadata:
-        name: joe.restricted.s-jeff-shared
+        name: joe.s-jeff-shared
       spec:
         forProvider:
           rawPolicy: |-
@@ -296,8 +299,8 @@ spec:
       spec:
         forProvider:
           policies:
-          - jeff.full.s-jeff
-          - jeff.full.s-jeff-shared
+          - jeff.s-jeff
+          - jeff.s-jeff-shared
           userName: jeff
         providerConfigRef:
           name: provider-minio

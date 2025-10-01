@@ -1,3 +1,6 @@
+# Copyright 2025, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
 ---
 apiVersion: pkg.internal/v1beta1
 kind: Storage
@@ -13,7 +16,7 @@ spec:
 status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: observe-jane-restricted-s-john, user-jane'
+    message: 'Unready resources: observe-jane-s-john, user-jane'
     reason: Creating
     status: "False"
     type: Ready
@@ -22,10 +25,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: observe-jane-restricted-s-john
+    crossplane.io/composition-resource-name: observe-jane-s-john
   labels:
     crossplane.io/composite: s-jane
-  name: observe-jane-restricted-s-john
+  name: observe-jane-s-john
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -40,7 +43,7 @@ spec:
       apiVersion: minio.crossplane.io/v1
       kind: Policy
       metadata:
-        name: jane.restricted.s-john
+        name: jane.s-john
   managementPolicies:
   - Observe
   providerConfigRef:

@@ -1,9 +1,8 @@
-# Storage definition for John.
-# - Creates one bucket: s-john (private by default).
-# - Requests access to s-joe (discoverable), s-jeff (private), and s-jane (not existing).
-# - Grants Jane WriteOnly access to s-john.
-# - Note: Outbound requests are active; access depends on the respective owners granting it.
-#   The request to s-jane cannot resolve until that bucket exists.
+# Copyright 2025, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+# John owns s-john. He grants Jane WriteOnly access to his bucket after her request.
+# His request to s-jane cannot resolve until that bucket exists.
 apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
@@ -12,6 +11,7 @@ spec:
   principal: john
   buckets:
     - bucketName: s-john
+      discoverable: true
   bucketAccessRequests:
     - bucketName: s-joe
       reason: Need access
@@ -25,5 +25,5 @@ spec:
   bucketAccessGrants:
     - bucketName: s-john
       grantee: jane
-      permission: WriteOnly
+      permission: None
       grantedAt: "2025-09-29T10:28:00Z"

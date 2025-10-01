@@ -89,7 +89,7 @@ spec:
                   bucket = (b.get("bucketName") or "").strip()
                   if not bucket:
                       continue
-                  polname = f"{principal}.full.{bucket}"
+                  polname = f"{principal}.{bucket}"
                   key = f"policy-full-{bucket}"
                   raw = json.dumps({
                       "Version": "2012-10-17",
@@ -124,7 +124,7 @@ spec:
                       }
                   })
 
-    - step: create-restricted-policies
+    - step: create-policies
       functionRef:
         name: crossplane-contrib-function-python
       input:
@@ -176,8 +176,8 @@ spec:
                       continue
 
                   raw = _raw_policy(bucket, perm)
-                  polname = f"{grantee}.restricted.{bucket}"
-                  key = f"policy-{grantee}-restricted-{bucket}"
+                  polname = f"{grantee}.{bucket}"
+                  key = f"policy-{grantee}-{bucket}"
                   rsp.desired.resources[key].resource.update({
                       "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
                       "kind": "Object",
@@ -226,8 +226,8 @@ spec:
                   bucket = (r.get("bucketName") or "").strip()
                   if not bucket:
                       continue
-                  polname = f"{principal}.restricted.{bucket}"
-                  key = f"observe-{principal}-restricted-{bucket}"
+                  polname = f"{principal}.{bucket}"
+                  key = f"observe-{principal}-{bucket}"
                   rsp.desired.resources[key].resource.update({
                       "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
                       "kind": "Object",
@@ -273,14 +273,14 @@ spec:
               for b in (spec.get("buckets") or []):
                   bucket = (b.get("bucketName") or "").strip()
                   if bucket:
-                      policies.append(f"{principal}.full.{bucket}")
+                      policies.append(f"{principal}.{bucket}")
 
               observed_resources = getattr(req.observed, "resources", {}) or {}
               for r in (spec.get("bucketAccessRequests") or []):
                   bucket = (r.get("bucketName") or "").strip()
                   if not bucket:
                       continue
-                  obs_key = f"observe-{principal}-restricted-{bucket}"
+                  obs_key = f"observe-{principal}-{bucket}"
                   oc = observed_resources.get(obs_key)
                   exists = False
                   if oc and getattr(oc, "resource", None):
@@ -291,7 +291,7 @@ spec:
                       is_ready = any(c.get("type") == "Ready" and c.get("status") in ("True", True) for c in conds)
                       exists = has_manifest or is_ready
                   if exists:
-                      policies.append(f"{principal}.restricted.{bucket}")
+                      policies.append(f"{principal}.{bucket}")
 
               key = f"user-{principal}"
               rsp.desired.resources[key].resource.update({

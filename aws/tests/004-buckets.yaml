@@ -1,3 +1,6 @@
+# Copyright 2025, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
 ---
 apiVersion: pkg.internal/v1beta1
 kind: Storage
@@ -8,7 +11,7 @@ spec:
   - bucketName: s-john
     grantedAt: "2025-09-29T10:28:00Z"
     grantee: jane
-    permission: WriteOnly
+    permission: None
   bucketAccessRequests:
   - bucketName: s-joe
     reason: Need access
@@ -21,11 +24,12 @@ spec:
     requestedAt: "2025-09-29T10:27:00Z"
   buckets:
   - bucketName: s-john
+    discoverable: true
   principal: john
 status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: access-key-john, bucket-s-john, observe-john-restricted-s-jane,
+    message: 'Unready resources: access-key-john, bucket-s-john, observe-john-s-jane,
       and 6 more'
     reason: Creating
     status: "False"
@@ -84,10 +88,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: observe-john-restricted-s-jane
+    crossplane.io/composition-resource-name: observe-john-s-jane
   labels:
     crossplane.io/composite: s-john
-  name: observe-john-restricted-s-jane
+  name: observe-john-s-jane
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -102,7 +106,7 @@ spec:
       apiVersion: iam.aws.m.upbound.io/v1beta1
       kind: Policy
       metadata:
-        name: john.restricted.s-jane
+        name: john.s-jane
         namespace: default
   managementPolicies:
   - Observe
@@ -114,10 +118,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: observe-john-restricted-s-jeff
+    crossplane.io/composition-resource-name: observe-john-s-jeff
   labels:
     crossplane.io/composite: s-john
-  name: observe-john-restricted-s-jeff
+  name: observe-john-s-jeff
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -132,7 +136,7 @@ spec:
       apiVersion: iam.aws.m.upbound.io/v1beta1
       kind: Policy
       metadata:
-        name: john.restricted.s-jeff
+        name: john.s-jeff
         namespace: default
   managementPolicies:
   - Observe
@@ -144,10 +148,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: observe-john-restricted-s-joe
+    crossplane.io/composition-resource-name: observe-john-s-joe
   labels:
     crossplane.io/composite: s-john
-  name: observe-john-restricted-s-joe
+  name: observe-john-s-joe
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -162,7 +166,7 @@ spec:
       apiVersion: iam.aws.m.upbound.io/v1beta1
       kind: Policy
       metadata:
-        name: john.restricted.s-joe
+        name: john.s-joe
         namespace: default
   managementPolicies:
   - Observe
@@ -174,10 +178,37 @@ apiVersion: iam.aws.m.upbound.io/v1beta1
 kind: Policy
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: policy-full-s-john
+    crossplane.io/composition-resource-name: policy-jane-s-john
   labels:
     crossplane.io/composite: s-john
-  name: john.full.s-john
+  name: jane.s-john
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-john
+    uid: ""
+spec:
+  forProvider:
+    policy: |-
+      {
+        "Version": "2012-10-17",
+        "Statement": []
+      }
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-aws
+---
+apiVersion: iam.aws.m.upbound.io/v1beta1
+kind: Policy
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: policy-s-john
+  labels:
+    crossplane.io/composite: s-john
+  name: john.s-john
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -209,60 +240,13 @@ spec:
     name: provider-aws
 ---
 apiVersion: iam.aws.m.upbound.io/v1beta1
-kind: Policy
-metadata:
-  annotations:
-    crossplane.io/composition-resource-name: policy-jane-restricted-s-john
-  labels:
-    crossplane.io/composite: s-john
-  name: jane.restricted.s-john
-  namespace: default
-  ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-john
-    uid: ""
-spec:
-  forProvider:
-    policy: |-
-      {
-        "Version": "2012-10-17",
-        "Statement": [
-          {
-            "Effect": "Allow",
-            "Action": [
-              "s3:ListBucket"
-            ],
-            "Resource": [
-              "arn:aws:s3:::s-john"
-            ]
-          },
-          {
-            "Effect": "Allow",
-            "Action": [
-              "s3:PutObject",
-              "s3:DeleteObject"
-            ],
-            "Resource": [
-              "arn:aws:s3:::s-john/*"
-            ]
-          }
-        ]
-      }
-  providerConfigRef:
-    kind: ProviderConfig
-    name: provider-aws
----
-apiVersion: iam.aws.m.upbound.io/v1beta1
 kind: UserPolicyAttachment
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: upa-full-s-john
+    crossplane.io/composition-resource-name: upa-s-john
   labels:
     crossplane.io/composite: s-john
-  name: john.full.s-john
+  name: john.s-john
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -274,7 +258,7 @@ metadata:
 spec:
   forProvider:
     policyArnRef:
-      name: john.full.s-john
+      name: john.s-john
     userRef:
       name: john
   providerConfigRef:

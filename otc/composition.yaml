@@ -50,7 +50,7 @@ spec:
                               "kind": "UserV3",
                               "metadata": {"name": principal},
                               "spec": {
-                                  "forProvider": {"name": principal, "enabled": True},
+                                  "forProvider": {"name": principal, "enabled": True, "access_type": "programmatic"},
                                   "providerConfigRef": {"name": "provider-otc"}
                               }
                           }

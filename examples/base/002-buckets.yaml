@@ -1,7 +1,7 @@
-# Storage definition for Jeff.
-# - Creates two buckets: s-jeff (private) and s-jeff-shared (discoverable).
-# - Requests access to Joe's bucket s-joe.
-# - Grants Joe ReadOnly access to s-jeff-shared.
+# Copyright 2025, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+# Jeff creates two buckets, requests access to Joe's, and grants Joe ReadOnly access.
 apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:

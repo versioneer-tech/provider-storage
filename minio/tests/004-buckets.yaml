@@ -1,3 +1,6 @@
+# Copyright 2025, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
 ---
 apiVersion: pkg.internal/v1beta1
 kind: Storage
@@ -8,7 +11,7 @@ spec:
   - bucketName: s-john
     grantedAt: "2025-09-29T10:28:00Z"
     grantee: jane
-    permission: WriteOnly
+    permission: None
   bucketAccessRequests:
   - bucketName: s-joe
     reason: Need access
@@ -21,11 +24,12 @@ spec:
     requestedAt: "2025-09-29T10:27:00Z"
   buckets:
   - bucketName: s-john
+    discoverable: true
   principal: john
 status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: bucket-s-john, observe-john-restricted-s-jane, observe-john-restricted-s-jeff,
+    message: 'Unready resources: bucket-s-john, observe-john-s-jane, observe-john-s-jeff,
       and 4 more'
     reason: Creating
     status: "False"
@@ -54,7 +58,7 @@ spec:
       kind: Bucket
       metadata:
         annotations:
-          storages.pkg.internal/discoverable: "false"
+          storages.pkg.internal/discoverable: "true"
         name: s-john
       spec:
         providerConfigRef:
@@ -67,10 +71,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: observe-john-restricted-s-jane
+    crossplane.io/composition-resource-name: observe-john-s-jane
   labels:
     crossplane.io/composite: s-john
-  name: observe-john-restricted-s-jane
+  name: observe-john-s-jane
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -85,7 +89,7 @@ spec:
       apiVersion: minio.crossplane.io/v1
       kind: Policy
       metadata:
-        name: john.restricted.s-jane
+        name: john.s-jane
   managementPolicies:
   - Observe
   providerConfigRef:
@@ -96,10 +100,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: observe-john-restricted-s-jeff
+    crossplane.io/composition-resource-name: observe-john-s-jeff
   labels:
     crossplane.io/composite: s-john
-  name: observe-john-restricted-s-jeff
+  name: observe-john-s-jeff
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -114,7 +118,7 @@ spec:
       apiVersion: minio.crossplane.io/v1
       kind: Policy
       metadata:
-        name: john.restricted.s-jeff
+        name: john.s-jeff
   managementPolicies:
   - Observe
   providerConfigRef:
@@ -125,10 +129,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: observe-john-restricted-s-joe
+    crossplane.io/composition-resource-name: observe-john-s-joe
   labels:
     crossplane.io/composite: s-john
-  name: observe-john-restricted-s-joe
+  name: observe-john-s-joe
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -143,7 +147,7 @@ spec:
       apiVersion: minio.crossplane.io/v1
       kind: Policy
       metadata:
-        name: john.restricted.s-joe
+        name: john.s-joe
   managementPolicies:
   - Observe
   providerConfigRef:
@@ -172,7 +176,7 @@ spec:
       apiVersion: minio.crossplane.io/v1
       kind: Policy
       metadata:
-        name: john.full.s-john
+        name: john.s-john
       spec:
         forProvider:
           rawPolicy: |-
@@ -201,10 +205,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: policy-jane-restricted-s-john
+    crossplane.io/composition-resource-name: policy-jane-s-john
   labels:
     crossplane.io/composite: s-john
-  name: policy-jane-restricted-s-john
+  name: policy-jane-s-john
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -219,34 +223,13 @@ spec:
       apiVersion: minio.crossplane.io/v1
       kind: Policy
       metadata:
-        name: jane.restricted.s-john
+        name: jane.s-john
       spec:
         forProvider:
           rawPolicy: |-
             {
               "Version": "2012-10-17",
-              "Statement": [
-                {
-                  "Effect": "Allow",
-                  "Action": [
-                    "s3:GetBucketLocation",
-                    "s3:ListBucket"
-                  ],
-                  "Resource": [
-                    "arn:aws:s3:::s-john"
-                  ]
-                },
-                {
-                  "Effect": "Allow",
-                  "Action": [
-                    "s3:PutObject",
-                    "s3:DeleteObject"
-                  ],
-                  "Resource": [
-                    "arn:aws:s3:::s-john/*"
-                  ]
-                }
-              ]
+              "Statement": []
             }
         providerConfigRef:
           name: provider-minio
@@ -280,7 +263,7 @@ spec:
       spec:
         forProvider:
           policies:
-          - john.full.s-john
+          - john.s-john
           userName: john
         providerConfigRef:
           name: provider-minio

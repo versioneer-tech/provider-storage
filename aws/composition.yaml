@@ -71,7 +71,7 @@ spec:
                   bucket = (b.get("bucketName") or "").strip()
                   if not bucket:
                       continue
-                  polname = f"{principal}.full.{bucket}"
+                  polname = f"{principal}.{bucket}"
                   policy_doc = {
                       "Version": "2012-10-17",
                       "Statement": [{
@@ -80,7 +80,7 @@ spec:
                           "Resource": [f"arn:aws:s3:::{bucket}", f"arn:aws:s3:::{bucket}/*"]
                       }]
                   }
-                  key = f"policy-full-{bucket}"
+                  key = f"policy-{bucket}"
                   rsp.desired.resources[key].resource.update({
                       "apiVersion": "iam.aws.m.upbound.io/v1beta1",
                       "kind": "Policy",
@@ -95,7 +95,7 @@ spec:
                       }
                   })
 
-    - step: create-restricted-policies
+    - step: create-policies
       functionRef:
         name: crossplane-contrib-function-python
       input:
@@ -140,8 +140,8 @@ spec:
                   if not bucket or not grantee or not perm:
                       continue
                   policy_doc = _policy_for(bucket, perm)
-                  pname = f"{grantee}.restricted.{bucket}"
-                  key = f"policy-{grantee}-restricted-{bucket}"
+                  pname = f"{grantee}.{bucket}"
+                  key = f"policy-{grantee}-{bucket}"
                   rsp.desired.resources[key].resource.update({
                       "apiVersion": "iam.aws.m.upbound.io/v1beta1",
                       "kind": "Policy",
@@ -177,8 +177,8 @@ spec:
                   bucket = (r.get("bucketName") or "").strip()
                   if not bucket:
                       continue
-                  polname = f"{principal}.restricted.{bucket}"
-                  key = f"observe-{principal}-restricted-{bucket}"
+                  polname = f"{principal}.{bucket}"
+                  key = f"observe-{principal}-{bucket}"
                   rsp.desired.resources[key].resource.update({
                       "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
                       "kind": "Object",
@@ -254,13 +254,13 @@ spec:
                   bucket = (b.get("bucketName") or "").strip()
                   if not bucket:
                       continue
-                  polname = f"{principal}.full.{bucket}"
-                  key = f"upa-full-{bucket}"
+                  polname = f"{principal}.{bucket}"
+                  key = f"upa-{bucket}"
                   rsp.desired.resources[key].resource.update({
                       "apiVersion": "iam.aws.m.upbound.io/v1beta1",
                       "kind": "UserPolicyAttachment",
                       "metadata": {
-                          "name": f"{principal}.full.{bucket}",
+                          "name": f"{principal}.{bucket}",
                           "namespace": ns,
                           "annotations": {"crossplane.io/composition-resource-name": key}
                       },
@@ -278,8 +278,8 @@ spec:
                   bucket = (r.get("bucketName") or "").strip()
                   if not bucket:
                       continue
-                  polname = f"{principal}.restricted.{bucket}"
-                  obs_key = f"observe-{principal}-restricted-{bucket}"
+                  polname = f"{principal}.{bucket}"
+                  obs_key = f"observe-{principal}-{bucket}"
                   oc = observed.get(obs_key)
                   exists = False
                   if oc and getattr(oc, "resource", None):
@@ -291,12 +291,12 @@ spec:
                       exists = has_manifest or is_ready
                   if not exists:
                       continue
-                  key = f"upa-restricted-{bucket}"
+                  key = f"upa-{bucket}"
                   rsp.desired.resources[key].resource.update({
                       "apiVersion": "iam.aws.m.upbound.io/v1beta1",
                       "kind": "UserPolicyAttachment",
                       "metadata": {
-                          "name": f"{principal}.restricted.{bucket}",
+                          "name": f"{principal}.{bucket}",
                           "namespace": ns,
                           "annotations": {"crossplane.io/composition-resource-name": key}
                       },

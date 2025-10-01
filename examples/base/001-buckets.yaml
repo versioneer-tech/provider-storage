@@ -1,7 +1,8 @@
-# Storage definition for Joe.
-# - Creates one discoverable bucket: s-joe.
-# - Requests access to Jeff's bucket s-jeff-shared.
-# - Grants Jeff ReadWrite access to s-joe.
+# Copyright 2025, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+# Joe creates one discoverable bucket s-joe, requests access to Jeff's bucket,
+# and grants Jeff ReadWrite access to s-joe.
 apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:

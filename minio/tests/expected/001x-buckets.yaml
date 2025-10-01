@@ -1,3 +1,6 @@
+# Copyright 2025, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
 ---
 apiVersion: pkg.internal/v1beta1
 kind: Storage
@@ -20,8 +23,8 @@ spec:
 status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: bucket-s-joe, policy-full-s-joe, policy-jeff-restricted-s-joe,
-      and 1 more'
+    message: 'Unready resources: bucket-s-joe, observe-joe-s-jeff-shared, policy-full-s-joe,
+      and 2 more'
     reason: Creating
     status: "False"
     type: Ready
@@ -62,10 +65,11 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: observe-joe-restricted-s-jeff-shared
+    crossplane.io/composition-resource-name: observe-joe-s-jeff-shared
   labels:
     crossplane.io/composite: s-joe
-  name: observe-joe-restricted-s-jeff-shared
+  name: observe-joe-s-jeff-shared
+  namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
     blockOwnerDeletion: true
@@ -79,7 +83,7 @@ spec:
       apiVersion: minio.crossplane.io/v1
       kind: Policy
       metadata:
-        name: joe.restricted.s-jeff-shared
+        name: joe.s-jeff-shared
   managementPolicies:
   - Observe
   providerConfigRef:
@@ -108,7 +112,7 @@ spec:
       apiVersion: minio.crossplane.io/v1
       kind: Policy
       metadata:
-        name: joe.full.s-joe
+        name: joe.s-joe
       spec:
         forProvider:
           rawPolicy: |-
@@ -137,10 +141,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: policy-jeff-restricted-s-joe
+    crossplane.io/composition-resource-name: policy-jeff-s-joe
   labels:
     crossplane.io/composite: s-joe
-  name: policy-jeff-restricted-s-joe
+  name: policy-jeff-s-joe
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -155,7 +159,7 @@ spec:
       apiVersion: minio.crossplane.io/v1
       kind: Policy
       metadata:
-        name: jeff.restricted.s-joe
+        name: jeff.s-joe
       spec:
         forProvider:
           rawPolicy: |-
@@ -210,8 +214,7 @@ spec:
       spec:
         forProvider:
           policies:
-          - joe.full.s-joe
-          - joe.restricted.s-jeff-shared
+          - joe.s-joe
           userName: joe
         providerConfigRef:
           name: provider-minio

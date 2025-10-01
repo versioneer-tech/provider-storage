@@ -1,34 +1,91 @@
-# provider-storage
+# Provider Storage
 
-## Introduction
+Welcome to the **Provider Storage** documentation.  
+This Crossplane provider delivers a unified way to manage S3-compatible storage systems across different backends such as MinIO, AWS S3, OTC OBS, and Scaleway.  
 
-The `provider-storage` [Configuration Package](https://docs.crossplane.io/latest/concepts/packages/) is the root project for a collection of different configuration packages that enable the creation of S3-compatible object storage called `buckets` or `containers` as well as the possibility to request access from or grant access to those `buckets`.
+It provides a **Storage Composite Resource Definition (XRD)** and ready-to-use **Compositions** to provision and manage buckets, access policies, and cross-user sharing.
 
-The following configuration packages are built from `provider-storage`:
+---
 
-- `storage-minio`
-- `storage-aws`
-- `storage-scaleway`
+## Features
 
-## First steps
+- **Multi-cloud support**  
+  Provision S3-compatible storage across MinIO, AWS, OTC, and Scaleway.
+- **Unified abstraction**  
+  Manage buckets, access grants, and requests through a single spec.  
+- **Cross-user sharing**  
+  Easily grant and request access to buckets across teams.  
+- **Kubernetes-native secrets**  
+  Automatically provisions S3-compatible credentials as Kubernetes Secrets.  
 
-Before you can work with any of the configuration packages built from `provider-storage` you need to [install Crossplane](https://docs.crossplane.io/latest/software/install/) into your Kubernetes cluster. An easy way to start testing the configuration package is on a local [kind](https://kind.sigs.k8s.io/) cluster.
+---
 
-You can either follow a tutorial to set up everything from scratch to deploy your first [Claim](https://docs.crossplane.io/latest/concepts/claims/) or, if you already have experience with Crossplane and Kubernetes, follow a how-to guide on how to install a specific configuration package built from `providers-storage`.
+## Installation
 
-## Getting help
+To install the configuration package into your Crossplane empowered Kubernetes environment, use e.g. for MinIO: 
 
-The best way to get help is by creating an issue on [GitHub](https://github.com/versioneer-tech/provider-storage).
+```yaml
+apiVersion: pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: storage-minio
+spec:
+  package: ghcr.io/versioneer-tech/provider-storage/minio:0.1
+  skipDependencyResolution: true
+```
 
-## How the documentation is organized
+---
 
-The documentation is organized in four distinct parts:
+## Quickstart
 
-- **Tutorials** invite you to follow a series of steps to install, run and deploy your first [Claim](https://docs.crossplane.io/latest/concepts/claims/) for each configuration package.
-- **How-to guides** are more advanced than tutorials and guide you through specific problems and use-cases.
-- **Reference guides** contain the API definitions for the [Composite Resource Definitions](https://docs.crossplane.io/latest/concepts/composite-resource-definitions/) of the configuration packages.
-- **Discussions** provide some insight in the inner workings of the [Compositions](https://docs.crossplane.io/latest/concepts/compositions/) and some reasoning behind their implementation.
+### Minimal Example
+
+```yaml
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  name: team-wonderland
+spec:
+  principal: alice
+  buckets:
+    - bucketName: wonderland
+```
+
+This will provision a bucket named **`wonderland`**, along with the required cloud-specific entities such as IAM users, access credentials, and bucket policies granting bucket `ReadWrite` access to `alice`
 
 !!! note
 
-    All configuration packages built from `provider-storage` share the same Composite Resource Definition!
+    All configuration packages built from `provider-storage` share the same `Storage` Composite Resource Definition!
+
+---
+
+For each `Storage` resource, a Secret is created in the same namespace, containing credentials for the selected backend.
+
+- **MinIO, AWS**:  
+  - `AWS_ACCESS_KEY_ID`  
+  - `AWS_SECRET_ACCESS_KEY`
+
+- **OTC**:  
+  - `attribute.access`  
+  - `attribute.secret`
+
+Use these secrets in your workloads to connect directly to the provisioned storage with standard S3 tooling, for example:
+
+```bash
+aws s3 ls s3://wonderland
+```
+
+---
+
+### More Examples
+Check the [examples folder](https://github.com/versioneer-tech/provider-storage/tree/main/examples/base) in the GitHub repository for complete scenarios, including:
+
+- Storage claims with multiple buckets
+- Cross-team access requests and grants
+
+---
+
+## Links
+
+- [API Reference](http://provider-storage.versioneer.at/latest/reference-guides/api/)  
+- [Examples](https://github.com/versioneer-tech/provider-storage/tree/main/examples/base)

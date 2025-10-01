@@ -1,3 +1,6 @@
+# Copyright 2025, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
 ---
 apiVersion: pkg.internal/v1beta1
 kind: Storage
@@ -234,6 +237,7 @@ spec:
         name: jeff
       spec:
         forProvider:
+          access_type: programmatic
           enabled: true
           name: jeff
         providerConfigRef:

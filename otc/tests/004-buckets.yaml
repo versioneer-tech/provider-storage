@@ -1,3 +1,6 @@
+# Copyright 2025, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
 ---
 apiVersion: pkg.internal/v1beta1
 kind: Storage
@@ -8,7 +11,7 @@ spec:
   - bucketName: s-john
     grantedAt: "2025-09-29T10:28:00Z"
     grantee: jane
-    permission: WriteOnly
+    permission: None
   bucketAccessRequests:
   - bucketName: s-joe
     reason: Need access
@@ -21,6 +24,7 @@ spec:
     requestedAt: "2025-09-29T10:27:00Z"
   buckets:
   - bucketName: s-john
+    discoverable: true
   principal: john
 status:
   conditions:
@@ -176,6 +180,7 @@ spec:
         name: john
       spec:
         forProvider:
+          access_type: programmatic
           enabled: true
           name: john
         providerConfigRef:

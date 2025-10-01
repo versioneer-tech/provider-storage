@@ -1,19 +1,16 @@
+# Copyright 2025, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
 site_name: provider-storage
 site_url: https://versioneer-tech.github.io/provider-storage/
 copyright: "Copyright &copy; 2025, Versioneer"
 nav:
   - Home: index.md
-  - Tutorials:
-    - storage-minio: tutorials/storage-minio.md
-    - storage-aws: tutorials/storage-aws.md
-    - storage-scaleway: tutorials/storage-scaleway.md
   - How-to guides:
-    - general: how-to-guides/general.md
-    - storage-minio: how-to-guides/storage-minio.md
-    - storage-aws: how-to-guides/storage-aws.md
-    - storage-scaleway: how-to-guides/storage-scaleway.md
-  - Discussions:
-    - Permission Workflow: discussions/permission-workflow.md
+    - Usage & Concepts: how-to-guides/usage_concepts.md
+    - Permissions: how-to-guides/permissions.md
+    - Installation: how-to-guides/installation.md
+    - Local Setup: how-to-guides/local_setup.md
   - Reference guides:
     - API: reference-guides/api.md
 plugins:

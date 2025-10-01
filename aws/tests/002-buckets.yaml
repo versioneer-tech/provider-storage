@@ -1,3 +1,6 @@
+# Copyright 2025, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
 ---
 apiVersion: pkg.internal/v1beta1
 kind: Storage
@@ -103,10 +106,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: observe-jeff-restricted-s-joe
+    crossplane.io/composition-resource-name: observe-jeff-s-joe
   labels:
     crossplane.io/composite: s-jeff
-  name: observe-jeff-restricted-s-joe
+  name: observe-jeff-s-joe
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -121,7 +124,7 @@ spec:
       apiVersion: iam.aws.m.upbound.io/v1beta1
       kind: Policy
       metadata:
-        name: jeff.restricted.s-joe
+        name: jeff.s-joe
         namespace: default
   managementPolicies:
   - Observe
@@ -133,86 +136,10 @@ apiVersion: iam.aws.m.upbound.io/v1beta1
 kind: Policy
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: policy-full-s-jeff
+    crossplane.io/composition-resource-name: policy-joe-s-jeff-shared
   labels:
     crossplane.io/composite: s-jeff
-  name: jeff.full.s-jeff
-  namespace: default
-  ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-jeff
-    uid: ""
-spec:
-  forProvider:
-    policy: |-
-      {
-        "Version": "2012-10-17",
-        "Statement": [
-          {
-            "Effect": "Allow",
-            "Action": [
-              "s3:*"
-            ],
-            "Resource": [
-              "arn:aws:s3:::s-jeff",
-              "arn:aws:s3:::s-jeff/*"
-            ]
-          }
-        ]
-      }
-  providerConfigRef:
-    kind: ProviderConfig
-    name: provider-aws
----
-apiVersion: iam.aws.m.upbound.io/v1beta1
-kind: Policy
-metadata:
-  annotations:
-    crossplane.io/composition-resource-name: policy-full-s-jeff-shared
-  labels:
-    crossplane.io/composite: s-jeff
-  name: jeff.full.s-jeff-shared
-  namespace: default
-  ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-jeff
-    uid: ""
-spec:
-  forProvider:
-    policy: |-
-      {
-        "Version": "2012-10-17",
-        "Statement": [
-          {
-            "Effect": "Allow",
-            "Action": [
-              "s3:*"
-            ],
-            "Resource": [
-              "arn:aws:s3:::s-jeff-shared",
-              "arn:aws:s3:::s-jeff-shared/*"
-            ]
-          }
-        ]
-      }
-  providerConfigRef:
-    kind: ProviderConfig
-    name: provider-aws
----
-apiVersion: iam.aws.m.upbound.io/v1beta1
-kind: Policy
-metadata:
-  annotations:
-    crossplane.io/composition-resource-name: policy-joe-restricted-s-jeff-shared
-  labels:
-    crossplane.io/composite: s-jeff
-  name: joe.restricted.s-jeff-shared
+  name: joe.s-jeff-shared
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -252,13 +179,89 @@ spec:
     name: provider-aws
 ---
 apiVersion: iam.aws.m.upbound.io/v1beta1
+kind: Policy
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: policy-s-jeff
+  labels:
+    crossplane.io/composite: s-jeff
+  name: jeff.s-jeff
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-jeff
+    uid: ""
+spec:
+  forProvider:
+    policy: |-
+      {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Action": [
+              "s3:*"
+            ],
+            "Resource": [
+              "arn:aws:s3:::s-jeff",
+              "arn:aws:s3:::s-jeff/*"
+            ]
+          }
+        ]
+      }
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-aws
+---
+apiVersion: iam.aws.m.upbound.io/v1beta1
+kind: Policy
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: policy-s-jeff-shared
+  labels:
+    crossplane.io/composite: s-jeff
+  name: jeff.s-jeff-shared
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-jeff
+    uid: ""
+spec:
+  forProvider:
+    policy: |-
+      {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Action": [
+              "s3:*"
+            ],
+            "Resource": [
+              "arn:aws:s3:::s-jeff-shared",
+              "arn:aws:s3:::s-jeff-shared/*"
+            ]
+          }
+        ]
+      }
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-aws
+---
+apiVersion: iam.aws.m.upbound.io/v1beta1
 kind: UserPolicyAttachment
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: upa-full-s-jeff
+    crossplane.io/composition-resource-name: upa-s-jeff
   labels:
     crossplane.io/composite: s-jeff
-  name: jeff.full.s-jeff
+  name: jeff.s-jeff
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -270,7 +273,7 @@ metadata:
 spec:
   forProvider:
     policyArnRef:
-      name: jeff.full.s-jeff
+      name: jeff.s-jeff
     userRef:
       name: jeff
   providerConfigRef:
@@ -281,10 +284,10 @@ apiVersion: iam.aws.m.upbound.io/v1beta1
 kind: UserPolicyAttachment
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: upa-full-s-jeff-shared
+    crossplane.io/composition-resource-name: upa-s-jeff-shared
   labels:
     crossplane.io/composite: s-jeff
-  name: jeff.full.s-jeff-shared
+  name: jeff.s-jeff-shared
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -296,7 +299,7 @@ metadata:
 spec:
   forProvider:
     policyArnRef:
-      name: jeff.full.s-jeff-shared
+      name: jeff.s-jeff-shared
     userRef:
       name: jeff
   providerConfigRef:

@@ -1,8 +1,8 @@
----
-# Storage definition for Jane.
-# - Creates no buckets.
-# - Requests access to John's bucket s-john (stated need: WriteOnly).
-# - Note: This is only a request; access becomes effective only after John grants it.
+# Copyright 2025, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+# Jane has no buckets but requests WriteOnly access to John's bucket.
+# Note: This request only becomes effective once John grants it.
 apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:

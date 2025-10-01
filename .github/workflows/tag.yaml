@@ -1,3 +1,6 @@
+# Copyright 2025, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
 name: Publish Provider Storage
 on:
   push:
@@ -47,16 +50,44 @@ jobs:
             --package-files=minio/storage-minio.xpkg \
             "ghcr.io/${ORG}/${REPO}/minio:${GITHUB_REF_NAME##*/}" \
             --verbose
-      # - name: Build and publish storage-aws Configuration Package
-      #   run: |
-      #     cp xrd.yaml aws/xrd.yaml
-      #     crossplane xpkg build --package-root=aws --ignore="tests/observed/*,tests/expected/*,tests/required/*" --package-file=aws/storage-aws.xpkg --verbose
-      #     crossplane xpkg push --package-files=aws/storage-aws.xpkg "ghcr.io/versioneer-tech/provider-storage/aws:${{ github.ref_name }}" --verbose
-      # - name: Build and publish storage-scaleway Configuration Package
-      #   run: |
-      #     cp xrd.yaml aws/xrd.yaml
-      #     crossplane xpkg build --package-root=scaleway --ignore="tests/observed/*,tests/expected/*,tests/required/*" --package-file=aws/storage-scaleway.xpkg --verbose
-      #     crossplane xpkg push --package-files=aws/storage-scaleway.xpkg "ghcr.io/versioneer-tech/provider-storage/scaleway:${{ github.ref_name }}" --verbose
+
+      - name: Build and publish storage-aws Configuration Package
+        run: |
+          ORG="${GITHUB_REPOSITORY_OWNER,,}"
+          REPO="${GITHUB_REPOSITORY#*/}"; REPO="${REPO,,}"
+
+          cp xrd.yaml aws/xrd.yaml
+
+          crossplane xpkg build \
+            --package-root=aws \
+            --ignore 'dependencies/*' \
+            --ignore 'tests/expected/*,tests/observed/*,tests/*' \
+            --package-file aws/storage-aws.xpkg \
+            --verbose
+
+          crossplane xpkg push \
+            --package-files=aws/storage-aws.xpkg \
+            "ghcr.io/${ORG}/${REPO}/aws:${GITHUB_REF_NAME##*/}" \
+            --verbose
+
+      - name: Build and publish storage-otc Configuration Package
+        run: |
+          ORG="${GITHUB_REPOSITORY_OWNER,,}"
+          REPO="${GITHUB_REPOSITORY#*/}"; REPO="${REPO,,}"
+
+          cp xrd.yaml otc/xrd.yaml
+
+          crossplane xpkg build \
+            --package-root=otc \
+            --ignore 'dependencies/*' \
+            --ignore 'tests/expected/*,tests/observed/*,tests/*' \
+            --package-file otc/storage-otc.xpkg \
+            --verbose
+
+          crossplane xpkg push \
+            --package-files=otc/storage-otc.xpkg \
+            "ghcr.io/${ORG}/${REPO}/otc:${GITHUB_REF_NAME##*/}" \
+            --verbose
   build_docs:
     runs-on: ubuntu-latest
     needs: build_and_publish_configuration_packages
