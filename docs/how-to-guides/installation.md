@@ -1,6 +1,6 @@
 # Provider Storage – Installation Guide
 
-The `provider-storage` configuration packages let you provision **S3-compatible storage** on **MinIO**, **AWS S3**, and **OTC OBS** using Crossplane.  
+The `provider-storage` configuration packages let you provision **S3-compatible storage** on **MinIO**, **AWS S3**, **OTC OBS** and others using Crossplane.  
 Buckets, access policies, and cross-user sharing are declared via a single, namespaced `Storage` spec.
 
 ---
@@ -26,7 +26,11 @@ Everything in this guide is **namespaced**:
 ```bash
 helm repo add crossplane-stable https://charts.crossplane.io/stable
 helm repo update
-helm install crossplane   --namespace crossplane-system   --create-namespace crossplane-stable/crossplane   --version 2.0.2   --set provider.defaultActivations={}
+helm install crossplane
+  --namespace crossplane-system
+  --create-namespace crossplane-stable/crossplane
+  --version 2.0.2 
+  --set provider.defaultActivations={}
 ```
 
 > To reduce control-plane load, we use a `ManagedResourceActivationPolicy` (MRAP) per backend so only the needed Managed Resources are active.
@@ -47,7 +51,7 @@ Repository root: <https://github.com/versioneer-tech/provider-storage/>
 
 ### MinIO
 
-> You operate a MinIO endpoint yourself (same/different cluster or DC). For a one-stop local dev on `kind`, see [**local_setup**](./local_setup).
+> You operate a MinIO endpoint yourself (same/different cluster or DC). For a one-stop local dev on `kind`, see the guide around [**Local Setup**](../local_setup).
 
 - [00-mrap.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/minio/dependencies/00-mrap.yaml) – Activate MinIO-specific Managed Resources.  
 - [01-deploymentRuntimeConfigs.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/minio/dependencies/01-deploymentRuntimeConfigs.yaml) – Runtime configs for providers/functions.  

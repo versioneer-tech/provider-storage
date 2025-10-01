@@ -34,7 +34,11 @@ Install Crossplane into the cluster using Helm:
 ```bash
 helm repo add crossplane-stable https://charts.crossplane.io/stable
 helm repo update
-helm install crossplane   --namespace crossplane-system   --create-namespace crossplane-stable/crossplane   --version 2.0.2   --set provider.defaultActivations={}
+helm install crossplane
+  --namespace crossplane-system
+  --create-namespace crossplane-stable/crossplane
+  --version 2.0.2 
+  --set provider.defaultActivations={}
 ```
 
 Apply a `ManagedResourceActivationPolicy` (MRAP) to only activate the resources needed for MinIO:
@@ -64,7 +68,9 @@ Install the MinIO Operator:
 
 ```bash
 helm repo add minio-operator https://operator.min.io
-helm install   --namespace minio-operator   --create-namespace operator minio-operator/operator
+helm install
+   --namespace minio-operator
+   --create-namespace operator minio-operator/operator
 ```
 
 Create a small MinIO Tenant for testing. Save as `values.yaml`:
@@ -112,7 +118,7 @@ kind: Configuration
 metadata:
   name: storage-minio
 spec:
-  package: ghcr.io/versioneer-tech/provider-storage/minio:<version>
+  package: ghcr.io/versioneer-tech/provider-storage/minio:<!version!>
 ```
 
 ```bash

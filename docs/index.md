@@ -1,7 +1,7 @@
 # Provider Storage
 
 Welcome to the **Provider Storage** documentation.  
-This Crossplane provider delivers a unified way to manage S3-compatible storage systems across different backends such as MinIO, AWS S3, OTC OBS, and Scaleway.  
+This Crossplane provider delivers a unified way to manage S3-compatible storage systems across different backends such as MinIO, AWS S3, OTC OBS, and others.  
 
 It provides a **Storage Composite Resource Definition (XRD)** and ready-to-use **Compositions** to provision and manage buckets, access policies, and cross-user sharing.
 
@@ -10,7 +10,7 @@ It provides a **Storage Composite Resource Definition (XRD)** and ready-to-use *
 ## Features
 
 - **Multi-cloud support**  
-  Provision S3-compatible storage across MinIO, AWS, OTC, and Scaleway.
+  Provision S3-compatible storage across MinIO, AWS, OTC, and others.
 - **Unified abstraction**  
   Manage buckets, access grants, and requests through a single spec.  
 - **Cross-user sharing**  
@@ -30,7 +30,7 @@ kind: Configuration
 metadata:
   name: storage-minio
 spec:
-  package: ghcr.io/versioneer-tech/provider-storage/minio:0.1
+  package: ghcr.io/versioneer-tech/provider-storage/minio:<!version!>
   skipDependencyResolution: true
 ```
 
@@ -55,7 +55,7 @@ This will provision a bucket named **`wonderland`**, along with the required clo
 
 !!! note
 
-    All configuration packages built from `provider-storage` share the same `Storage` Composite Resource Definition!
+    All configuration packages derived from `provider-storage` expose the same `Storage` Composite Resource Definition (XRD). If multiple providers are installed, each `Storage` claim **must be labeled** to ensure it binds to the desired provider.
 
 ---
 
@@ -82,10 +82,3 @@ Check the [examples folder](https://github.com/versioneer-tech/provider-storage/
 
 - Storage claims with multiple buckets
 - Cross-team access requests and grants
-
----
-
-## Links
-
-- [API Reference](http://provider-storage.versioneer.at/latest/reference-guides/api/)  
-- [Examples](https://github.com/versioneer-tech/provider-storage/tree/main/examples/base)
