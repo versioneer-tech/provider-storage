@@ -1,3 +1,6 @@
+# Copyright 2025, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
 default_stages: [pre-commit]
 default_install_hook_types: [pre-commit, commit-msg, pre-push]
 default_language_version:

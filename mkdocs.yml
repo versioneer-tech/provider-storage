@@ -3,6 +3,8 @@
 
 site_name: provider-storage
 site_url: https://versioneer-tech.github.io/provider-storage/
+repo_url: https://github.com/versioneer-tech/provider-storage
+repo_name: versioneer-tech/provider-storage
 copyright: "Copyright &copy; 2025, Versioneer"
 nav:
   - Home: index.md

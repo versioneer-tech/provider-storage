@@ -51,7 +51,7 @@ Repository root: <https://github.com/versioneer-tech/provider-storage/>
 
 ### MinIO
 
-> You operate a MinIO endpoint yourself (same/different cluster or DC). For a one-stop local dev on `kind`, see the guide around [**Local Setup**](../local_setup).
+> You operate a MinIO endpoint yourself (same/different cluster or DC). For a one-stop local dev on `kind`, see the guide around [**Local Setup**](how-to-guides/local_setup.md).
 
 - [00-mrap.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/minio/dependencies/00-mrap.yaml) – Activate MinIO-specific Managed Resources.  
 - [01-deploymentRuntimeConfigs.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/minio/dependencies/01-deploymentRuntimeConfigs.yaml) – Runtime configs for providers/functions.  
