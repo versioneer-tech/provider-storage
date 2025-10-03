@@ -72,7 +72,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#provider-storage" class="md-skip">
+        <a href="#welcome-to-provider-storage" class="md-skip">
           Skip to content
         </a>
       
@@ -653,9 +653,9 @@
   
 
 
-<h1 id="provider-storage">Provider Storage</h1>
-<p>The <strong>Provider Storage</strong> package brings cloud-native, declarative storage management into your Kubernetes cluster. It gives <strong>end users</strong> a simple way to request and share S3 buckets, and it gives <strong>operators</strong> a consistent control plane to enforce policies across multiple backends such as <strong>MinIO</strong>, <strong>AWS S3</strong>, <strong>OTC OBS</strong>, and others.</p>
-<p>Instead of juggling credentials, APIs, and bucket lifecycles separately for each provider, everything is managed through a single Kubernetes Custom Resource: the <code>Storage</code> claim.  This claim captures a user’s storage needs — create a bucket, request access to someone else’s, or grant access to collaborators — while Crossplane takes care of provisioning on the underlying backend.</p>
+<h1 id="welcome-to-provider-storage">Welcome to Provider Storage</h1>
+<p>The <strong>Provider Storage</strong> package brings cloud-native, declarative storage management into your Kubernetes cluster, built on <a href="https://crossplane.io">Crossplane v2</a>. It gives <strong>end users</strong> a simple way to request and share S3 buckets, and it gives <strong>operators</strong> a consistent control plane to enforce policies across multiple backends such as <strong>MinIO</strong>, <strong>AWS S3</strong>, <strong>OTC OBS</strong>, and others.</p>
+<p>Instead of juggling credentials, APIs, and bucket lifecycles separately for each provider, everything is managed through a single Kubernetes Custom Resource: the <code>Storage</code> claim.  This claim captures a user’s storage needs — create a bucket, request access to someone else’s, or grant access to collaborators — while Crossplane and the compositions takes care of provisioning on the underlying backend.</p>
 <p>For <strong>end users</strong>, this means:</p>
 <ul>
 <li>Create personal or shared buckets with one manifest.  </li>
@@ -685,7 +685,9 @@
 <li><strong>Cross-user sharing</strong><br />
   Easily grant and request access to buckets across teams.  </li>
 <li><strong>Kubernetes-native secrets</strong><br />
-  Automatically provisions S3-compatible credentials as Kubernetes Secrets.  </li>
+  Automatically provisions S3-compatible credentials as Kubernetes Secrets.</li>
+<li><strong>Extensible by design</strong><br />
+  Built on Crossplane, ready to extend with new resources.  </li>
 </ul>
 <hr />
 <h2 id="installation">Installation</h2>
