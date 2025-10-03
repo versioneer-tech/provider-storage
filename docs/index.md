@@ -1,9 +1,27 @@
 # Provider Storage
 
-Welcome to the **Provider Storage** documentation.  
-This Crossplane provider delivers a unified way to manage S3-compatible storage systems across different backends such as MinIO, AWS S3, OTC OBS, and others.  
+The **Provider Storage** package brings cloud-native, declarative storage management into your Kubernetes cluster.  
+It gives **end users** a simple way to request and share S3 buckets, and it gives **operators** a consistent control plane to enforce policies across multiple backends such as **MinIO**, **AWS S3**, **OTC OBS**, and others.
 
-It provides a **Storage Composite Resource Definition (XRD)** and ready-to-use **Compositions** to provision and manage buckets, access policies, and cross-user sharing.
+Instead of juggling credentials, APIs, and bucket lifecycles separately for each provider, everything is managed through a single Kubernetes Custom Resource: the `Storage` claim.  This claim captures a user’s storage needs — create a bucket, request access to someone else’s, or grant access to collaborators — while Crossplane takes care of provisioning on the underlying backend.
+
+For **end users**, this means:
+- Create personal or shared buckets with one manifest.  
+- Request access to other buckets without having to ask operators directly.  
+- Receive credentials automatically in a Kubernetes Secret.  
+
+For **operators**, this means:
+- A unified model for managing storage across different S3-compatible systems.  
+- Consistent enforcement of access policies and sharing rules.  
+- Extensibility through Crossplane’s composition model — adapt the backend without changing the user-facing API.  
+
+At its core, Provider Storage provides:
+- A **Storage Composite Resource Definition (XRD)**  
+- **Compositions** to provision buckets, manage access, and reconcile credentials  
+- Support for **cross-user sharing** and collaboration  
+
+With Provider Storage, storage becomes **declarative, multi-tenant, and self-service**, all while staying under operator control.
+
 
 ---
 
