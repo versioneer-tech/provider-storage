@@ -1,8 +1,8 @@
-# Provider Storage
+# Welcome to Provider Storage
 
-The **Provider Storage** package brings cloud-native, declarative storage management into your Kubernetes cluster. It gives **end users** a simple way to request and share S3 buckets, and it gives **operators** a consistent control plane to enforce policies across multiple backends such as **MinIO**, **AWS S3**, **OTC OBS**, and others.
+The **Provider Storage** package brings cloud-native, declarative storage management into your Kubernetes cluster, built on [Crossplane v2](https://crossplane.io). It gives **end users** a simple way to request and share S3 buckets, and it gives **operators** a consistent control plane to enforce policies across multiple backends such as **MinIO**, **AWS S3**, **OTC OBS**, and others.
 
-Instead of juggling credentials, APIs, and bucket lifecycles separately for each provider, everything is managed through a single Kubernetes Custom Resource: the `Storage` claim.  This claim captures a user’s storage needs — create a bucket, request access to someone else’s, or grant access to collaborators — while Crossplane takes care of provisioning on the underlying backend.
+Instead of juggling credentials, APIs, and bucket lifecycles separately for each provider, everything is managed through a single Kubernetes Custom Resource: the `Storage` claim.  This claim captures a user’s storage needs — create a bucket, request access to someone else’s, or grant access to collaborators — while Crossplane and the compositions takes care of provisioning on the underlying backend.
 
 For **end users**, this means:
 
@@ -36,7 +36,9 @@ With Provider Storage, storage becomes **declarative, multi-tenant, and self-ser
 - **Cross-user sharing**  
   Easily grant and request access to buckets across teams.  
 - **Kubernetes-native secrets**  
-  Automatically provisions S3-compatible credentials as Kubernetes Secrets.  
+  Automatically provisions S3-compatible credentials as Kubernetes Secrets.
+- **Extensible by design**  
+  Built on Crossplane, ready to extend with new resources.  
 
 ---
 
