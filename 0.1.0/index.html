@@ -654,21 +654,26 @@
 
 
 <h1 id="provider-storage">Provider Storage</h1>
-<p>The <strong>Provider Storage</strong> package brings cloud-native, declarative storage management into your Kubernetes cluster.<br />
-It gives <strong>end users</strong> a simple way to request and share S3 buckets, and it gives <strong>operators</strong> a consistent control plane to enforce policies across multiple backends such as <strong>MinIO</strong>, <strong>AWS S3</strong>, <strong>OTC OBS</strong>, and others.</p>
+<p>The <strong>Provider Storage</strong> package brings cloud-native, declarative storage management into your Kubernetes cluster. It gives <strong>end users</strong> a simple way to request and share S3 buckets, and it gives <strong>operators</strong> a consistent control plane to enforce policies across multiple backends such as <strong>MinIO</strong>, <strong>AWS S3</strong>, <strong>OTC OBS</strong>, and others.</p>
 <p>Instead of juggling credentials, APIs, and bucket lifecycles separately for each provider, everything is managed through a single Kubernetes Custom Resource: the <code>Storage</code> claim.  This claim captures a user’s storage needs — create a bucket, request access to someone else’s, or grant access to collaborators — while Crossplane takes care of provisioning on the underlying backend.</p>
-<p>For <strong>end users</strong>, this means:
-- Create personal or shared buckets with one manifest.<br />
-- Request access to other buckets without having to ask operators directly.<br />
-- Receive credentials automatically in a Kubernetes Secret.  </p>
-<p>For <strong>operators</strong>, this means:
-- A unified model for managing storage across different S3-compatible systems.<br />
-- Consistent enforcement of access policies and sharing rules.<br />
-- Extensibility through Crossplane’s composition model — adapt the backend without changing the user-facing API.  </p>
-<p>At its core, Provider Storage provides:
-- A <strong>Storage Composite Resource Definition (XRD)</strong><br />
-- <strong>Compositions</strong> to provision buckets, manage access, and reconcile credentials<br />
-- Support for <strong>cross-user sharing</strong> and collaboration  </p>
+<p>For <strong>end users</strong>, this means:</p>
+<ul>
+<li>Create personal or shared buckets with one manifest.  </li>
+<li>Request access to other buckets without having to ask operators directly.  </li>
+<li>Receive credentials automatically in a Kubernetes Secret.  </li>
+</ul>
+<p>For <strong>operators</strong>, this means:</p>
+<ul>
+<li>A unified model for managing storage across different S3-compatible systems.  </li>
+<li>Consistent enforcement of access policies and sharing rules.  </li>
+<li>Extensibility through Crossplane’s composition model — adapt the backend without changing the user-facing API.  </li>
+</ul>
+<p>At its core, Provider Storage provides:</p>
+<ul>
+<li>A <strong>Storage Composite Resource Definition (XRD)</strong>  </li>
+<li><strong>Compositions</strong> to provision buckets, manage access, and reconcile credentials  </li>
+<li>Support for <strong>cross-user sharing</strong> and collaboration  </li>
+</ul>
 <p>With Provider Storage, storage becomes <strong>declarative, multi-tenant, and self-service</strong>, all while staying under operator control.</p>
 <hr />
 <h2 id="features">Features</h2>
