@@ -11,9 +11,9 @@ metadata:
   name: credential-rotator-cr
 rules:
   - apiGroups:
-      - "kubernetes.m.crossplane.io"
+      - "iam.aws.m.upbound.io"
     resources:
-      - objects
+      - accesskeys
     verbs:
       - get
       - list
@@ -66,14 +66,15 @@ spec:
 
                   interval=86400
                   now=$(date +%s)
-                  objects=$(kubectl get objects.kubernetes.m.crossplane.io --all-namespaces \
+                  objects=$(kubectl get accesskeys.iam.aws.m.upbound.io --all-namespaces \
                       -o jsonpath="{range .items[*]}{.metadata.namespace}{'\t'}{.metadata.name}{'\t'}{.metadata.annotations.crossplane\.io/composition-resource-name}{'\t'}{.metadata.creationTimestamp}{'\n'}{end}")
 
                   deleted_groups=""
 
                   while IFS=$'\t' read -r namespace name compositionResourceName creationTimestamp; do
-                      [[ "$compositionResourceName" == user-* ]] || continue
+                      [[ "$compositionResourceName" == access-key-* ]] || continue
 
+                      # Skip if group already deleted
                       group="${name%-*}"
                       if echo " $deleted_groups " | grep -q " $group "; then
                           continue
@@ -81,9 +82,10 @@ spec:
 
                       creationTimestampSeconds=$(date -d "${creationTimestamp}" +%s)
                       validUntil=$((creationTimestampSeconds + interval))
+
                       if (( validUntil < now )); then
                           echo "Deleting $namespace/$name (creationTimestamp: ${creationTimestampSeconds}, now: ${now})"
-                          kubectl delete objects.kubernetes.m.crossplane.io "$name" -n "$namespace"
+                          kubectl delete accesskeys.iam.aws.m.upbound.io "$name" -n "$namespace"
 
                           deleted_groups="${deleted_groups} ${group}"
                       fi

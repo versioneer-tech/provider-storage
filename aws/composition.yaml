@@ -326,21 +326,23 @@ spec:
               spec = xr.get("spec", {}) or {}
               ns   = (meta.get("labels", {}) or {}).get("crossplane.io/claim-namespace") or meta.get("namespace") or "default"
               principal = (spec.get("principal") or meta.get("name") or "<principal>").strip()
-              key = f"access-key-{principal}"
-              rsp.desired.resources[key].resource.update({
-                  "apiVersion": "iam.aws.m.upbound.io/v1beta1",
-                  "kind": "AccessKey",
-                  "metadata": {
-                      "name": principal,
-                      "namespace": ns,
-                      "annotations": {"crossplane.io/composition-resource-name": key}
-                  },
-                  "spec": {
-                      "forProvider": {"userRef": {"name": principal}},
-                      "providerConfigRef": {"name": "provider-aws", "kind": "ProviderConfig"},
-                      "writeConnectionSecretToRef": {"name": principal}
-                  }
-              })
+
+              for i in range(2):
+                  key = f"access-key-{principal}-{i+1}"
+                  rsp.desired.resources[key].resource.update({
+                      "apiVersion": "iam.aws.m.upbound.io/v1beta1",
+                      "kind": "AccessKey",
+                      "metadata": {
+                          "name": f"{principal}-{i+1}",
+                          "namespace": ns,
+                          "annotations": {"crossplane.io/composition-resource-name": key}
+                      },
+                      "spec": {
+                          "forProvider": {"userRef": {"name": principal}},
+                          "providerConfigRef": {"name": "provider-aws", "kind": "ProviderConfig"},
+                          "writeConnectionSecretToRef": {"name": f"{principal}-{i+1}"}
+                      }
+                  })
 
     - step: automatically-detect-ready-composed-resources
       functionRef:
