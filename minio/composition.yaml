@@ -305,10 +305,6 @@ spec:
                   "key": f"user-{principal}-2",
               }
 
-              current_time = time.time()
-              credentialRotationInterval = spec.get("credentialRotationInterval")
-              expiration_time = int(current_time + credentialRotationInterval) if credentialRotationInterval else -1
-
               for user in [user_1, user_2]:
                   key = user["key"]
                   user_name = user["name"]
