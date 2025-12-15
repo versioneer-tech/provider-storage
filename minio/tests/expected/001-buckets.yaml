@@ -8,26 +8,27 @@ metadata:
   name: s-joe
 spec:
   bucketAccessGrants:
-  - bucketName: s-joe
-    grantedAt: "2025-09-29T10:05:00Z"
-    grantee: jeff
-    permission: ReadWrite
+    - bucketName: s-joe
+      grantedAt: "2025-09-29T10:05:00Z"
+      grantee: jeff
+      permission: ReadWrite
   bucketAccessRequests:
-  - bucketName: s-jeff-shared
-    reason: Need access
-    requestedAt: "2025-09-29T10:00:00Z"
+    - bucketName: s-jeff-shared
+      reason: Need access
+      requestedAt: "2025-09-29T10:00:00Z"
   buckets:
-  - bucketName: s-joe
-    discoverable: true
+    - bucketName: s-joe
+      discoverable: true
   principal: joe
 status:
   conditions:
-  - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: bucket-s-joe, observe-joe-s-jeff-shared, policy-full-s-joe,
-      and 2 more'
-    reason: Creating
-    status: "False"
-    type: Ready
+    - lastTransitionTime: "2024-01-01T00:00:00Z"
+      message:
+        "Unready resources: bucket-s-joe, observe-joe-s-jeff-shared, policy-full-s-joe,
+        and 3 more"
+      reason: Creating
+      status: "False"
+      type: Ready
 ---
 apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
@@ -39,12 +40,12 @@ metadata:
   name: bucket-s-joe
   namespace: default
   ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-joe
-    uid: ""
+    - apiVersion: pkg.internal/v1beta1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Storage
+      name: s-joe
+      uid: ""
 spec:
   forProvider:
     manifest:
@@ -71,12 +72,12 @@ metadata:
   name: observe-joe-s-jeff-shared
   namespace: default
   ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-joe
-    uid: ""
+    - apiVersion: pkg.internal/v1beta1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Storage
+      name: s-joe
+      uid: ""
 spec:
   forProvider:
     manifest:
@@ -85,7 +86,7 @@ spec:
       metadata:
         name: joe.s-jeff-shared
   managementPolicies:
-  - Observe
+    - Observe
   providerConfigRef:
     kind: ProviderConfig
     name: provider-kubernetes
@@ -100,12 +101,12 @@ metadata:
   name: policy-full-s-joe
   namespace: default
   ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-joe
-    uid: ""
+    - apiVersion: pkg.internal/v1beta1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Storage
+      name: s-joe
+      uid: ""
 spec:
   forProvider:
     manifest:
@@ -147,12 +148,12 @@ metadata:
   name: policy-jeff-s-joe
   namespace: default
   ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-joe
-    uid: ""
+    - apiVersion: pkg.internal/v1beta1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Storage
+      name: s-joe
+      uid: ""
 spec:
   forProvider:
     manifest:
@@ -192,34 +193,71 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: user-joe
+    crossplane.io/composition-resource-name: user-joe-1
   labels:
     crossplane.io/composite: s-joe
-  name: user-joe
+  name: user-joe-1
   namespace: default
   ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-joe
-    uid: ""
+    - apiVersion: pkg.internal/v1beta1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Storage
+      name: s-joe
+      uid: ""
 spec:
   forProvider:
     manifest:
       apiVersion: minio.crossplane.io/v1
       kind: User
       metadata:
-        name: joe
+        name: joe-1
       spec:
         forProvider:
           policies:
-          - joe.s-joe
-          userName: joe
+            - joe.s-joe
+          userName: joe-1
         providerConfigRef:
           name: provider-minio
         writeConnectionSecretToRef:
-          name: joe
+          name: joe-1
+          namespace: default
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-kubernetes
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: user-joe-2
+  labels:
+    crossplane.io/composite: s-joe
+  name: user-joe-2
+  namespace: default
+  ownerReferences:
+    - apiVersion: pkg.internal/v1beta1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Storage
+      name: s-joe
+      uid: ""
+spec:
+  forProvider:
+    manifest:
+      apiVersion: minio.crossplane.io/v1
+      kind: User
+      metadata:
+        name: joe-2
+      spec:
+        forProvider:
+          policies:
+            - joe.s-joe
+          userName: joe-2
+        providerConfigRef:
+          name: provider-minio
+        writeConnectionSecretToRef:
+          name: joe-2
           namespace: default
   providerConfigRef:
     kind: ProviderConfig

@@ -8,27 +8,28 @@ metadata:
   name: s-jeff
 spec:
   bucketAccessGrants:
-  - bucketName: s-jeff-shared
-    grantedAt: "2025-09-29T10:15:00Z"
-    grantee: joe
-    permission: ReadOnly
+    - bucketName: s-jeff-shared
+      grantedAt: "2025-09-29T10:15:00Z"
+      grantee: joe
+      permission: ReadOnly
   bucketAccessRequests:
-  - bucketName: s-joe
-    reason: Need access
-    requestedAt: "2025-09-29T10:10:00Z"
+    - bucketName: s-joe
+      reason: Need access
+      requestedAt: "2025-09-29T10:10:00Z"
   buckets:
-  - bucketName: s-jeff
-  - bucketName: s-jeff-shared
-    discoverable: true
+    - bucketName: s-jeff
+    - bucketName: s-jeff-shared
+      discoverable: true
   principal: jeff
 status:
   conditions:
-  - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: bucket-s-jeff, bucket-s-jeff-shared, observe-jeff-s-joe,
-      and 4 more'
-    reason: Creating
-    status: "False"
-    type: Ready
+    - lastTransitionTime: "2024-01-01T00:00:00Z"
+      message:
+        "Unready resources: bucket-s-jeff, bucket-s-jeff-shared, observe-jeff-s-joe,
+        and 5 more"
+      reason: Creating
+      status: "False"
+      type: Ready
 ---
 apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
@@ -40,12 +41,12 @@ metadata:
   name: bucket-s-jeff
   namespace: default
   ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-jeff
-    uid: ""
+    - apiVersion: pkg.internal/v1beta1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Storage
+      name: s-jeff
+      uid: ""
 spec:
   forProvider:
     manifest:
@@ -72,12 +73,12 @@ metadata:
   name: bucket-s-jeff-shared
   namespace: default
   ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-jeff
-    uid: ""
+    - apiVersion: pkg.internal/v1beta1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Storage
+      name: s-jeff
+      uid: ""
 spec:
   forProvider:
     manifest:
@@ -104,12 +105,12 @@ metadata:
   name: observe-jeff-s-joe
   namespace: default
   ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-jeff
-    uid: ""
+    - apiVersion: pkg.internal/v1beta1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Storage
+      name: s-jeff
+      uid: ""
 spec:
   forProvider:
     manifest:
@@ -118,7 +119,7 @@ spec:
       metadata:
         name: jeff.s-joe
   managementPolicies:
-  - Observe
+    - Observe
   providerConfigRef:
     kind: ProviderConfig
     name: provider-kubernetes
@@ -133,12 +134,12 @@ metadata:
   name: policy-full-s-jeff
   namespace: default
   ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-jeff
-    uid: ""
+    - apiVersion: pkg.internal/v1beta1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Storage
+      name: s-jeff
+      uid: ""
 spec:
   forProvider:
     manifest:
@@ -180,12 +181,12 @@ metadata:
   name: policy-full-s-jeff-shared
   namespace: default
   ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-jeff
-    uid: ""
+    - apiVersion: pkg.internal/v1beta1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Storage
+      name: s-jeff
+      uid: ""
 spec:
   forProvider:
     manifest:
@@ -227,12 +228,12 @@ metadata:
   name: policy-joe-s-jeff-shared
   namespace: default
   ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-jeff
-    uid: ""
+    - apiVersion: pkg.internal/v1beta1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Storage
+      name: s-jeff
+      uid: ""
 spec:
   forProvider:
     manifest:
@@ -277,35 +278,73 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: user-jeff
+    crossplane.io/composition-resource-name: user-jeff-1
   labels:
     crossplane.io/composite: s-jeff
-  name: user-jeff
+  name: user-jeff-1
   namespace: default
   ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-jeff
-    uid: ""
+    - apiVersion: pkg.internal/v1beta1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Storage
+      name: s-jeff
+      uid: ""
 spec:
   forProvider:
     manifest:
       apiVersion: minio.crossplane.io/v1
       kind: User
       metadata:
-        name: jeff
+        name: jeff-1
       spec:
         forProvider:
           policies:
-          - jeff.s-jeff
-          - jeff.s-jeff-shared
-          userName: jeff
+            - jeff.s-jeff
+            - jeff.s-jeff-shared
+          userName: jeff-1
         providerConfigRef:
           name: provider-minio
         writeConnectionSecretToRef:
-          name: jeff
+          name: jeff-1
+          namespace: default
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-kubernetes
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: user-jeff-2
+  labels:
+    crossplane.io/composite: s-jeff
+  name: user-jeff-2
+  namespace: default
+  ownerReferences:
+    - apiVersion: pkg.internal/v1beta1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Storage
+      name: s-jeff
+      uid: ""
+spec:
+  forProvider:
+    manifest:
+      apiVersion: minio.crossplane.io/v1
+      kind: User
+      metadata:
+        name: jeff-2
+      spec:
+        forProvider:
+          policies:
+            - jeff.s-jeff
+            - jeff.s-jeff-shared
+          userName: jeff-2
+        providerConfigRef:
+          name: provider-minio
+        writeConnectionSecretToRef:
+          name: jeff-2
           namespace: default
   providerConfigRef:
     kind: ProviderConfig
