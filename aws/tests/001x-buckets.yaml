@@ -1,6 +1,3 @@
-# Copyright 2025, EOX (https://eox.at) and Versioneer (https://versioneer.at)
-# SPDX-License-Identifier: Apache-2.0
-
 ---
 apiVersion: pkg.internal/v1beta1
 kind: Storage
@@ -23,8 +20,8 @@ spec:
 status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: access-key-joe, bucket-s-joe, observe-joe-s-jeff-shared,
-      and 4 more'
+    message: 'Unready resources: access-key-joe-1, access-key-joe-2, bucket-s-joe,
+      and 5 more'
     reason: Creating
     status: "False"
     type: Ready
@@ -33,10 +30,10 @@ apiVersion: iam.aws.m.upbound.io/v1beta1
 kind: AccessKey
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: access-key-joe
+    crossplane.io/composition-resource-name: access-key-joe-1
   labels:
     crossplane.io/composite: s-joe
-  name: joe
+  name: joe-1
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -53,7 +50,33 @@ spec:
     kind: ProviderConfig
     name: provider-aws
   writeConnectionSecretToRef:
-    name: joe
+    name: joe-1
+---
+apiVersion: iam.aws.m.upbound.io/v1beta1
+kind: AccessKey
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: access-key-joe-2
+  labels:
+    crossplane.io/composite: s-joe
+  name: joe-2
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-joe
+    uid: ""
+spec:
+  forProvider:
+    userRef:
+      name: joe
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-aws
+  writeConnectionSecretToRef:
+    name: joe-2
 ---
 apiVersion: s3.aws.m.upbound.io/v1beta1
 kind: Bucket

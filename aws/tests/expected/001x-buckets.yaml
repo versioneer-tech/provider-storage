@@ -8,43 +8,42 @@ metadata:
   name: s-joe
 spec:
   bucketAccessGrants:
-  - bucketName: s-joe
-    grantedAt: "2025-09-29T10:05:00Z"
-    grantee: jeff
-    permission: ReadWrite
+    - bucketName: s-joe
+      grantedAt: "2025-09-29T10:05:00Z"
+      grantee: jeff
+      permission: ReadWrite
   bucketAccessRequests:
-  - bucketName: s-jeff-shared
-    reason: Need access
-    requestedAt: "2025-09-29T10:00:00Z"
+    - bucketName: s-jeff-shared
+      reason: Need access
+      requestedAt: "2025-09-29T10:00:00Z"
   buckets:
-  - bucketName: s-joe
-    discoverable: true
+    - bucketName: s-joe
+      discoverable: true
   principal: joe
 status:
   conditions:
-  - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: access-key-joe, bucket-s-joe, observe-joe-s-jeff-shared,
-      and 4 more'
-    reason: Creating
-    status: "False"
-    type: Ready
+    - lastTransitionTime: "2024-01-01T00:00:00Z"
+      message: "Unready resources: access-key-joe-1, access-key-joe-2, bucket-s-joe, and 5 more"
+      reason: Creating
+      status: "False"
+      type: Ready
 ---
 apiVersion: iam.aws.m.upbound.io/v1beta1
 kind: AccessKey
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: access-key-joe
+    crossplane.io/composition-resource-name: access-key-joe-1
   labels:
     crossplane.io/composite: s-joe
-  name: joe
+  name: joe-1
   namespace: default
   ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-joe
-    uid: ""
+    - apiVersion: pkg.internal/v1beta1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Storage
+      name: s-joe
+      uid: ""
 spec:
   forProvider:
     userRef:
@@ -53,7 +52,33 @@ spec:
     kind: ProviderConfig
     name: provider-aws
   writeConnectionSecretToRef:
-    name: joe
+    name: joe-1
+---
+apiVersion: iam.aws.m.upbound.io/v1beta1
+kind: AccessKey
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: access-key-joe-2
+  labels:
+    crossplane.io/composite: s-joe
+  name: joe-2
+  namespace: default
+  ownerReferences:
+    - apiVersion: pkg.internal/v1beta1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Storage
+      name: s-joe
+      uid: ""
+spec:
+  forProvider:
+    userRef:
+      name: joe
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-aws
+  writeConnectionSecretToRef:
+    name: joe-2
 ---
 apiVersion: s3.aws.m.upbound.io/v1beta1
 kind: Bucket
@@ -65,12 +90,12 @@ metadata:
   name: s-joe
   namespace: default
   ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-joe
-    uid: ""
+    - apiVersion: pkg.internal/v1beta1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Storage
+      name: s-joe
+      uid: ""
 spec:
   forProvider:
     region: eu-central-1
@@ -88,12 +113,12 @@ metadata:
   name: observe-joe-s-jeff-shared
   namespace: default
   ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-joe
-    uid: ""
+    - apiVersion: pkg.internal/v1beta1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Storage
+      name: s-joe
+      uid: ""
 spec:
   forProvider:
     manifest:
@@ -103,7 +128,7 @@ spec:
         name: joe.s-jeff-shared
         namespace: default
   managementPolicies:
-  - Observe
+    - Observe
   providerConfigRef:
     kind: ProviderConfig
     name: provider-kubernetes
@@ -118,12 +143,12 @@ metadata:
   name: jeff.s-joe
   namespace: default
   ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-joe
-    uid: ""
+    - apiVersion: pkg.internal/v1beta1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Storage
+      name: s-joe
+      uid: ""
 spec:
   forProvider:
     policy: |-
@@ -159,12 +184,12 @@ metadata:
   name: joe.s-joe
   namespace: default
   ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-joe
-    uid: ""
+    - apiVersion: pkg.internal/v1beta1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Storage
+      name: s-joe
+      uid: ""
 spec:
   forProvider:
     policy: |-
@@ -197,12 +222,12 @@ metadata:
   name: joe.s-joe
   namespace: default
   ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-joe
-    uid: ""
+    - apiVersion: pkg.internal/v1beta1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Storage
+      name: s-joe
+      uid: ""
 spec:
   forProvider:
     policyArnRef:
@@ -223,12 +248,12 @@ metadata:
   name: joe
   namespace: default
   ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-joe
-    uid: ""
+    - apiVersion: pkg.internal/v1beta1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Storage
+      name: s-joe
+      uid: ""
 spec:
   forProvider: {}
   providerConfigRef:
