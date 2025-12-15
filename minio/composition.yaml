@@ -249,13 +249,15 @@ spec:
                       }
                   })
 
-    - step: create-user-with-policies
+    - step: create-users-with-policies
       functionRef:
         name: crossplane-contrib-function-python
       input:
         apiVersion: python.fn.crossplane.io/v1beta1
         kind: Script
         script: |
+          import time
+
           from crossplane.function.proto.v1 import run_function_pb2 as fnv1
           from google.protobuf import json_format
 
@@ -293,32 +295,48 @@ spec:
                   if exists:
                       policies.append(f"{principal}.{bucket}")
 
-              key = f"user-{principal}"
-              rsp.desired.resources[key].resource.update({
-                  "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
-                  "kind": "Object",
-                  "metadata": {
-                      "name": key,
-                      "namespace": ns,
-                      "annotations": {"crossplane.io/composition-resource-name": key}
-                  },
-                  "spec": {
-                      "forProvider": {
-                          "manifest": {
-                              "apiVersion": "minio.crossplane.io/v1",
-                              "kind": "User",
-                              "metadata": {"name": principal},
-                              "spec": {
-                                  "forProvider": {"userName": principal, "policies": policies},
-                                  "providerConfigRef": {"name": "provider-minio"},
-                                  "writeConnectionSecretToRef": {"name": principal, "namespace": ns}
-                              }
+              user_1 = {
+                  "name": f"{principal}-1",
+                  "key": f"user-{principal}-1",
+              }
+
+              user_2 = {
+                  "name": f"{principal}-2",
+                  "key": f"user-{principal}-2",
+              }
+
+              for user in [user_1, user_2]:
+                  key = user["key"]
+                  user_name = user["name"]
+
+                  rsp.desired.resources[key].resource.update({
+                      "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
+                      "kind": "Object",
+                      "metadata": {
+                          "name": key,
+                          "namespace": ns,
+                          "annotations": {
+                              "crossplane.io/composition-resource-name": key,
                           }
                       },
-                      "providerConfigRef": {"name": "provider-kubernetes", "kind": "ProviderConfig"}
-                  }
-              })
-
+                      "spec": {
+                          "forProvider": {
+                              "manifest": {
+                                  "apiVersion": "minio.crossplane.io/v1",
+                                  "kind": "User",
+                                  "metadata": {
+                                      "name": user_name,
+                                  },
+                                  "spec": {
+                                      "forProvider": {"userName": user_name, "policies": policies},
+                                      "providerConfigRef": {"name": "provider-minio"},
+                                      "writeConnectionSecretToRef": {"name": user_name, "namespace": ns}
+                                  }
+                              }
+                          },
+                          "providerConfigRef": {"name": "provider-kubernetes", "kind": "ProviderConfig"}
+                      }
+                  })
     - step: automatically-detect-ready-composed-resources
       functionRef:
         name: crossplane-contrib-function-auto-ready

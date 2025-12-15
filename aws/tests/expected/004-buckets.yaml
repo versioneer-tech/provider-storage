@@ -8,49 +8,48 @@ metadata:
   name: s-john
 spec:
   bucketAccessGrants:
-  - bucketName: s-john
-    grantedAt: "2025-09-29T10:28:00Z"
-    grantee: jane
-    permission: None
+    - bucketName: s-john
+      grantedAt: "2025-09-29T10:28:00Z"
+      grantee: jane
+      permission: None
   bucketAccessRequests:
-  - bucketName: s-joe
-    reason: Need access
-    requestedAt: "2025-09-29T10:25:00Z"
-  - bucketName: s-jeff
-    reason: Need access
-    requestedAt: "2025-09-29T10:26:00Z"
-  - bucketName: s-jane
-    reason: Need access
-    requestedAt: "2025-09-29T10:27:00Z"
+    - bucketName: s-joe
+      reason: Need access
+      requestedAt: "2025-09-29T10:25:00Z"
+    - bucketName: s-jeff
+      reason: Need access
+      requestedAt: "2025-09-29T10:26:00Z"
+    - bucketName: s-jane
+      reason: Need access
+      requestedAt: "2025-09-29T10:27:00Z"
   buckets:
-  - bucketName: s-john
-    discoverable: true
+    - bucketName: s-john
+      discoverable: true
   principal: john
 status:
   conditions:
-  - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: access-key-john, bucket-s-john, observe-john-s-jane,
-      and 6 more'
-    reason: Creating
-    status: "False"
-    type: Ready
+    - lastTransitionTime: "2024-01-01T00:00:00Z"
+      message: "Unready resources: access-key-john-1, access-key-john-2, bucket-s-john, and 7 more"
+      reason: Creating
+      status: "False"
+      type: Ready
 ---
 apiVersion: iam.aws.m.upbound.io/v1beta1
 kind: AccessKey
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: access-key-john
+    crossplane.io/composition-resource-name: access-key-john-1
   labels:
     crossplane.io/composite: s-john
-  name: john
+  name: john-1
   namespace: default
   ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-john
-    uid: ""
+    - apiVersion: pkg.internal/v1beta1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Storage
+      name: s-john
+      uid: ""
 spec:
   forProvider:
     userRef:
@@ -59,7 +58,33 @@ spec:
     kind: ProviderConfig
     name: provider-aws
   writeConnectionSecretToRef:
-    name: john
+    name: john-1
+---
+apiVersion: iam.aws.m.upbound.io/v1beta1
+kind: AccessKey
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: access-key-john-2
+  labels:
+    crossplane.io/composite: s-john
+  name: john-2
+  namespace: default
+  ownerReferences:
+    - apiVersion: pkg.internal/v1beta1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Storage
+      name: s-john
+      uid: ""
+spec:
+  forProvider:
+    userRef:
+      name: john
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-aws
+  writeConnectionSecretToRef:
+    name: john-2
 ---
 apiVersion: s3.aws.m.upbound.io/v1beta1
 kind: Bucket
@@ -71,12 +96,12 @@ metadata:
   name: s-john
   namespace: default
   ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-john
-    uid: ""
+    - apiVersion: pkg.internal/v1beta1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Storage
+      name: s-john
+      uid: ""
 spec:
   forProvider:
     region: eu-central-1
@@ -94,12 +119,12 @@ metadata:
   name: observe-john-s-jane
   namespace: default
   ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-john
-    uid: ""
+    - apiVersion: pkg.internal/v1beta1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Storage
+      name: s-john
+      uid: ""
 spec:
   forProvider:
     manifest:
@@ -109,7 +134,7 @@ spec:
         name: john.s-jane
         namespace: default
   managementPolicies:
-  - Observe
+    - Observe
   providerConfigRef:
     kind: ProviderConfig
     name: provider-kubernetes
@@ -124,12 +149,12 @@ metadata:
   name: observe-john-s-jeff
   namespace: default
   ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-john
-    uid: ""
+    - apiVersion: pkg.internal/v1beta1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Storage
+      name: s-john
+      uid: ""
 spec:
   forProvider:
     manifest:
@@ -139,7 +164,7 @@ spec:
         name: john.s-jeff
         namespace: default
   managementPolicies:
-  - Observe
+    - Observe
   providerConfigRef:
     kind: ProviderConfig
     name: provider-kubernetes
@@ -154,12 +179,12 @@ metadata:
   name: observe-john-s-joe
   namespace: default
   ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-john
-    uid: ""
+    - apiVersion: pkg.internal/v1beta1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Storage
+      name: s-john
+      uid: ""
 spec:
   forProvider:
     manifest:
@@ -169,7 +194,7 @@ spec:
         name: john.s-joe
         namespace: default
   managementPolicies:
-  - Observe
+    - Observe
   providerConfigRef:
     kind: ProviderConfig
     name: provider-kubernetes
@@ -184,12 +209,12 @@ metadata:
   name: jane.s-john
   namespace: default
   ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-john
-    uid: ""
+    - apiVersion: pkg.internal/v1beta1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Storage
+      name: s-john
+      uid: ""
 spec:
   forProvider:
     policy: |-
@@ -211,12 +236,12 @@ metadata:
   name: john.s-john
   namespace: default
   ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-john
-    uid: ""
+    - apiVersion: pkg.internal/v1beta1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Storage
+      name: s-john
+      uid: ""
 spec:
   forProvider:
     policy: |-
@@ -249,12 +274,12 @@ metadata:
   name: john.s-john
   namespace: default
   ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-john
-    uid: ""
+    - apiVersion: pkg.internal/v1beta1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Storage
+      name: s-john
+      uid: ""
 spec:
   forProvider:
     policyArnRef:
@@ -275,12 +300,12 @@ metadata:
   name: john
   namespace: default
   ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-john
-    uid: ""
+    - apiVersion: pkg.internal/v1beta1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Storage
+      name: s-john
+      uid: ""
 spec:
   forProvider: {}
   providerConfigRef:

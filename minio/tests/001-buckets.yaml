@@ -1,6 +1,3 @@
-# Copyright 2025, EOX (https://eox.at) and Versioneer (https://versioneer.at)
-# SPDX-License-Identifier: Apache-2.0
-
 ---
 apiVersion: pkg.internal/v1beta1
 kind: Storage
@@ -24,7 +21,7 @@ status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
     message: 'Unready resources: bucket-s-joe, observe-joe-s-jeff-shared, policy-full-s-joe,
-      and 2 more'
+      and 3 more'
     reason: Creating
     status: "False"
     type: Ready
@@ -192,10 +189,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: user-joe
+    crossplane.io/composition-resource-name: user-joe-1
   labels:
     crossplane.io/composite: s-joe
-  name: user-joe
+  name: user-joe-1
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -210,16 +207,53 @@ spec:
       apiVersion: minio.crossplane.io/v1
       kind: User
       metadata:
-        name: joe
+        name: joe-1
       spec:
         forProvider:
           policies:
           - joe.s-joe
-          userName: joe
+          userName: joe-1
         providerConfigRef:
           name: provider-minio
         writeConnectionSecretToRef:
-          name: joe
+          name: joe-1
+          namespace: default
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-kubernetes
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: user-joe-2
+  labels:
+    crossplane.io/composite: s-joe
+  name: user-joe-2
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-joe
+    uid: ""
+spec:
+  forProvider:
+    manifest:
+      apiVersion: minio.crossplane.io/v1
+      kind: User
+      metadata:
+        name: joe-2
+      spec:
+        forProvider:
+          policies:
+          - joe.s-joe
+          userName: joe-2
+        providerConfigRef:
+          name: provider-minio
+        writeConnectionSecretToRef:
+          name: joe-2
           namespace: default
   providerConfigRef:
     kind: ProviderConfig
