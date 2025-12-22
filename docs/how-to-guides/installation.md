@@ -60,6 +60,7 @@ Repository root: <https://github.com/versioneer-tech/provider-storage/>
 - [03-providerConfigs.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/minio/dependencies/03-providerConfigs.yaml) – **Apply in your target namespace** (e.g., `workspace`); points to your MinIO endpoint/credentials.
 - [functions.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/minio/dependencies/functions.yaml) – Functions used by compositions.
 - [rbac.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/minio/dependencies/rbac.yaml) – RBAC for `provider-kubernetes`.
+- [eso.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/minio/dependencies/eso.yaml) – RBAC and SecretStore for `provider-kubernetes`.
 
 ### AWS
 
@@ -133,7 +134,3 @@ kubectl apply -f configuration.yaml
 ## Step 3 – (Optional) Quick Verification
 
 After the package installs and providers are healthy, you can create a minimal `Storage` claim in your target namespace and verify readiness and credentials. See the **Usage & Concepts** guide for details (`kubectl get storages -n <ns>`, and inspect the Secret named after the principal).
-
-## Step 4 – (Optional) Credential Rotation
-
-Currently, the provider creates long-lived credentials as Kubernetes secrets in the cluster. In order to enable credential rotation you can use the templates in [examples/manifests/](https://github.com/versioneer-tech/provider-storage/tree/main/examples/manifests) to deploy a CronJob which deletes the oldest available credential at the specified `schedule`. The `interval` defines how long a credential should live before it is deleted.

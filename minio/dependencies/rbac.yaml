@@ -35,7 +35,6 @@ rules:
   - apiGroups:
       - "external-secrets.io"
     resources:
-      - "secretstores"
       - "externalsecrets"
     verbs:
       - "*"

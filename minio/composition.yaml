@@ -256,7 +256,7 @@ spec:
         apiVersion: python.fn.crossplane.io/v1beta1
         kind: Script
         script: |
-          import time
+          from datetime import datetime, timedelta
 
           from crossplane.function.proto.v1 import run_function_pb2 as fnv1
           from google.protobuf import json_format
@@ -295,14 +295,20 @@ spec:
                   if exists:
                       policies.append(f"{principal}.{bucket}")
 
+              now = datetime.now()
+              formatted_date_now = now.strftime("%Y%m%d")
+
+              tomorrow = now + timedelta(seconds=86400)
+              formatted_date_tomorrow = tomorrow.strftime("%Y%m%d")
+
               user_1 = {
-                  "name": f"{principal}-1",
-                  "key": f"user-{principal}-1",
+                  "name": f"{principal}-current",
+                  "key": f"user-{principal}-{formatted_date_now}",
               }
 
               user_2 = {
-                  "name": f"{principal}-2",
-                  "key": f"user-{principal}-2",
+                  "name": f"{principal}-next",
+                  "key": f"user-{principal}-{formatted_date_tomorrow}",
               }
 
               for user in [user_1, user_2]:
@@ -338,304 +344,57 @@ spec:
                       }
                   })
 
-    - step: create-eso-rbac
-      functionRef:
-        name: crossplane-contrib-function-python
-      input:
-        apiVersion: python.fn.crossplane.io/v1beta1
-        kind: Script
-        script: |
-          import time
-
-          from crossplane.function.proto.v1 import run_function_pb2 as fnv1
-          from google.protobuf import json_format
-
-          def _to_dict(struct):
-              return {} if struct is None else (struct if isinstance(struct, dict) else json_format.MessageToDict(struct, preserving_proto_field_name=True))
-
-          def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
-              xr   = _to_dict(req.observed.composite.resource)
-              meta = xr.get("metadata", {}) or {}
-              ns   = meta.get("namespace") or "default"
-              principal = (meta.get("name") or "default").strip()
-
-              sa_name = f"eso-sa-{principal}"
-              r_name = f"eso-r-{principal}"
-              rb_name = f"eso-rb-{principal}"
-              secret_store_name = f"secret-store-{principal}"
-
-              rsp.desired.resources[sa_name].resource.update({
+              rsp.desired.resources[f"external-secret-{principal}"].resource.update({
                   "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
                   "kind": "Object",
                   "metadata": {
-                      "name": sa_name,
+                      "name": f"external-secret-{principal}",
                       "namespace": ns,
                       "annotations": {
-                          "crossplane.io/composition-resource-name": sa_name
-                      }
-                  },
-                  "spec": {
-                      "forProvider": {
-                          "manifest": {
-                              "apiVersion": "v1",
-                              "kind": "ServiceAccount",
-                              "metadata": {"name": "eso-store", "namespace": ns}
-                          }
-                      },
-                      "providerConfigRef": {"name": "provider-kubernetes", "kind": "ProviderConfig"}
-                  }
-              })
-
-              rsp.desired.resources[r_name].resource.update({
-                  "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
-                  "kind": "Object",
-                  "metadata": {
-                      "name": r_name,
-                      "namespace": ns,
-                      "annotations": {
-                          "crossplane.io/composition-resource-name": r_name
-                      }
-                  },
-                  "spec": {
-                      "forProvider": {
-                          "manifest": {
-                              "apiVersion": "rbac.authorization.k8s.io/v1",
-                              "kind": "Role",
-                               "metadata": {"name": "eso-store-reader", "namespace": ns},
-                                "rules": [
-                                   {"apiGroups": [""], "resources": ["secrets"], "verbs": ["get", "list", "watch"]},
-                                   {"apiGroups": ["authorization.k8s.io"], "resources": ["selfsubjectrulesreviews"], "verbs": ["create"]}
-                                 ]
-                          }
-                      },
-                      "providerConfigRef": {"name": "provider-kubernetes", "kind": "ProviderConfig"}
-                  }
-              })
-
-              rsp.desired.resources[rb_name].resource.update({
-                  "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
-                  "kind": "Object",
-                  "metadata": {
-                      "name": rb_name,
-                      "namespace": ns,
-                      "annotations": {
-                          "crossplane.io/composition-resource-name": rb_name
-                      }
-                  },
-                  "spec": {
-                      "forProvider": {
-                          "manifest": {
-                              "apiVersion": "rbac.authorization.k8s.io/v1",
-                              "kind": "RoleBinding",
-                              "metadata": {"name": "eso-store-reader-binding", "namespace": ns},
-                              "subjects": [{"kind": "ServiceAccount", "name": "eso-store", "namespace": ns}],
-                              "roleRef": {"kind": "Role", "name": "eso-store-reader", "apiGroup": "rbac.authorization.k8s.io"}
-                          }
-                      },
-                      "providerConfigRef": {"name": "provider-kubernetes", "kind": "ProviderConfig"}
-                  }
-              })
-
-              rsp.desired.resources[secret_store_name].resource.update({
-                  "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
-                  "kind": "Object",
-                  "metadata": {
-                      "name": secret_store_name,
-                      "namespace": ns,
-                      "annotations": {
-                          "crossplane.io/composition-resource-name": secret_store_name
+                          "crossplane.io/composition-resource-name": f"external-secret-{principal}",
                       }
                   },
                   "spec": {
                       "forProvider": {
                           "manifest": {
                               "apiVersion": "external-secrets.io/v1",
-                              "kind": "SecretStore",
-                              "metadata": {"name": "store", "namespace": ns},
-                              "spec": {
-                                  "provider": {
-                                      "kubernetes": {
-                                          "remoteNamespace": ns,
-                                          "server": {
-                                              "caProvider": {"type": "ConfigMap", "name": "kube-root-ca.crt", "key": "ca.crt"}
-                                          },
-                                          "auth": {"serviceAccount": {"name": "eso-store"}}
-                                      }
-                                  }
-                              }
-                          }
-                      },
-                      "providerConfigRef": {"name": "provider-kubernetes", "kind": "ProviderConfig"}
-                  }
-              })
-
-    - step: create-eso-job
-      functionRef:
-        name: crossplane-contrib-function-python
-      input:
-        apiVersion: python.fn.crossplane.io/v1beta1
-        kind: Script
-        script: |
-          import time
-
-          from crossplane.function.proto.v1 import run_function_pb2 as fnv1
-          from google.protobuf import json_format
-
-          def _to_dict(struct):
-              return {} if struct is None else (struct if isinstance(struct, dict) else json_format.MessageToDict(struct, preserving_proto_field_name=True))
-
-          def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
-              xr = _to_dict(req.observed.composite.resource)
-              meta = xr.get("metadata", {}) or {}
-              ns = meta.get("namespace") or "default"
-              principal = (meta.get("name") or "default").strip()
-
-              sa_name = f"job-sa-{principal}"
-              r_name = f"job-r-{principal}"
-              rb_name = f"job-rb-{principal}"
-              job_name = f"external-secret-{principal}"
-
-              rsp.desired.resources[sa_name].resource.update({
-                  "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
-                  "kind": "Object",
-                  "metadata": {
-                      "name": sa_name,
-                      "namespace": ns,
-                      "annotations": {
-                          "crossplane.io/composition-resource-name": sa_name
-                      }
-                  },
-                  "spec": {
-                      "forProvider": {
-                          "manifest": {
-                              "apiVersion": "v1",
-                              "kind": "ServiceAccount",
-                              "metadata": {"name": sa_name, "namespace": ns}
-                          }
-                      },
-                      "providerConfigRef": {"name": "provider-kubernetes", "kind": "ProviderConfig"}
-                  }
-              })
-
-              rsp.desired.resources[r_name].resource.update({
-                  "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
-                  "kind": "Object",
-                  "metadata": {
-                      "name": r_name,
-                      "namespace": ns,
-                      "annotations": {
-                          "crossplane.io/composition-resource-name": r_name
-                      }
-                  },
-                  "spec": {
-                      "forProvider": {
-                          "manifest": {
-                              "apiVersion": "rbac.authorization.k8s.io/v1",
-                              "kind": "Role",
-                              "metadata": {
-                                  "name": r_name,
-                                  "namespace": ns
+                              "kind": "ExternalSecret",
+                              "metadata": {"name": principal, "namespace": ns},
+                              "annotations": {
+                                  "crossplane.io/composition-resource-name": f"external-secret-{principal}"
                               },
-                              "rules": [{
-                                  "apiGroups": ["external-secrets.io"],
-                                  "resources": ["externalsecrets"],
-                                  "verbs": ["create", "get", "list", "patch", "delete"]
-                              }]
-                          }
-                      },
-                      "providerConfigRef": {"name": "provider-kubernetes", "kind": "ProviderConfig"}
-                  }
-              })
-
-
-              rsp.desired.resources[rb_name].resource.update({
-                  "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
-                  "kind": "Object",
-                  "metadata": {
-                      "name": rb_name,
-                      "namespace": ns,
-                      "annotations": {
-                          "crossplane.io/composition-resource-name": rb_name
-                      }
-                  },
-                  "spec": {
-                      "forProvider": {
-                          "manifest": {
-                              "apiVersion": "rbac.authorization.k8s.io/v1",
-                              "kind": "RoleBinding",
-                              "metadata": {"name": rb_name, "namespace": ns},
-                              "subjects": [{"kind": "ServiceAccount", "name": sa_name, "namespace": ns}],
-                              "roleRef": {
-                                  "kind": "Role", 
-                                  "name": r_name, 
-                                  "apiGroup": "rbac.authorization.k8s.io"
-                              }
-                          }
-                      },
-                      "providerConfigRef": {"name": "provider-kubernetes", "kind": "ProviderConfig"}
-                  }
-              })
-
-              external_secret_manifest = f"""
-          apiVersion: external-secrets.io/v1
-          kind: ExternalSecret
-          metadata:
-            name: {principal}
-            namespace: {ns}
-          spec:
-            refreshInterval: 5m
-            secretStoreRef:
-              kind: SecretStore
-              name: store
-            target:
-              name: {principal}
-              creationPolicy: Owner
-            data:
-              - secretKey: AWS_ACCESS_KEY_ID
-                remoteRef:
-                  key: {principal}-1
-                  property: AWS_ACCESS_KEY_ID
-              - secretKey: AWS_SECRET_ACCESS_KEY
-                remoteRef:
-                  key: {principal}-1
-                  property: AWS_SECRET_ACCESS_KEY
-          """
-
-              rsp.desired.resources[job_name].resource.update({
-                  "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
-                  "kind": "Object",
-                  "metadata": {
-                      "name": job_name,
-                      "namespace": ns,
-                      "annotations": {
-                          "crossplane.io/composition-resource-name": job_name
-                      }
-                  },
-                  "spec": {
-                      "forProvider": {
-                          "manifest": {
-                              "apiVersion": "batch/v1",
-                              "kind": "Job",
-                              "metadata": {"name": job_name, "namespace": ns},
                               "spec": {
-                                  "template": {
-                                      "spec": {
-                                          "serviceAccountName": sa_name,
-                                          "restartPolicy": "OnFailure",
-                                          "containers": [{
-                                              "name": "external-secret-job",
-                                              "image": "bitnami/kubectl",
-                                              "command": ["/bin/bash", "-c"],
-                                              "args": [f"kubectl apply -f - <<EOF\n{external_secret_manifest}\nEOF"]
-                                          }]
+                                  "refreshInterval": "5m",
+                                  "secretStoreRef": {
+                                      "kind": "SecretStore",
+                                      "name": "store"
+                                  },
+                                  "target": {
+                                      "name": principal,
+                                      "creationPolicy": "Owner"
+                                  },
+                                  "data": [
+                                      {
+                                          "secretKey": "AWS_ACCESS_KEY_ID",
+                                          "remoteRef": {
+                                              "key": f"{principal}-next",
+                                              "property": "AWS_ACCESS_KEY_ID"
+                                          }
+                                      },
+                                      {
+                                          "secretKey": "AWS_SECRET_ACCESS_KEY",
+                                          "remoteRef": {
+                                              "key": f"{principal}-next",
+                                              "property": "AWS_SECRET_ACCESS_KEY"
+                                          }
                                       }
-                                  }
+                                  ]
                               }
                           }
                       },
                       "providerConfigRef": {"name": "provider-kubernetes", "kind": "ProviderConfig"}
                   }
-          })
+              })
 
     - step: automatically-detect-ready-composed-resources
       functionRef:
