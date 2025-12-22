@@ -12,12 +12,33 @@ kind: ClusterRole
 metadata:
   name: provider-kubernetes-minio
 rules:
-- apiGroups:
-  - "minio.crossplane.io"
-  resources:
-  - "*"
-  verbs:
-  - "*"
+  - apiGroups:
+      - "minio.crossplane.io"
+    resources:
+      - "*"
+    verbs:
+      - "*"
+  - apiGroups:
+      - ""
+    resources:
+      - "pods"
+      - "serviceaccounts"
+    verbs:
+      - "*"
+  - apiGroups:
+      - "rbac.authorization.k8s.io"
+    resources:
+      - "rolebindings"
+      - "roles"
+    verbs:
+      - "*"
+  - apiGroups:
+      - "external-secrets.io"
+    resources:
+      - "secretstores"
+      - "externalsecrets"
+    verbs:
+      - "*"
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -28,6 +49,6 @@ roleRef:
   kind: ClusterRole
   name: provider-kubernetes-minio
 subjects:
-- kind: ServiceAccount
-  name: provider-kubernetes
-  namespace: crossplane
+  - kind: ServiceAccount
+    name: provider-kubernetes
+    namespace: crossplane

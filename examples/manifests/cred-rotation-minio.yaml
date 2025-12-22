@@ -13,19 +13,15 @@ rules:
   - apiGroups:
       - "kubernetes.m.crossplane.io"
     resources:
-      - objects
+      - "objects"
     verbs:
-      - get
-      - list
-      - delete
+      - "*"
   - apiGroups:
-      - ""
+      - "external-secrets.io"
     resources:
-      - pods
-      - services
+      - "externalsecrets"
     verbs:
-      - get
-      - list
+      - "*"
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -82,6 +78,21 @@ spec:
                       creationTimestampSeconds=$(date -d "${creationTimestamp}" +%s)
                       validUntil=$((creationTimestampSeconds + interval))
                       if (( validUntil < now )); then
+                          stripped_input="${name#user-}"
+                          secretName="${stripped_input%-*}"
+                          idx="${stripped_input##*-}"
+
+                          if [ "${idx}" = "1" ]; then
+                              idx="2"
+                          elif [ "${idx}" = "2" ]; then
+                              idx="1"
+                          fi
+
+                          echo "Updating $namespace/$secretName"
+                          kubectl patch externalsecret "${secretName}" -n "${namespace}" --type='json' -p="[
+                            {'op': 'replace', 'path': '/spec/data/0/remoteRef/key', 'value': '${secretName}-${idx}'},
+                            {'op': 'replace', 'path': '/spec/data/1/remoteRef/key', 'value': '${secretName}-${idx}'}
+                          ]"
                           echo "Deleting $namespace/$name (creationTimestamp: ${creationTimestampSeconds}, now: ${now})"
                           kubectl delete objects.kubernetes.m.crossplane.io "$name" -n "$namespace"
 
