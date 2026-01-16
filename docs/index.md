@@ -23,8 +23,6 @@ At its core, Provider Storage provides:
 - Support for **cross-user sharing** and collaboration  
 
 With Provider Storage, storage becomes **declarative, multi-tenant, and self-service**, all while staying under operator control.
-
-
 ---
 
 ## Features

@@ -128,9 +128,6 @@ This shows that a `Storage` claim may consist solely of access requests without 
 ## Example: John responding to Jane
 
 ```yaml
-# Copyright 2025, EOX (https://eox.at) and Versioneer (https://versioneer.at)
-# SPDX-License-Identifier: Apache-2.0
-
 # John owns s-john. He grants Jane WriteOnly access to his bucket after her request.
 # His request to s-jane cannot resolve until that bucket exists.
 # Credentials are automatically rolled over every day.

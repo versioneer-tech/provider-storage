@@ -23,7 +23,7 @@ spec:
 status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: bucket-s-joe, observe-bucketpolicy-s-joe, observe-credential-joe,
+    message: 'Unready resources: bucket-s-joe, bucketpolicy-s-joe, observe-secret-s-joe,
       and 2 more'
     reason: Creating
     status: "False"
@@ -66,10 +66,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: observe-bucketpolicy-s-joe
+    crossplane.io/composition-resource-name: bucketpolicy-s-joe
   labels:
     crossplane.io/composite: s-joe
-  name: observe-bucketpolicy-s-joe
+  name: bucketpolicy-s-joe
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -85,8 +85,16 @@ spec:
       kind: BucketPolicy
       metadata:
         name: bucketpolicy-s-joe
-  managementPolicies:
-  - Observe
+      spec:
+        forProvider:
+          bucket: s-joe
+          policy: |-
+            {
+              "Version": "2012-10-17",
+              "Statement": []
+            }
+        providerConfigRef:
+          name: provider-otc
   providerConfigRef:
     kind: ProviderConfig
     name: provider-kubernetes
@@ -95,10 +103,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: observe-credential-joe
+    crossplane.io/composition-resource-name: observe-secret-s-joe
   labels:
     crossplane.io/composite: s-joe
-  name: observe-credential-joe
+  name: observe-secret-s-joe
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -113,7 +121,7 @@ spec:
       apiVersion: identity.opentelekomcloud.crossplane.io/v1alpha1
       kind: CredentialV3
       metadata:
-        name: aksk-joe
+        name: aksk-s-joe-1
   managementPolicies:
   - Observe
   providerConfigRef:
@@ -124,10 +132,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: observe-user-jeff
+    crossplane.io/composition-resource-name: observe-user-s-jeff
   labels:
     crossplane.io/composite: s-joe
-  name: observe-user-jeff
+  name: observe-user-s-jeff
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -142,7 +150,7 @@ spec:
       apiVersion: identity.opentelekomcloud.crossplane.io/v1alpha1
       kind: UserV3
       metadata:
-        name: jeff
+        name: s-jeff
   managementPolicies:
   - Observe
   providerConfigRef:
@@ -153,10 +161,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: user-joe
+    crossplane.io/composition-resource-name: user-s-joe-1
   labels:
     crossplane.io/composite: s-joe
-  name: user-joe
+  name: user-s-joe-1
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -171,12 +179,12 @@ spec:
       apiVersion: identity.opentelekomcloud.crossplane.io/v1alpha1
       kind: UserV3
       metadata:
-        name: joe
+        name: s-joe-1
       spec:
         forProvider:
           access_type: programmatic
           enabled: true
-          name: joe
+          name: s-joe-1
         providerConfigRef:
           name: provider-otc
   providerConfigRef:

@@ -25,11 +25,13 @@ spec:
   buckets:
   - bucketName: s-john
     discoverable: true
+  credentialsRollover:
+    interval: daily
   principal: s-john
 status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: bucket-s-john, observe-bucketpolicy-s-john, observe-credential-john,
+    message: 'Unready resources: bucket-s-john, bucketpolicy-s-john, observe-secret-s-john,
       and 2 more'
     reason: Creating
     status: "False"
@@ -72,10 +74,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: observe-bucketpolicy-s-john
+    crossplane.io/composition-resource-name: bucketpolicy-s-john
   labels:
     crossplane.io/composite: s-john
-  name: observe-bucketpolicy-s-john
+  name: bucketpolicy-s-john
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -91,8 +93,16 @@ spec:
       kind: BucketPolicy
       metadata:
         name: bucketpolicy-s-john
-  managementPolicies:
-  - Observe
+      spec:
+        forProvider:
+          bucket: s-john
+          policy: |-
+            {
+              "Version": "2012-10-17",
+              "Statement": []
+            }
+        providerConfigRef:
+          name: provider-otc
   providerConfigRef:
     kind: ProviderConfig
     name: provider-kubernetes
@@ -101,10 +111,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: observe-credential-john
+    crossplane.io/composition-resource-name: observe-secret-s-john
   labels:
     crossplane.io/composite: s-john
-  name: observe-credential-john
+  name: observe-secret-s-john
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -119,7 +129,7 @@ spec:
       apiVersion: identity.opentelekomcloud.crossplane.io/v1alpha1
       kind: CredentialV3
       metadata:
-        name: aksk-john
+        name: aksk-s-john-20260116
   managementPolicies:
   - Observe
   providerConfigRef:
@@ -130,10 +140,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: observe-user-jane
+    crossplane.io/composition-resource-name: observe-user-s-jane
   labels:
     crossplane.io/composite: s-john
-  name: observe-user-jane
+  name: observe-user-s-jane
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -148,7 +158,7 @@ spec:
       apiVersion: identity.opentelekomcloud.crossplane.io/v1alpha1
       kind: UserV3
       metadata:
-        name: jane
+        name: s-jane
   managementPolicies:
   - Observe
   providerConfigRef:
@@ -159,10 +169,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: user-john
+    crossplane.io/composition-resource-name: user-s-john-20260116
   labels:
     crossplane.io/composite: s-john
-  name: user-john
+  name: user-s-john-20260116
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -177,12 +187,12 @@ spec:
       apiVersion: identity.opentelekomcloud.crossplane.io/v1alpha1
       kind: UserV3
       metadata:
-        name: john
+        name: s-john-20260116
       spec:
         forProvider:
           access_type: programmatic
           enabled: true
-          name: john
+          name: s-john-20260116
         providerConfigRef:
           name: provider-otc
   providerConfigRef:

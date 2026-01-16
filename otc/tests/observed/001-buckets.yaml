@@ -5,10 +5,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: user-joe
+    crossplane.io/composition-resource-name: observe-secret-s-joe
   labels:
     crossplane.io/composite: s-joe
-  name: user-joe
+  name: observe-secret-s-joe
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -17,23 +17,13 @@ metadata:
     kind: Storage
     name: s-joe
     uid: ""
-spec:
-  forProvider:
-    manifest:
-      apiVersion: identity.opentelekomcloud.crossplane.io/v1alpha1
-      kind: UserV3
-      metadata:
-        name: joe
-      spec:
-        forProvider:
-          enabled: true
-          name: joe
-        providerConfigRef:
-          name: provider-otc
-  providerConfigRef:
-    kind: ProviderConfig
-    name: provider-kubernetes
 status:
   atProvider:
-    id: "111"
-    domainId: "222"
+    manifest:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: s-joe-1
+        namespace: default
+      data:
+        KEY: dmFsdWU=

@@ -1,7 +1,4 @@
 #!/usr/bin/env python3
-# Copyright 2025, EOX (https://eox.at) and Versioneer (https://versioneer.at)
-# SPDX-License-Identifier: Apache-2.0
-
 import argparse
 import pathlib
 import re
@@ -12,8 +9,6 @@ from datetime import UTC, datetime
 COMMENTS_HEADER_REGEX = re.compile(r"^#(.\n?)*(?=\n\n)")
 COPYRIGHT_HEADER_VALIDATION_REGEX = re.compile(r"^Copyright")
 COPYRIGHT_HEADER_FILE_REGEX = re.compile(r"^# Copyright(.\n?)*(?=\n\n)", re.MULTILINE)
-
-
 def load_copyright_header(filepath: str) -> str:
     _filepath = pathlib.Path(filepath)
     copyright_header_template = _filepath.read_text()
@@ -22,8 +17,6 @@ def load_copyright_header(filepath: str) -> str:
         return "\n".join(f"# {line}".rstrip() for line in copyright_header.rstrip().split("\n")).rstrip()
     msg = 'Copyright header should start by "Copyright".'
     raise ValueError(msg)
-
-
 def add_copyright_header(filepath_: str, /, copyright_header: str) -> bool:
     filepath = pathlib.Path(filepath_)
     file_content = filepath.read_text()
@@ -45,8 +38,6 @@ def add_copyright_header(filepath_: str, /, copyright_header: str) -> bool:
     else:
         filepath.write_text(f"{copyright_header}\n\n{file_content}")
     return True
-
-
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -67,7 +58,5 @@ def main(argv: Sequence[str] | None = None) -> int:
         if add_copyright_header(filepath, copyright_header):
             passed = False
     return 0 if passed else 1
-
-
 if __name__ == "__main__":
     sys.exit(main())

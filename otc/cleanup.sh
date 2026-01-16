@@ -28,8 +28,6 @@ for crd in "${CRDS[@]}"; do
   echo "Deleting CRD: $crd"
   kubectl delete crd "$crd" --ignore-not-found || true
 done
-
-
 kubectl delete providers.pkg.crossplane.io provider-otc || true
 kubectl delete DeploymentRuntimeConfig provider-otc || true
 kubectl delete ManagedResourceActivationPolicy provider-otc || true

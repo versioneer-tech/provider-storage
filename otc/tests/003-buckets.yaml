@@ -12,11 +12,15 @@ spec:
     reason: Need WriteOnly access
     requestedAt: "2025-09-29T10:20:00Z"
   buckets: []
+  credentialsRollover:
+    interval: quarterly
+    maxToKeep: 5
   principal: s-jane
 status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: observe-credential-jane, user-jane'
+    message: 'Unready resources: observe-secret-s-jane, user-s-jane-2025q1, user-s-jane-2025q2,
+      and 3 more'
     reason: Creating
     status: "False"
     type: Ready
@@ -25,10 +29,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: observe-credential-jane
+    crossplane.io/composition-resource-name: observe-secret-s-jane
   labels:
     crossplane.io/composite: s-jane
-  name: observe-credential-jane
+  name: observe-secret-s-jane
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -43,7 +47,7 @@ spec:
       apiVersion: identity.opentelekomcloud.crossplane.io/v1alpha1
       kind: CredentialV3
       metadata:
-        name: aksk-jane
+        name: aksk-s-jane-2026q1
   managementPolicies:
   - Observe
   providerConfigRef:
@@ -54,10 +58,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: user-jane
+    crossplane.io/composition-resource-name: user-s-jane-2025q1
   labels:
     crossplane.io/composite: s-jane
-  name: user-jane
+  name: user-s-jane-2025q1
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -72,12 +76,148 @@ spec:
       apiVersion: identity.opentelekomcloud.crossplane.io/v1alpha1
       kind: UserV3
       metadata:
-        name: jane
+        name: s-jane-2025q1
       spec:
         forProvider:
           access_type: programmatic
           enabled: true
-          name: jane
+          name: s-jane-2025q1
+        providerConfigRef:
+          name: provider-otc
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-kubernetes
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: user-s-jane-2025q2
+  labels:
+    crossplane.io/composite: s-jane
+  name: user-s-jane-2025q2
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-jane
+    uid: ""
+spec:
+  forProvider:
+    manifest:
+      apiVersion: identity.opentelekomcloud.crossplane.io/v1alpha1
+      kind: UserV3
+      metadata:
+        name: s-jane-2025q2
+      spec:
+        forProvider:
+          access_type: programmatic
+          enabled: true
+          name: s-jane-2025q2
+        providerConfigRef:
+          name: provider-otc
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-kubernetes
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: user-s-jane-2025q3
+  labels:
+    crossplane.io/composite: s-jane
+  name: user-s-jane-2025q3
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-jane
+    uid: ""
+spec:
+  forProvider:
+    manifest:
+      apiVersion: identity.opentelekomcloud.crossplane.io/v1alpha1
+      kind: UserV3
+      metadata:
+        name: s-jane-2025q3
+      spec:
+        forProvider:
+          access_type: programmatic
+          enabled: true
+          name: s-jane-2025q3
+        providerConfigRef:
+          name: provider-otc
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-kubernetes
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: user-s-jane-2025q4
+  labels:
+    crossplane.io/composite: s-jane
+  name: user-s-jane-2025q4
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-jane
+    uid: ""
+spec:
+  forProvider:
+    manifest:
+      apiVersion: identity.opentelekomcloud.crossplane.io/v1alpha1
+      kind: UserV3
+      metadata:
+        name: s-jane-2025q4
+      spec:
+        forProvider:
+          access_type: programmatic
+          enabled: true
+          name: s-jane-2025q4
+        providerConfigRef:
+          name: provider-otc
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-kubernetes
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: user-s-jane-2026q1
+  labels:
+    crossplane.io/composite: s-jane
+  name: user-s-jane-2026q1
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-jane
+    uid: ""
+spec:
+  forProvider:
+    manifest:
+      apiVersion: identity.opentelekomcloud.crossplane.io/v1alpha1
+      kind: UserV3
+      metadata:
+        name: s-jane-2026q1
+      spec:
+        forProvider:
+          access_type: programmatic
+          enabled: true
+          name: s-jane-2026q1
         providerConfigRef:
           name: provider-otc
   providerConfigRef:
