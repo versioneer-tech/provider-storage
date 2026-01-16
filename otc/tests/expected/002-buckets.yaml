@@ -10,7 +10,7 @@ spec:
   bucketAccessGrants:
   - bucketName: s-jeff-shared
     grantedAt: "2025-09-29T10:15:00Z"
-    grantee: joe
+    grantee: s-joe
     permission: ReadOnly
   bucketAccessRequests:
   - bucketName: s-joe
@@ -20,7 +20,7 @@ spec:
   - bucketName: s-jeff
   - bucketName: s-jeff-shared
     discoverable: true
-  principal: jeff
+  principal: s-jeff
 status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"

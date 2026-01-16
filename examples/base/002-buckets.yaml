@@ -10,7 +10,7 @@ kind: Storage
 metadata:
   name: s-jeff
 spec:
-  principal: jeff
+  principal: s-jeff
   credentialsRollover:
     interval: weekly
     maxToKeep: 2
@@ -24,6 +24,6 @@ spec:
       requestedAt: "2025-09-29T10:10:00Z"
   bucketAccessGrants:
     - bucketName: s-jeff-shared
-      grantee: joe
+      grantee: s-joe
       permission: ReadOnly
       grantedAt: "2025-09-29T10:15:00Z"

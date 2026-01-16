@@ -10,7 +10,7 @@ kind: Storage
 metadata:
   name: s-jane
 spec:
-  principal: jane
+  principal: s-jane
   credentialsRollover:
     interval: quarterly
     maxToKeep: 5

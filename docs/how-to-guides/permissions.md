@@ -26,7 +26,7 @@ kind: Storage
 metadata:
   name: s-joe
 spec:
-  principal: joe
+  principal: s-joe
   buckets:
     - bucketName: s-joe
       discoverable: true
@@ -47,7 +47,7 @@ kind: Storage
 metadata:
   name: s-jeff
 spec:
-  principal: jeff
+  principal: s-jeff
   buckets:
     - bucketName: s-jeff
   bucketAccessRequests:
@@ -78,13 +78,13 @@ kind: Storage
 metadata:
   name: s-joe
 spec:
-  principal: joe
+  principal: s-joe
   buckets:
     - bucketName: s-joe
       discoverable: true
   bucketAccessGrants:
     - bucketName: s-joe
-      grantee: jeff
+      grantee: s-jeff
       permission: ReadOnly
       grantedAt: "2025-09-29T10:15:00Z"
 ```
@@ -117,13 +117,13 @@ kind: Storage
 metadata:
   name: s-joe
 spec:
-  principal: joe
+  principal: s-joe
   buckets:
     - bucketName: s-joe
       discoverable: true
   bucketAccessGrants:
     - bucketName: s-joe
-      grantee: jeff
+      grantee: s-jeff
       permission: ReadOnly
       grantedAt: "2025-09-29T10:15:00Z"
 ---
@@ -133,7 +133,7 @@ kind: Storage
 metadata:
   name: s-jeff
 spec:
-  principal: jeff
+  principal: s-jeff
   buckets:
     - bucketName: s-jeff
   bucketAccessRequests:

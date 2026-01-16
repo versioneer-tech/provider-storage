@@ -10,7 +10,7 @@ spec:
   bucketAccessGrants:
   - bucketName: s-jeff-shared
     grantedAt: "2025-09-29T10:15:00Z"
-    grantee: joe
+    grantee: s-joe
     permission: ReadOnly
   bucketAccessRequests:
   - bucketName: s-joe
@@ -20,12 +20,15 @@ spec:
   - bucketName: s-jeff
   - bucketName: s-jeff-shared
     discoverable: true
-  principal: jeff
+  credentialsRollover:
+    interval: weekly
+    maxToKeep: 2
+  principal: s-jeff
 status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: access-key-jeff, bucket-s-jeff, bucket-s-jeff-shared,
-      and 7 more'
+    message: 'Unready resources: access-key-s-jeff-2026w02, access-key-s-jeff-2026w03,
+      bucket-s-jeff, and 12 more'
     reason: Creating
     status: "False"
     type: Ready
@@ -34,10 +37,10 @@ apiVersion: iam.aws.m.upbound.io/v1beta1
 kind: AccessKey
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: access-key-jeff
+    crossplane.io/composition-resource-name: access-key-s-jeff-2026w02
   labels:
     crossplane.io/composite: s-jeff
-  name: jeff
+  name: s-jeff-2026w02
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -49,12 +52,40 @@ metadata:
 spec:
   forProvider:
     userRef:
-      name: jeff
+      name: s-jeff-2026w02
   providerConfigRef:
     kind: ProviderConfig
     name: provider-aws
   writeConnectionSecretToRef:
-    name: jeff
+    name: s-jeff-2026w02
+    namespace: default
+---
+apiVersion: iam.aws.m.upbound.io/v1beta1
+kind: AccessKey
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: access-key-s-jeff-2026w03
+  labels:
+    crossplane.io/composite: s-jeff
+  name: s-jeff-2026w03
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-jeff
+    uid: ""
+spec:
+  forProvider:
+    userRef:
+      name: s-jeff-2026w03
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-aws
+  writeConnectionSecretToRef:
+    name: s-jeff-2026w03
+    namespace: default
 ---
 apiVersion: s3.aws.m.upbound.io/v1beta1
 kind: Bucket
@@ -106,10 +137,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: observe-jeff-s-joe
+    crossplane.io/composition-resource-name: observe-s-jeff-s-joe
   labels:
     crossplane.io/composite: s-jeff
-  name: observe-jeff-s-joe
+  name: observe-s-jeff-s-joe
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -124,7 +155,37 @@ spec:
       apiVersion: iam.aws.m.upbound.io/v1beta1
       kind: Policy
       metadata:
-        name: jeff.s-joe
+        name: s-jeff.s-joe
+        namespace: default
+  managementPolicies:
+  - Observe
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-kubernetes
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: observe-secret-s-jeff
+  labels:
+    crossplane.io/composite: s-jeff
+  name: observe-secret-s-jeff
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-jeff
+    uid: ""
+spec:
+  forProvider:
+    manifest:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: s-jeff-2026w03
         namespace: default
   managementPolicies:
   - Observe
@@ -136,10 +197,86 @@ apiVersion: iam.aws.m.upbound.io/v1beta1
 kind: Policy
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: policy-joe-s-jeff-shared
+    crossplane.io/composition-resource-name: policy-s-jeff
   labels:
     crossplane.io/composite: s-jeff
-  name: joe.s-jeff-shared
+  name: s-jeff.s-jeff
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-jeff
+    uid: ""
+spec:
+  forProvider:
+    policy: |-
+      {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Action": [
+              "s3:*"
+            ],
+            "Resource": [
+              "arn:aws:s3:::s-jeff",
+              "arn:aws:s3:::s-jeff/*"
+            ]
+          }
+        ]
+      }
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-aws
+---
+apiVersion: iam.aws.m.upbound.io/v1beta1
+kind: Policy
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: policy-s-jeff-shared
+  labels:
+    crossplane.io/composite: s-jeff
+  name: s-jeff.s-jeff-shared
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-jeff
+    uid: ""
+spec:
+  forProvider:
+    policy: |-
+      {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Action": [
+              "s3:*"
+            ],
+            "Resource": [
+              "arn:aws:s3:::s-jeff-shared",
+              "arn:aws:s3:::s-jeff-shared/*"
+            ]
+          }
+        ]
+      }
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-aws
+---
+apiVersion: iam.aws.m.upbound.io/v1beta1
+kind: Policy
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: policy-s-joe-s-jeff-shared
+  labels:
+    crossplane.io/composite: s-jeff
+  name: s-joe.s-jeff-shared
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -179,89 +316,13 @@ spec:
     name: provider-aws
 ---
 apiVersion: iam.aws.m.upbound.io/v1beta1
-kind: Policy
-metadata:
-  annotations:
-    crossplane.io/composition-resource-name: policy-s-jeff
-  labels:
-    crossplane.io/composite: s-jeff
-  name: jeff.s-jeff
-  namespace: default
-  ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-jeff
-    uid: ""
-spec:
-  forProvider:
-    policy: |-
-      {
-        "Version": "2012-10-17",
-        "Statement": [
-          {
-            "Effect": "Allow",
-            "Action": [
-              "s3:*"
-            ],
-            "Resource": [
-              "arn:aws:s3:::s-jeff",
-              "arn:aws:s3:::s-jeff/*"
-            ]
-          }
-        ]
-      }
-  providerConfigRef:
-    kind: ProviderConfig
-    name: provider-aws
----
-apiVersion: iam.aws.m.upbound.io/v1beta1
-kind: Policy
-metadata:
-  annotations:
-    crossplane.io/composition-resource-name: policy-s-jeff-shared
-  labels:
-    crossplane.io/composite: s-jeff
-  name: jeff.s-jeff-shared
-  namespace: default
-  ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-jeff
-    uid: ""
-spec:
-  forProvider:
-    policy: |-
-      {
-        "Version": "2012-10-17",
-        "Statement": [
-          {
-            "Effect": "Allow",
-            "Action": [
-              "s3:*"
-            ],
-            "Resource": [
-              "arn:aws:s3:::s-jeff-shared",
-              "arn:aws:s3:::s-jeff-shared/*"
-            ]
-          }
-        ]
-      }
-  providerConfigRef:
-    kind: ProviderConfig
-    name: provider-aws
----
-apiVersion: iam.aws.m.upbound.io/v1beta1
 kind: UserPolicyAttachment
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: upa-s-jeff
+    crossplane.io/composition-resource-name: upa-own-s-jeff-2026w02-s-jeff
   labels:
     crossplane.io/composite: s-jeff
-  name: jeff.s-jeff
+  name: s-jeff-2026w02.s-jeff.own
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -273,9 +334,9 @@ metadata:
 spec:
   forProvider:
     policyArnRef:
-      name: jeff.s-jeff
+      name: s-jeff.s-jeff
     userRef:
-      name: jeff
+      name: s-jeff-2026w02
   providerConfigRef:
     kind: ProviderConfig
     name: provider-aws
@@ -284,10 +345,10 @@ apiVersion: iam.aws.m.upbound.io/v1beta1
 kind: UserPolicyAttachment
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: upa-s-jeff-shared
+    crossplane.io/composition-resource-name: upa-own-s-jeff-2026w02-s-jeff-shared
   labels:
     crossplane.io/composite: s-jeff
-  name: jeff.s-jeff-shared
+  name: s-jeff-2026w02.s-jeff-shared.own
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -299,9 +360,61 @@ metadata:
 spec:
   forProvider:
     policyArnRef:
-      name: jeff.s-jeff-shared
+      name: s-jeff.s-jeff-shared
     userRef:
-      name: jeff
+      name: s-jeff-2026w02
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-aws
+---
+apiVersion: iam.aws.m.upbound.io/v1beta1
+kind: UserPolicyAttachment
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: upa-own-s-jeff-2026w03-s-jeff
+  labels:
+    crossplane.io/composite: s-jeff
+  name: s-jeff-2026w03.s-jeff.own
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-jeff
+    uid: ""
+spec:
+  forProvider:
+    policyArnRef:
+      name: s-jeff.s-jeff
+    userRef:
+      name: s-jeff-2026w03
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-aws
+---
+apiVersion: iam.aws.m.upbound.io/v1beta1
+kind: UserPolicyAttachment
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: upa-own-s-jeff-2026w03-s-jeff-shared
+  labels:
+    crossplane.io/composite: s-jeff
+  name: s-jeff-2026w03.s-jeff-shared.own
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-jeff
+    uid: ""
+spec:
+  forProvider:
+    policyArnRef:
+      name: s-jeff.s-jeff-shared
+    userRef:
+      name: s-jeff-2026w03
   providerConfigRef:
     kind: ProviderConfig
     name: provider-aws
@@ -310,10 +423,32 @@ apiVersion: iam.aws.m.upbound.io/v1beta1
 kind: User
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: user-jeff
+    crossplane.io/composition-resource-name: user-s-jeff-2026w02
   labels:
     crossplane.io/composite: s-jeff
-  name: jeff
+  name: s-jeff-2026w02
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-jeff
+    uid: ""
+spec:
+  forProvider: {}
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-aws
+---
+apiVersion: iam.aws.m.upbound.io/v1beta1
+kind: User
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: user-s-jeff-2026w03
+  labels:
+    crossplane.io/composite: s-jeff
+  name: s-jeff-2026w03
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1

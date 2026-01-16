@@ -43,7 +43,7 @@ kind: Storage
 metadata:
   name: s-joe
 spec:
-  principal: joe
+  principal: s-joe
   buckets:
     - bucketName: s-joe
       discoverable: true
@@ -53,7 +53,7 @@ spec:
       requestedAt: "2025-09-29T10:00:00Z"
   bucketAccessGrants:
     - bucketName: s-joe
-      grantee: jeff
+      grantee: s-jeff
       permission: ReadWrite
       grantedAt: "2025-09-29T10:05:00Z"
 ```
@@ -70,7 +70,7 @@ kind: Storage
 metadata:
   name: s-jeff
 spec:
-  principal: jeff
+  principal: s-jeff
   credentialsRollover:
     interval: weekly
     maxToKeep: 2
@@ -84,7 +84,7 @@ spec:
       requestedAt: "2025-09-29T10:10:00Z"
   bucketAccessGrants:
     - bucketName: s-jeff-shared
-      grantee: joe
+      grantee: s-joe
       permission: ReadOnly
       grantedAt: "2025-09-29T10:15:00Z"
 ```
@@ -110,7 +110,7 @@ kind: Storage
 metadata:
   name: s-jane
 spec:
-  principal: jane
+  principal: s-jane
   credentialsRollover:
     interval: quarterly
     maxToKeep: 5
@@ -139,7 +139,7 @@ kind: Storage
 metadata:
   name: s-john
 spec:
-  principal: john
+  principal: s-john
   credentialsRollover:
     interval: daily
   buckets:
@@ -157,7 +157,7 @@ spec:
       requestedAt: "2025-09-29T10:27:00Z"
   bucketAccessGrants:
     - bucketName: s-john
-      grantee: jane
+      grantee: s-jane
       permission: None
       grantedAt: "2025-09-29T10:28:00Z"
 ```

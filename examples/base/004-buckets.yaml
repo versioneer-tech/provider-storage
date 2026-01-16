@@ -9,7 +9,7 @@ kind: Storage
 metadata:
   name: s-john
 spec:
-  principal: john
+  principal: s-john
   credentialsRollover:
     interval: daily
   buckets:
@@ -27,6 +27,6 @@ spec:
       requestedAt: "2025-09-29T10:27:00Z"
   bucketAccessGrants:
     - bucketName: s-john
-      grantee: jane
+      grantee: s-jane
       permission: None
       grantedAt: "2025-09-29T10:28:00Z"

@@ -15,11 +15,11 @@ spec:
   credentialsRollover:
     interval: quarterly
     maxToKeep: 5
-  principal: jane
+  principal: s-jane
 status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: observe-jane-s-john, observe-secret-jane, user-jane-2025q1,
+    message: 'Unready resources: observe-s-jane-s-john, observe-secret-s-jane, user-s-jane-2025q1,
       and 4 more'
     reason: Creating
     status: "False"
@@ -29,10 +29,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: observe-jane-s-john
+    crossplane.io/composition-resource-name: observe-s-jane-s-john
   labels:
     crossplane.io/composite: s-jane
-  name: observe-jane-s-john
+  name: observe-s-jane-s-john
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -47,7 +47,7 @@ spec:
       apiVersion: minio.crossplane.io/v1
       kind: Policy
       metadata:
-        name: jane.s-john
+        name: s-jane.s-john
   managementPolicies:
   - Observe
   providerConfigRef:
@@ -58,10 +58,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: observe-secret-jane
+    crossplane.io/composition-resource-name: observe-secret-s-jane
   labels:
     crossplane.io/composite: s-jane
-  name: observe-secret-jane
+  name: observe-secret-s-jane
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -76,7 +76,7 @@ spec:
       apiVersion: v1
       kind: Secret
       metadata:
-        name: jane-2026q1
+        name: s-jane-2026q1
         namespace: default
   managementPolicies:
   - Observe
@@ -88,10 +88,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: user-jane-2025q1
+    crossplane.io/composition-resource-name: user-s-jane-2025q1
   labels:
     crossplane.io/composite: s-jane
-  name: user-jane-2025q1
+  name: user-s-jane-2025q1
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -106,15 +106,15 @@ spec:
       apiVersion: minio.crossplane.io/v1
       kind: User
       metadata:
-        name: jane-2025q1
+        name: s-jane-2025q1
       spec:
         forProvider:
           policies: []
-          userName: jane-2025q1
+          userName: s-jane-2025q1
         providerConfigRef:
           name: provider-minio
         writeConnectionSecretToRef:
-          name: jane-2025q1
+          name: s-jane-2025q1
           namespace: default
   providerConfigRef:
     kind: ProviderConfig
@@ -124,10 +124,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: user-jane-2025q2
+    crossplane.io/composition-resource-name: user-s-jane-2025q2
   labels:
     crossplane.io/composite: s-jane
-  name: user-jane-2025q2
+  name: user-s-jane-2025q2
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -142,15 +142,15 @@ spec:
       apiVersion: minio.crossplane.io/v1
       kind: User
       metadata:
-        name: jane-2025q2
+        name: s-jane-2025q2
       spec:
         forProvider:
           policies: []
-          userName: jane-2025q2
+          userName: s-jane-2025q2
         providerConfigRef:
           name: provider-minio
         writeConnectionSecretToRef:
-          name: jane-2025q2
+          name: s-jane-2025q2
           namespace: default
   providerConfigRef:
     kind: ProviderConfig
@@ -160,10 +160,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: user-jane-2025q3
+    crossplane.io/composition-resource-name: user-s-jane-2025q3
   labels:
     crossplane.io/composite: s-jane
-  name: user-jane-2025q3
+  name: user-s-jane-2025q3
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -178,15 +178,15 @@ spec:
       apiVersion: minio.crossplane.io/v1
       kind: User
       metadata:
-        name: jane-2025q3
+        name: s-jane-2025q3
       spec:
         forProvider:
           policies: []
-          userName: jane-2025q3
+          userName: s-jane-2025q3
         providerConfigRef:
           name: provider-minio
         writeConnectionSecretToRef:
-          name: jane-2025q3
+          name: s-jane-2025q3
           namespace: default
   providerConfigRef:
     kind: ProviderConfig
@@ -196,10 +196,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: user-jane-2025q4
+    crossplane.io/composition-resource-name: user-s-jane-2025q4
   labels:
     crossplane.io/composite: s-jane
-  name: user-jane-2025q4
+  name: user-s-jane-2025q4
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -214,15 +214,15 @@ spec:
       apiVersion: minio.crossplane.io/v1
       kind: User
       metadata:
-        name: jane-2025q4
+        name: s-jane-2025q4
       spec:
         forProvider:
           policies: []
-          userName: jane-2025q4
+          userName: s-jane-2025q4
         providerConfigRef:
           name: provider-minio
         writeConnectionSecretToRef:
-          name: jane-2025q4
+          name: s-jane-2025q4
           namespace: default
   providerConfigRef:
     kind: ProviderConfig
@@ -232,10 +232,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: user-jane-2026q1
+    crossplane.io/composition-resource-name: user-s-jane-2026q1
   labels:
     crossplane.io/composite: s-jane
-  name: user-jane-2026q1
+  name: user-s-jane-2026q1
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -250,15 +250,15 @@ spec:
       apiVersion: minio.crossplane.io/v1
       kind: User
       metadata:
-        name: jane-2026q1
+        name: s-jane-2026q1
       spec:
         forProvider:
           policies: []
-          userName: jane-2026q1
+          userName: s-jane-2026q1
         providerConfigRef:
           name: provider-minio
         writeConnectionSecretToRef:
-          name: jane-2026q1
+          name: s-jane-2026q1
           namespace: default
   providerConfigRef:
     kind: ProviderConfig

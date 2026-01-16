@@ -10,7 +10,7 @@ spec:
   bucketAccessGrants:
   - bucketName: s-john
     grantedAt: "2025-09-29T10:28:00Z"
-    grantee: jane
+    grantee: s-jane
     permission: None
   bucketAccessRequests:
   - bucketName: s-joe
@@ -25,7 +25,7 @@ spec:
   buckets:
   - bucketName: s-john
     discoverable: true
-  principal: john
+  principal: s-john
 status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"

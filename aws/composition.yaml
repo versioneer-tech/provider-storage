@@ -200,116 +200,357 @@ spec:
                       }
                   })
 
-    - step: create-user
+    - step: create-users
       functionRef:
         name: crossplane-contrib-function-python
       input:
         apiVersion: python.fn.crossplane.io/v1beta1
         kind: Script
         script: |
+          from datetime import datetime, timedelta, timezone
           from crossplane.function.proto.v1 import run_function_pb2 as fnv1
           from google.protobuf import json_format
           def _to_dict(struct):
               return {} if struct is None else (struct if isinstance(struct, dict) else json_format.MessageToDict(struct, preserving_proto_field_name=True))
+
+          def _get_rollover(spec: dict) -> tuple[str, int]:
+              cfg = (spec.get("credentialsRollover") or {})
+              interval = (cfg.get("interval") or "none").strip().lower()
+              max_to_keep = cfg.get("maxToKeep")
+              if max_to_keep is None:
+                  max_to_keep = 1
+              try:
+                  max_to_keep = int(max_to_keep)
+              except Exception:
+                  max_to_keep = 1
+              if max_to_keep < 1:
+                  max_to_keep = 1
+              if max_to_keep > 10:
+                  max_to_keep = 10
+              return interval, max_to_keep
+
+          def _quarter(dt: datetime) -> int:
+              return ((dt.month - 1) // 3) + 1
+
+          def _suffixes(now: datetime, interval: str, max_to_keep: int) -> list[str]:
+              out = []
+              if interval == "daily":
+                  for i in range(max_to_keep):
+                      d = (now - timedelta(days=i)).date()
+                      out.append(d.strftime("%Y%m%d"))
+              elif interval == "weekly":
+                  for i in range(max_to_keep):
+                      d = (now - timedelta(weeks=i)).date()
+                      iso = d.isocalendar()
+                      out.append(f"{iso.year}w{iso.week:02d}")
+              elif interval == "monthly":
+                  for i in range(max_to_keep):
+                      y = now.year
+                      m = now.month - i
+                      while m <= 0:
+                          y -= 1
+                          m += 12
+                      out.append(f"{y}{m:02d}")
+              elif interval == "quarterly":
+                  for i in range(max_to_keep):
+                      q_total = (now.year * 4 + (_quarter(now) - 1)) - i
+                      y = q_total // 4
+                      q = (q_total % 4) + 1
+                      out.append(f"{y}q{q}")
+              elif interval == "yearly":
+                  for i in range(max_to_keep):
+                      out.append(str(now.year - i))
+              else:
+                  for i in range(1, max_to_keep + 1):
+                      out.append(str(i))
+              return ["-" + s for s in out]
+
           def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
               xr = _to_dict(req.observed.composite.resource)
               meta = xr.get("metadata", {}) or {}
               spec = xr.get("spec", {}) or {}
-              ns   = (meta.get("labels", {}) or {}).get("crossplane.io/claim-namespace") or meta.get("namespace") or "default"
+              ns = (meta.get("labels", {}) or {}).get("crossplane.io/claim-namespace") or meta.get("namespace") or "default"
               principal = (spec.get("principal") or meta.get("name") or "<principal>").strip()
-              key = f"user-{principal}"
-              rsp.desired.resources[key].resource.update({
-                  "apiVersion": "iam.aws.m.upbound.io/v1beta1",
-                  "kind": "User",
+
+              interval, max_to_keep = _get_rollover(spec)
+              now = datetime.now(timezone.utc)
+              suffixes = _suffixes(now, interval, max_to_keep)
+
+              for suf in suffixes:
+                  user_name = f"{principal}{suf}"
+                  key = f"user-{user_name}"
+                  rsp.desired.resources[key].resource.update({
+                      "apiVersion": "iam.aws.m.upbound.io/v1beta1",
+                      "kind": "User",
+                      "metadata": {
+                          "name": user_name,
+                          "namespace": ns,
+                          "annotations": {"crossplane.io/composition-resource-name": key}
+                      },
+                      "spec": {
+                          "forProvider": {},
+                          "providerConfigRef": {"name": "provider-aws", "kind": "ProviderConfig"}
+                      }
+                  })
+
+              current_user_name = f"{principal}{suffixes[0] if suffixes else '-1'}"
+              obs_key = f"observe-secret-{principal}"
+              rsp.desired.resources[obs_key].resource.update({
+                  "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
+                  "kind": "Object",
                   "metadata": {
-                      "name": principal,
+                      "name": obs_key,
                       "namespace": ns,
-                      "annotations": {"crossplane.io/composition-resource-name": key}
+                      "annotations": {"crossplane.io/composition-resource-name": obs_key}
                   },
                   "spec": {
-                      "forProvider": {},
-                      "providerConfigRef": {"name": "provider-aws", "kind": "ProviderConfig"}
+                      "managementPolicies": ["Observe"],
+                      "forProvider": {
+                          "manifest": {
+                              "apiVersion": "v1",
+                              "kind": "Secret",
+                              "metadata": {"name": current_user_name, "namespace": ns}
+                          }
+                      },
+                      "providerConfigRef": {"name": "provider-kubernetes", "kind": "ProviderConfig"}
                   }
               })
 
-    - step: attach-policies-to-user
+    - step: attach-policies-to-users
       functionRef:
         name: crossplane-contrib-function-python
       input:
         apiVersion: python.fn.crossplane.io/v1beta1
         kind: Script
         script: |
+          from datetime import datetime, timedelta, timezone
           from crossplane.function.proto.v1 import run_function_pb2 as fnv1
           from google.protobuf import json_format
+
           def _to_dict(struct):
               return {} if struct is None else (struct if isinstance(struct, dict) else json_format.MessageToDict(struct, preserving_proto_field_name=True))
+
+          def _get_rollover(spec: dict) -> tuple[str, int]:
+              cfg = (spec.get("credentialsRollover") or {})
+              interval = (cfg.get("interval") or "none").strip().lower()
+              max_to_keep = cfg.get("maxToKeep")
+              if max_to_keep is None:
+                  max_to_keep = 1
+              try:
+                  max_to_keep = int(max_to_keep)
+              except Exception:
+                  max_to_keep = 1
+              if max_to_keep < 1:
+                  max_to_keep = 1
+              if max_to_keep > 10:
+                  max_to_keep = 10
+              return interval, max_to_keep
+
+          def _quarter(dt: datetime) -> int:
+              return ((dt.month - 1) // 3) + 1
+
+          def _suffixes(now: datetime, interval: str, max_to_keep: int) -> list[str]:
+              out = []
+              if interval == "daily":
+                  for i in range(max_to_keep):
+                      d = (now - timedelta(days=i)).date()
+                      out.append(d.strftime("%Y%m%d"))
+              elif interval == "weekly":
+                  for i in range(max_to_keep):
+                      d = (now - timedelta(weeks=i)).date()
+                      iso = d.isocalendar()
+                      out.append(f"{iso.year}w{iso.week:02d}")
+              elif interval == "monthly":
+                  for i in range(max_to_keep):
+                      y = now.year
+                      m = now.month - i
+                      while m <= 0:
+                          y -= 1
+                          m += 12
+                      out.append(f"{y}{m:02d}")
+              elif interval == "quarterly":
+                  for i in range(max_to_keep):
+                      q_total = (now.year * 4 + (_quarter(now) - 1)) - i
+                      y = q_total // 4
+                      q = (q_total % 4) + 1
+                      out.append(f"{y}q{q}")
+              elif interval == "yearly":
+                  for i in range(max_to_keep):
+                      out.append(str(now.year - i))
+              else:
+                  for i in range(1, max_to_keep + 1):
+                      out.append(str(i))
+              return ["-" + s for s in out]
+
           def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
               xr = _to_dict(req.observed.composite.resource)
               meta = xr.get("metadata", {}) or {}
               spec = xr.get("spec", {}) or {}
-              ns   = (meta.get("labels", {}) or {}).get("crossplane.io/claim-namespace") or meta.get("namespace") or "default"
+              ns = (meta.get("labels", {}) or {}).get("crossplane.io/claim-namespace") or meta.get("namespace") or "default"
               principal = (spec.get("principal") or meta.get("name") or "<principal>").strip()
 
-              for b in (spec.get("buckets") or []):
-                  bucket = (b.get("bucketName") or "").strip()
-                  if not bucket:
-                      continue
-                  polname = f"{principal}.{bucket}"
-                  key = f"upa-{bucket}"
-                  rsp.desired.resources[key].resource.update({
-                      "apiVersion": "iam.aws.m.upbound.io/v1beta1",
-                      "kind": "UserPolicyAttachment",
-                      "metadata": {
-                          "name": f"{principal}.{bucket}",
-                          "namespace": ns,
-                          "annotations": {"crossplane.io/composition-resource-name": key}
-                      },
-                      "spec": {
-                          "forProvider": {
-                              "userRef": {"name": principal},
-                              "policyArnRef": {"name": polname}
-                          },
-                          "providerConfigRef": {"name": "provider-aws", "kind": "ProviderConfig"}
-                      }
-                  })
+              interval, max_to_keep = _get_rollover(spec)
+              now = datetime.now(timezone.utc)
+              suffixes = _suffixes(now, interval, max_to_keep)
+              user_names = [f"{principal}{suf}" for suf in suffixes] if suffixes else [f"{principal}-1"]
 
               observed = getattr(req.observed, "resources", {}) or {}
-              for r in (spec.get("bucketAccessRequests") or []):
-                  bucket = (r.get("bucketName") or "").strip()
-                  if not bucket:
-                      continue
-                  polname = f"{principal}.{bucket}"
-                  obs_key = f"observe-{principal}-{bucket}"
-                  oc = observed.get(obs_key)
-                  exists = False
-                  if oc and getattr(oc, "resource", None):
-                      od = _to_dict(oc.resource)
-                      st = (od.get("status") or {})
-                      has_manifest = bool((st.get("atProvider") or {}).get("manifest"))
-                      conds = st.get("conditions") or []
-                      is_ready = any(c.get("type") == "Ready" and c.get("status") in ("True", True) for c in conds)
-                      exists = has_manifest or is_ready
-                  if not exists:
-                      continue
-                  key = f"upa-{bucket}"
+
+              for user_name in user_names:
+                  for b in (spec.get("buckets") or []):
+                      bucket = (b.get("bucketName") or "").strip()
+                      if not bucket:
+                          continue
+                      polname = f"{principal}.{bucket}"
+                      key = f"upa-own-{user_name}-{bucket}"
+                      rsp.desired.resources[key].resource.update({
+                          "apiVersion": "iam.aws.m.upbound.io/v1beta1",
+                          "kind": "UserPolicyAttachment",
+                          "metadata": {
+                              "name": f"{user_name}.{bucket}.own",
+                              "namespace": ns,
+                              "annotations": {"crossplane.io/composition-resource-name": key}
+                          },
+                          "spec": {
+                              "forProvider": {
+                                  "userRef": {"name": user_name},
+                                  "policyArnRef": {"name": polname}
+                              },
+                              "providerConfigRef": {"name": "provider-aws", "kind": "ProviderConfig"}
+                          }
+                      })
+
+                  for r in (spec.get("bucketAccessRequests") or []):
+                      bucket = (r.get("bucketName") or "").strip()
+                      if not bucket:
+                          continue
+                      polname = f"{principal}.{bucket}"
+                      obs_key = f"observe-{principal}-{bucket}"
+                      oc = observed.get(obs_key)
+                      exists = False
+                      if oc and getattr(oc, "resource", None):
+                          od = _to_dict(oc.resource)
+                          st = (od.get("status") or {})
+                          has_manifest = bool((st.get("atProvider") or {}).get("manifest"))
+                          conds = st.get("conditions") or []
+                          is_ready = any(c.get("type") == "Ready" and c.get("status") in ("True", True) for c in conds)
+                          exists = has_manifest or is_ready
+                      if not exists:
+                          continue
+                      key = f"upa-req-{user_name}-{bucket}"
+                      rsp.desired.resources[key].resource.update({
+                          "apiVersion": "iam.aws.m.upbound.io/v1beta1",
+                          "kind": "UserPolicyAttachment",
+                          "metadata": {
+                              "name": f"{user_name}.{bucket}.req",
+                              "namespace": ns,
+                              "annotations": {"crossplane.io/composition-resource-name": key}
+                          },
+                          "spec": {
+                              "forProvider": {
+                                  "userRef": {"name": user_name},
+                                  "policyArnRef": {"name": polname}
+                              },
+                              "providerConfigRef": {"name": "provider-aws", "kind": "ProviderConfig"}
+                          }
+                      })
+
+    - step: create-user-access-keys
+      functionRef:
+        name: crossplane-contrib-function-python
+      input:
+        apiVersion: python.fn.crossplane.io/v1beta1
+        kind: Script
+        script: |
+          from datetime import datetime, timedelta, timezone
+          from crossplane.function.proto.v1 import run_function_pb2 as fnv1
+          from google.protobuf import json_format
+
+          def _to_dict(struct):
+              return {} if struct is None else (struct if isinstance(struct, dict) else json_format.MessageToDict(struct, preserving_proto_field_name=True))
+
+          def _get_rollover(spec: dict) -> tuple[str, int]:
+              cfg = (spec.get("credentialsRollover") or {})
+              interval = (cfg.get("interval") or "none").strip().lower()
+              max_to_keep = cfg.get("maxToKeep")
+              if max_to_keep is None:
+                  max_to_keep = 1
+              try:
+                  max_to_keep = int(max_to_keep)
+              except Exception:
+                  max_to_keep = 1
+              if max_to_keep < 1:
+                  max_to_keep = 1
+              if max_to_keep > 10:
+                  max_to_keep = 10
+              return interval, max_to_keep
+
+          def _quarter(dt: datetime) -> int:
+              return ((dt.month - 1) // 3) + 1
+
+          def _suffixes(now: datetime, interval: str, max_to_keep: int) -> list[str]:
+              out = []
+              if interval == "daily":
+                  for i in range(max_to_keep):
+                      d = (now - timedelta(days=i)).date()
+                      out.append(d.strftime("%Y%m%d"))
+              elif interval == "weekly":
+                  for i in range(max_to_keep):
+                      d = (now - timedelta(weeks=i)).date()
+                      iso = d.isocalendar()
+                      out.append(f"{iso.year}w{iso.week:02d}")
+              elif interval == "monthly":
+                  for i in range(max_to_keep):
+                      y = now.year
+                      m = now.month - i
+                      while m <= 0:
+                          y -= 1
+                          m += 12
+                      out.append(f"{y}{m:02d}")
+              elif interval == "quarterly":
+                  for i in range(max_to_keep):
+                      q_total = (now.year * 4 + (_quarter(now) - 1)) - i
+                      y = q_total // 4
+                      q = (q_total % 4) + 1
+                      out.append(f"{y}q{q}")
+              elif interval == "yearly":
+                  for i in range(max_to_keep):
+                      out.append(str(now.year - i))
+              else:
+                  for i in range(1, max_to_keep + 1):
+                      out.append(str(i))
+              return ["-" + s for s in out]
+
+          def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
+              xr = _to_dict(req.observed.composite.resource)
+              meta = xr.get("metadata", {}) or {}
+              spec = xr.get("spec", {}) or {}
+              ns = (meta.get("labels", {}) or {}).get("crossplane.io/claim-namespace") or meta.get("namespace") or "default"
+              principal = (spec.get("principal") or meta.get("name") or "<principal>").strip()
+
+              interval, max_to_keep = _get_rollover(spec)
+              now = datetime.now(timezone.utc)
+              suffixes = _suffixes(now, interval, max_to_keep)
+
+              for suf in suffixes:
+                  user_name = f"{principal}{suf}"
+                  key = f"access-key-{user_name}"
                   rsp.desired.resources[key].resource.update({
                       "apiVersion": "iam.aws.m.upbound.io/v1beta1",
-                      "kind": "UserPolicyAttachment",
+                      "kind": "AccessKey",
                       "metadata": {
-                          "name": f"{principal}.{bucket}",
+                          "name": user_name,
                           "namespace": ns,
                           "annotations": {"crossplane.io/composition-resource-name": key}
                       },
                       "spec": {
-                          "forProvider": {
-                              "userRef": {"name": principal},
-                              "policyArnRef": {"name": polname}
-                          },
-                          "providerConfigRef": {"name": "provider-aws", "kind": "ProviderConfig"}
+                          "forProvider": {"userRef": {"name": user_name}},
+                          "providerConfigRef": {"name": "provider-aws", "kind": "ProviderConfig"},
+                          "writeConnectionSecretToRef": {"name": user_name, "namespace": ns}
                       }
                   })
 
-    - step: create-user-access-key
+    - step: manage-current-secret
       functionRef:
         name: crossplane-contrib-function-python
       input:
@@ -318,27 +559,57 @@ spec:
         script: |
           from crossplane.function.proto.v1 import run_function_pb2 as fnv1
           from google.protobuf import json_format
+
           def _to_dict(struct):
               return {} if struct is None else (struct if isinstance(struct, dict) else json_format.MessageToDict(struct, preserving_proto_field_name=True))
+
           def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
               xr = _to_dict(req.observed.composite.resource)
               meta = xr.get("metadata", {}) or {}
               spec = xr.get("spec", {}) or {}
-              ns   = (meta.get("labels", {}) or {}).get("crossplane.io/claim-namespace") or meta.get("namespace") or "default"
-              principal = (spec.get("principal") or meta.get("name") or "<principal>").strip()
-              key = f"access-key-{principal}"
+              ns = (meta.get("labels", {}) or {}).get("crossplane.io/claim-namespace") or meta.get("namespace") or "default"
+              principal = (spec.get("principal") or meta.get("name") or "<principal-missing>").strip()
+
+              observed_resources = getattr(req.observed, "resources", {}) or {}
+              obs_key = f"observe-secret-{principal}"
+              oc = observed_resources.get(obs_key)
+
+              if not oc or not getattr(oc, "resource", None):
+                  return
+
+              od = _to_dict(oc.resource)
+              st = (od.get("status") or {})
+              manifest = ((st.get("atProvider") or {}).get("manifest") or {})
+              data = manifest.get("data") or {}
+              if not isinstance(data, dict) or not data:
+                  return
+
+              key = f"secret-{principal}"
+              secret_name = f"{principal}"
               rsp.desired.resources[key].resource.update({
-                  "apiVersion": "iam.aws.m.upbound.io/v1beta1",
-                  "kind": "AccessKey",
+                  "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
+                  "kind": "Object",
                   "metadata": {
-                      "name": principal,
+                      "name": key,
                       "namespace": ns,
-                      "annotations": {"crossplane.io/composition-resource-name": key}
+                      "annotations": {
+                          "crossplane.io/composition-resource-name": key,
+                      }
                   },
                   "spec": {
-                      "forProvider": {"userRef": {"name": principal}},
-                      "providerConfigRef": {"name": "provider-aws", "kind": "ProviderConfig"},
-                      "writeConnectionSecretToRef": {"name": principal}
+                      "forProvider": {
+                          "manifest": {
+                              "apiVersion": "v1",
+                              "kind": "Secret",
+                              "metadata": {
+                                  "name": secret_name,
+                                  "namespace": ns,
+                              },
+                              "type": "Opaque",
+                              "data": data,
+                          }
+                      },
+                      "providerConfigRef": {"name": "provider-kubernetes", "kind": "ProviderConfig"}
                   }
               })
 

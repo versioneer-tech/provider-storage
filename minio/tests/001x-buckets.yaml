@@ -10,7 +10,7 @@ spec:
   bucketAccessGrants:
   - bucketName: s-joe
     grantedAt: "2025-09-29T10:05:00Z"
-    grantee: jeff
+    grantee: s-jeff
     permission: ReadWrite
   bucketAccessRequests:
   - bucketName: s-jeff-shared
@@ -19,11 +19,11 @@ spec:
   buckets:
   - bucketName: s-joe
     discoverable: true
-  principal: joe
+  principal: s-joe
 status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: bucket-s-joe, observe-joe-s-jeff-shared, observe-secret-joe,
+    message: 'Unready resources: bucket-s-joe, observe-s-joe-s-jeff-shared, observe-secret-s-joe,
       and 4 more'
     reason: Creating
     status: "False"
@@ -65,10 +65,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: observe-joe-s-jeff-shared
+    crossplane.io/composition-resource-name: observe-s-joe-s-jeff-shared
   labels:
     crossplane.io/composite: s-joe
-  name: observe-joe-s-jeff-shared
+  name: observe-s-joe-s-jeff-shared
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -83,7 +83,7 @@ spec:
       apiVersion: minio.crossplane.io/v1
       kind: Policy
       metadata:
-        name: joe.s-jeff-shared
+        name: s-joe.s-jeff-shared
   managementPolicies:
   - Observe
   providerConfigRef:
@@ -94,10 +94,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: observe-secret-joe
+    crossplane.io/composition-resource-name: observe-secret-s-joe
   labels:
     crossplane.io/composite: s-joe
-  name: observe-secret-joe
+  name: observe-secret-s-joe
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -112,7 +112,7 @@ spec:
       apiVersion: v1
       kind: Secret
       metadata:
-        name: joe-1
+        name: s-joe-1
         namespace: default
   managementPolicies:
   - Observe
@@ -142,7 +142,7 @@ spec:
       apiVersion: minio.crossplane.io/v1
       kind: Policy
       metadata:
-        name: joe.s-joe
+        name: s-joe.s-joe
       spec:
         forProvider:
           rawPolicy: |-
@@ -171,10 +171,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: policy-jeff-s-joe
+    crossplane.io/composition-resource-name: policy-s-jeff-s-joe
   labels:
     crossplane.io/composite: s-joe
-  name: policy-jeff-s-joe
+  name: policy-s-jeff-s-joe
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -189,7 +189,7 @@ spec:
       apiVersion: minio.crossplane.io/v1
       kind: Policy
       metadata:
-        name: jeff.s-joe
+        name: s-jeff.s-joe
       spec:
         forProvider:
           rawPolicy: |-
@@ -222,10 +222,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: secret-joe
+    crossplane.io/composition-resource-name: secret-s-joe
   labels:
     crossplane.io/composite: s-joe
-  name: secret-joe
+  name: secret-s-joe
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -242,7 +242,7 @@ spec:
         KEY: dmFsdWU=
       kind: Secret
       metadata:
-        name: joe
+        name: s-joe
         namespace: default
       type: Opaque
   providerConfigRef:
@@ -253,10 +253,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: user-joe-1
+    crossplane.io/composition-resource-name: user-s-joe-1
   labels:
     crossplane.io/composite: s-joe
-  name: user-joe-1
+  name: user-s-joe-1
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -271,17 +271,16 @@ spec:
       apiVersion: minio.crossplane.io/v1
       kind: User
       metadata:
-        name: joe-1
+        name: s-joe-1
       spec:
         forProvider:
           policies:
-          - joe.s-joe
-          - joe.s-jeff-shared
-          userName: joe-1
+          - s-joe.s-joe
+          userName: s-joe-1
         providerConfigRef:
           name: provider-minio
         writeConnectionSecretToRef:
-          name: joe-1
+          name: s-joe-1
           namespace: default
   providerConfigRef:
     kind: ProviderConfig

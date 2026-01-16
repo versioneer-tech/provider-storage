@@ -31,10 +31,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: observe-secret-joe
+    crossplane.io/composition-resource-name: observe-secret-s-joe
   labels:
     crossplane.io/composite: s-joe
-  name: observe-secret-joe
+  name: observe-secret-s-joe
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -49,7 +49,7 @@ status:
       apiVersion: v1
       kind: Secret
       metadata:
-        name: joe-1
+        name: s-joe-1
         namespace: default
       data:
         KEY: dmFsdWU=

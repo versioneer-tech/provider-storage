@@ -9,7 +9,7 @@ kind: Storage
 metadata:
   name: s-joe
 spec:
-  principal: joe
+  principal: s-joe
   buckets:
     - bucketName: s-joe
       discoverable: true
@@ -19,6 +19,6 @@ spec:
       requestedAt: "2025-09-29T10:00:00Z"
   bucketAccessGrants:
     - bucketName: s-joe
-      grantee: jeff
+      grantee: s-jeff
       permission: ReadWrite
       grantedAt: "2025-09-29T10:05:00Z"

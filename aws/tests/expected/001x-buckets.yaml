@@ -10,7 +10,7 @@ spec:
   bucketAccessGrants:
   - bucketName: s-joe
     grantedAt: "2025-09-29T10:05:00Z"
-    grantee: jeff
+    grantee: s-jeff
     permission: ReadWrite
   bucketAccessRequests:
   - bucketName: s-jeff-shared
@@ -19,12 +19,12 @@ spec:
   buckets:
   - bucketName: s-joe
     discoverable: true
-  principal: joe
+  principal: s-joe
 status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: access-key-joe, bucket-s-joe, observe-joe-s-jeff-shared,
-      and 4 more'
+    message: 'Unready resources: access-key-s-joe-1, bucket-s-joe, observe-s-joe-s-jeff-shared,
+      and 7 more'
     reason: Creating
     status: "False"
     type: Ready
@@ -33,10 +33,10 @@ apiVersion: iam.aws.m.upbound.io/v1beta1
 kind: AccessKey
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: access-key-joe
+    crossplane.io/composition-resource-name: access-key-s-joe-1
   labels:
     crossplane.io/composite: s-joe
-  name: joe
+  name: s-joe-1
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -48,12 +48,13 @@ metadata:
 spec:
   forProvider:
     userRef:
-      name: joe
+      name: s-joe-1
   providerConfigRef:
     kind: ProviderConfig
     name: provider-aws
   writeConnectionSecretToRef:
-    name: joe
+    name: s-joe-1
+    namespace: default
 ---
 apiVersion: s3.aws.m.upbound.io/v1beta1
 kind: Bucket
@@ -82,10 +83,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: observe-joe-s-jeff-shared
+    crossplane.io/composition-resource-name: observe-s-joe-s-jeff-shared
   labels:
     crossplane.io/composite: s-joe
-  name: observe-joe-s-jeff-shared
+  name: observe-s-joe-s-jeff-shared
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -100,7 +101,37 @@ spec:
       apiVersion: iam.aws.m.upbound.io/v1beta1
       kind: Policy
       metadata:
-        name: joe.s-jeff-shared
+        name: s-joe.s-jeff-shared
+        namespace: default
+  managementPolicies:
+  - Observe
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-kubernetes
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: observe-secret-s-joe
+  labels:
+    crossplane.io/composite: s-joe
+  name: observe-secret-s-joe
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-joe
+    uid: ""
+spec:
+  forProvider:
+    manifest:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: s-joe-1
         namespace: default
   managementPolicies:
   - Observe
@@ -112,10 +143,10 @@ apiVersion: iam.aws.m.upbound.io/v1beta1
 kind: Policy
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: policy-jeff-s-joe
+    crossplane.io/composition-resource-name: policy-s-jeff-s-joe
   labels:
     crossplane.io/composite: s-joe
-  name: jeff.s-joe
+  name: s-jeff.s-joe
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -156,7 +187,7 @@ metadata:
     crossplane.io/composition-resource-name: policy-s-joe
   labels:
     crossplane.io/composite: s-joe
-  name: joe.s-joe
+  name: s-joe.s-joe
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -187,14 +218,45 @@ spec:
     kind: ProviderConfig
     name: provider-aws
 ---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: secret-s-joe
+  labels:
+    crossplane.io/composite: s-joe
+  name: secret-s-joe
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-joe
+    uid: ""
+spec:
+  forProvider:
+    manifest:
+      apiVersion: v1
+      data:
+        KEY: dmFsdWU=
+      kind: Secret
+      metadata:
+        name: s-joe
+        namespace: default
+      type: Opaque
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-kubernetes
+---
 apiVersion: iam.aws.m.upbound.io/v1beta1
 kind: UserPolicyAttachment
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: upa-s-joe
+    crossplane.io/composition-resource-name: upa-own-s-joe-1-s-joe
   labels:
     crossplane.io/composite: s-joe
-  name: joe.s-joe
+  name: s-joe-1.s-joe.own
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -206,9 +268,35 @@ metadata:
 spec:
   forProvider:
     policyArnRef:
-      name: joe.s-joe
+      name: s-joe.s-joe
     userRef:
-      name: joe
+      name: s-joe-1
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-aws
+---
+apiVersion: iam.aws.m.upbound.io/v1beta1
+kind: UserPolicyAttachment
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: upa-req-s-joe-1-s-jeff-shared
+  labels:
+    crossplane.io/composite: s-joe
+  name: s-joe-1.s-jeff-shared.req
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-joe
+    uid: ""
+spec:
+  forProvider:
+    policyArnRef:
+      name: s-joe.s-jeff-shared
+    userRef:
+      name: s-joe-1
   providerConfigRef:
     kind: ProviderConfig
     name: provider-aws
@@ -217,10 +305,10 @@ apiVersion: iam.aws.m.upbound.io/v1beta1
 kind: User
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: user-joe
+    crossplane.io/composition-resource-name: user-s-joe-1
   labels:
     crossplane.io/composite: s-joe
-  name: joe
+  name: s-joe-1
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
