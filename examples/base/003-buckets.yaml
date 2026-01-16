@@ -3,12 +3,17 @@
 
 # Jane has no buckets but requests WriteOnly access to John's bucket.
 # Note: This request only becomes effective once John grants it.
+# Credentials are automatically rolled over every quarter,
+# keeping the current plus 4 previous credentials active.
 apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
   name: s-jane
 spec:
   principal: jane
+  credentialsRollover:
+    interval: quarterly
+    maxToKeep: 5
   buckets: []
   bucketAccessRequests:
     - bucketName: s-john

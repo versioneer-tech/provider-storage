@@ -20,12 +20,15 @@ spec:
   - bucketName: s-jeff
   - bucketName: s-jeff-shared
     discoverable: true
+  credentialsRollover:
+    interval: weekly
+    maxToKeep: 2
   principal: jeff
 status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
     message: 'Unready resources: bucket-s-jeff, bucket-s-jeff-shared, observe-jeff-s-joe,
-      and 4 more'
+      and 6 more'
     reason: Creating
     status: "False"
     type: Ready
@@ -117,6 +120,36 @@ spec:
       kind: Policy
       metadata:
         name: jeff.s-joe
+  managementPolicies:
+  - Observe
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-kubernetes
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: observe-secret-jeff
+  labels:
+    crossplane.io/composite: s-jeff
+  name: observe-secret-jeff
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-jeff
+    uid: ""
+spec:
+  forProvider:
+    manifest:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: jeff-2026w03
+        namespace: default
   managementPolicies:
   - Observe
   providerConfigRef:
@@ -277,10 +310,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: user-jeff
+    crossplane.io/composition-resource-name: user-jeff-2026w02
   labels:
     crossplane.io/composite: s-jeff
-  name: user-jeff
+  name: user-jeff-2026w02
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -295,17 +328,55 @@ spec:
       apiVersion: minio.crossplane.io/v1
       kind: User
       metadata:
-        name: jeff
+        name: jeff-2026w02
       spec:
         forProvider:
           policies:
           - jeff.s-jeff
           - jeff.s-jeff-shared
-          userName: jeff
+          userName: jeff-2026w02
         providerConfigRef:
           name: provider-minio
         writeConnectionSecretToRef:
-          name: jeff
+          name: jeff-2026w02
+          namespace: default
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-kubernetes
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: user-jeff-2026w03
+  labels:
+    crossplane.io/composite: s-jeff
+  name: user-jeff-2026w03
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-jeff
+    uid: ""
+spec:
+  forProvider:
+    manifest:
+      apiVersion: minio.crossplane.io/v1
+      kind: User
+      metadata:
+        name: jeff-2026w03
+      spec:
+        forProvider:
+          policies:
+          - jeff.s-jeff
+          - jeff.s-jeff-shared
+          userName: jeff-2026w03
+        providerConfigRef:
+          name: provider-minio
+        writeConnectionSecretToRef:
+          name: jeff-2026w03
           namespace: default
   providerConfigRef:
     kind: ProviderConfig

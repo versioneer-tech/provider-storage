@@ -3,6 +3,7 @@
 
 # Joe creates one discoverable bucket s-joe, requests access to Jeff's bucket,
 # and grants Jeff ReadWrite access to s-joe.
+# Credentials are static, i.e. not automatically rolled over.
 apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:

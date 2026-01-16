@@ -32,11 +32,41 @@ spec:
                     Unique identifier of the storage principal (typically a user or
                     service account). All buckets, access requests, and grants in
                     this resource are owned and managed under this principal.
+                credentialsRollover:
+                  type: object
+                  description: >
+                    Configuration controlling automated rotation of access credentials
+                    issued for this storage principal.
+                  properties:
+                    interval:
+                      type: string
+                      description: >
+                        Defines how often access credentials are rotated. If set to none
+                        credentials are not rotated automatically.
+                      enum:
+                        - daily
+                        - weekly
+                        - monthly
+                        - quarterly
+                        - yearly
+                        - none
+                      default: none
+                    maxToKeep:
+                      type: integer
+                      description: >
+                        Maximum number of previous credentials that remain valid after
+                        a rollover. Older credentials beyond this limit are removed.
+                      default: 1
+                      minimum: 1
+                      maximum: 10
+                  required:
+                    - interval
+                    - maxToKeep
                 buckets:
                   type: array
                   description: >
                     Buckets to create as part of this Storage. Each entry is keyed by
-                    `bucketName`, ensuring uniqueness within the resource. Ordering
+                    bucketName, ensuring uniqueness within the resource. Ordering
                     has no semantic meaning.
                   x-kubernetes-list-type: map
                   x-kubernetes-list-map-keys: ["bucketName"]
@@ -60,8 +90,8 @@ spec:
                   type: array
                   description: >
                     Outbound requests for access to buckets owned by other principals.
-                    Each request originates from `spec.principal` and targets a single
-                    foreign bucket. The list is keyed by `bucketName`.
+                    Each request originates from spec.principal and targets a single
+                    foreign bucket. The list is keyed by bucketName.
                   x-kubernetes-list-type: map
                   x-kubernetes-list-map-keys: ["bucketName"]
                   items:
@@ -91,7 +121,7 @@ spec:
                   type: array
                   description: >
                     Grants issued by this principal to other principals. Each grant is
-                    uniquely identified by `(bucketName, grantee)` and defines the
+                    uniquely identified by bucketName and grantee and defines the
                     permission level on the target bucket.
                   x-kubernetes-list-type: map
                   x-kubernetes-list-map-keys: ["bucketName","grantee"]
@@ -112,7 +142,7 @@ spec:
                         type: string
                         description: >
                           Permission level granted to the grantee on the specified
-                          bucket. Setting `None` explicitly removes access.
+                          bucket. Setting None explicitly removes access.
                         enum:
                           - ReadWrite
                           - ReadOnly

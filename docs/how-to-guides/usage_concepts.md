@@ -6,6 +6,14 @@ This section explains how to **use** the `provider-storage` configuration packag
 
 ## Concepts
 
+### Credentials
+
+For every `Storage` claim, **access credentials are automatically created** for the defined `principal` and **provided as a Kubernetes Secret** in the same namespace.  
+Applications can directly consume this Secret to access the underlying object storage without any additional user management.
+
+Optionally, credentials can be **automatically rolled over** based on a configurable interval.  
+A configurable history can be kept so that **previous credentials remain valid for a period of overlap**, avoiding disruptions for running workloads during key rotation.
+
 ### Buckets
 A `Storage` claim defines one or more **buckets** for a user (the `principal`).  
 Each bucket is created on the configured storage backend (MinIO, AWS S3, OTC OBS) and may optionally be marked **discoverable** so that others can see and request access for it.
@@ -29,6 +37,7 @@ A request only becomes effective once the corresponding grant is present.
 ```yaml
 # Joe creates one discoverable bucket s-joe, requests access to Jeff's bucket,
 # and grants Jeff ReadWrite access to s-joe.
+# Credentials are static, i.e. not automatically rolled over.
 apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
@@ -52,13 +61,19 @@ spec:
 ### Jeff’s Storage definition
 
 ```yaml
-# Jeff creates two buckets, requests access to Joe's, and grants Joe ReadOnly access.
+# Jeff creates two buckets, requests access to Joe's bucket,
+# and grants Joe ReadOnly access to one of his own buckets.
+# Credentials are automatically rolled over every week,
+# keeping the current plus the previous credential active.
 apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
   name: s-jeff
 spec:
   principal: jeff
+  credentialsRollover:
+    interval: weekly
+    maxToKeep: 2
   buckets:
     - bucketName: s-jeff
     - bucketName: s-jeff-shared
@@ -88,12 +103,17 @@ In this example:
 ```yaml
 # Jane has no buckets but requests WriteOnly access to John's bucket.
 # Note: This request only becomes effective once John grants it.
+# Credentials are automatically rolled over every quarter,
+# keeping the current plus 4 previous credentials active.
 apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
   name: s-jane
 spec:
   principal: jane
+  credentialsRollover:
+    interval: quarterly
+    maxToKeep: 5
   buckets: []
   bucketAccessRequests:
     - bucketName: s-john
@@ -108,21 +128,38 @@ This shows that a `Storage` claim may consist solely of access requests without 
 ## Example: John responding to Jane
 
 ```yaml
+# Copyright 2025, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
 # John owns s-john. He grants Jane WriteOnly access to his bucket after her request.
+# His request to s-jane cannot resolve until that bucket exists.
+# Credentials are automatically rolled over every day.
 apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
   name: s-john
 spec:
   principal: john
+  credentialsRollover:
+    interval: daily
   buckets:
     - bucketName: s-john
       discoverable: true
+  bucketAccessRequests:
+    - bucketName: s-joe
+      reason: Need access
+      requestedAt: "2025-09-29T10:25:00Z"
+    - bucketName: s-jeff
+      reason: Need access
+      requestedAt: "2025-09-29T10:26:00Z"
+    - bucketName: s-jane
+      reason: Need access
+      requestedAt: "2025-09-29T10:27:00Z"
   bucketAccessGrants:
     - bucketName: s-john
       grantee: jane
-      permission: WriteOnly
-      grantedAt: "2025-09-29T10:25:00Z"
+      permission: None
+      grantedAt: "2025-09-29T10:28:00Z"
 ```
 
 In this scenario:

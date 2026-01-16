@@ -76,19 +76,13 @@ kubectl get storage -A -o name \
 ## Storage Credentials
 
 For each `Storage` resource, the provider automatically provisions a Kubernetes Secret in the same namespace.  
-The Secret has the same name as the `Storage` resource (e.g. `ws-alice`) and contains S3-compatible access credentials.
+The Secret has the same name as the `Storage` resource (e.g. `team-wonderland`) and contains S3-compatible access credentials.
 
-The key names differ by provider:
+These credentials are automatically rotated - by default every 1 day - with the previous credentials remaining valid for an additional 1 day.
+The mechanism is provider-agnostic and consistently exposes the following environment variables:
 
-MinIO, AWS:
 - `AWS_ACCESS_KEY_ID`  
 - `AWS_SECRET_ACCESS_KEY`
-
-OTC:
-- `attribute.access`  
-- `attribute.secret`
-
-> Note: While harmonization is being considered, we currently recommend using tooling like the [External Secret Operator](https://external-secrets.io) to transform if needed.
 
 Workloads and other compositions can mount or reference this Secret directly to authenticate against the provisioned storage backend.
 

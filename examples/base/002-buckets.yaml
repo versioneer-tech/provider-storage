@@ -1,13 +1,19 @@
 # Copyright 2025, EOX (https://eox.at) and Versioneer (https://versioneer.at)
 # SPDX-License-Identifier: Apache-2.0
 
-# Jeff creates two buckets, requests access to Joe's, and grants Joe ReadOnly access.
+# Jeff creates two buckets, requests access to Joe's bucket,
+# and grants Joe ReadOnly access to one of his own buckets.
+# Credentials are automatically rolled over every week,
+# keeping the current plus the previous credential active.
 apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
   name: s-jeff
 spec:
   principal: jeff
+  credentialsRollover:
+    interval: weekly
+    maxToKeep: 2
   buckets:
     - bucketName: s-jeff
     - bucketName: s-jeff-shared

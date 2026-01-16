@@ -3,12 +3,15 @@
 
 # John owns s-john. He grants Jane WriteOnly access to his bucket after her request.
 # His request to s-jane cannot resolve until that bucket exists.
+# Credentials are automatically rolled over every day.
 apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
   name: s-john
 spec:
   principal: john
+  credentialsRollover:
+    interval: daily
   buckets:
     - bucketName: s-john
       discoverable: true

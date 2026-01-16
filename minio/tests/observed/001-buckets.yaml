@@ -1,19 +1,56 @@
 # Copyright 2025, EOX (https://eox.at) and Versioneer (https://versioneer.at)
 # SPDX-License-Identifier: Apache-2.0
 
-apiVersion: kubernetes.crossplane.io/v1alpha1
+# Copyright 2025, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
-  name: observe-joe-restricted-s-jeff-shared
   annotations:
-    crossplane.io/composition-resource-name: observe-joe-restricted-s-jeff-shared
+    crossplane.io/composition-resource-name: observe-joe-s-jeff-shared
+  labels:
+    crossplane.io/composite: s-joe
+  name: observe-joe-s-jeff-shared
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-joe
+    uid: ""
 status:
   atProvider:
     manifest:
       apiVersion: minio.crossplane.io/v1
       kind: Policy
       metadata:
-        name: joe.restricted.s-jeff-shared
-  conditions:
-  - type: Ready
-    status: "True"
+        name: joe.s-jeff-shared
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: observe-secret-joe
+  labels:
+    crossplane.io/composite: s-joe
+  name: observe-secret-joe
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-joe
+    uid: ""
+status:
+  atProvider:
+    manifest:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: joe-1
+        namespace: default
+      data:
+        KEY: dmFsdWU=
+        
