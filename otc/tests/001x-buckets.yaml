@@ -23,11 +23,47 @@ spec:
 status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: bucket-s-joe, bucketpolicy-s-joe, observe-secret-s-joe,
-      and 3 more'
+    message: 'Unready resources: access-key-s-joe-1, bucket-s-joe, bucketpolicy-s-joe,
+      and 4 more'
     reason: Creating
     status: "False"
     type: Ready
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: access-key-s-joe-1
+  labels:
+    crossplane.io/composite: s-joe
+  name: access-key-s-joe-1
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-joe
+    uid: ""
+spec:
+  forProvider:
+    manifest:
+      apiVersion: identity.opentelekomcloud.crossplane.io/v1alpha1
+      kind: CredentialV3
+      metadata:
+        name: aksk-s-joe-1
+      spec:
+        forProvider:
+          type: AK
+          userId: owner-user-id-joe-1
+        providerConfigRef:
+          name: provider-otc
+        writeConnectionSecretToRef:
+          name: s-joe-1
+          namespace: default
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-kubernetes
 ---
 apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
@@ -91,7 +127,68 @@ spec:
           policy: |-
             {
               "Version": "2012-10-17",
-              "Statement": []
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ListBucket"
+                  ],
+                  "Resource": [
+                    "s-joe"
+                  ],
+                  "Principal": {
+                    "ID": [
+                      "domain/owner-domain-id:user/owner-user-id-joe-1"
+                    ]
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "GetObject",
+                    "PutObject",
+                    "DeleteObject"
+                  ],
+                  "Resource": [
+                    "s-joe/*"
+                  ],
+                  "Principal": {
+                    "ID": [
+                      "domain/owner-domain-id:user/owner-user-id-joe-1"
+                    ]
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ListBucket"
+                  ],
+                  "Resource": [
+                    "s-joe"
+                  ],
+                  "Principal": {
+                    "ID": [
+                      "domain/grantee-domain-id:user/grantee-user-id-jeff"
+                    ]
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "GetObject",
+                    "PutObject",
+                    "DeleteObject"
+                  ],
+                  "Resource": [
+                    "s-joe/*"
+                  ],
+                  "Principal": {
+                    "ID": [
+                      "domain/grantee-domain-id:user/grantee-user-id-jeff"
+                    ]
+                  }
+                }
+              ]
             }
         providerConfigRef:
           name: provider-otc

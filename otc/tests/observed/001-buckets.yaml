@@ -27,3 +27,45 @@ status:
         namespace: default
       data:
         KEY: dmFsdWU=
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: user-s-joe-1
+  labels:
+    crossplane.io/composite: s-joe
+  name: user-s-joe-1
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-joe
+    uid: ""
+status:
+  atProvider:
+    id: owner-user-id-joe-1
+    domainId: owner-domain-id
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: observe-user-s-jeff
+  labels:
+    crossplane.io/composite: s-joe
+  name: observe-user-s-jeff
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-joe
+    uid: ""
+status:
+  atProvider:
+    id: grantee-user-id-jeff
+    domainId: grantee-domain-id

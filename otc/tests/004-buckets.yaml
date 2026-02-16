@@ -129,7 +129,7 @@ spec:
       apiVersion: identity.opentelekomcloud.crossplane.io/v1alpha1
       kind: CredentialV3
       metadata:
-        name: aksk-s-john-20260116
+        name: aksk-s-john-20260216
   managementPolicies:
   - Observe
   providerConfigRef:
@@ -169,10 +169,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: user-s-john-20260116
+    crossplane.io/composition-resource-name: user-s-john-20260216
   labels:
     crossplane.io/composite: s-john
-  name: user-s-john-20260116
+  name: user-s-john-20260216
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -187,12 +187,12 @@ spec:
       apiVersion: identity.opentelekomcloud.crossplane.io/v1alpha1
       kind: UserV3
       metadata:
-        name: s-john-20260116
+        name: s-john-20260216
       spec:
         forProvider:
           access_type: programmatic
           enabled: true
-          name: s-john-20260116
+          name: s-john-20260216
         providerConfigRef:
           name: provider-otc
   providerConfigRef:
