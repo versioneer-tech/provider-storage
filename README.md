@@ -73,6 +73,14 @@ kubectl get storage -A -o name \
   -p '{"spec":{"crossplane":{"compositionSelector":{"matchLabels":{"provider":"minio"}}}}}'
 ```
 
+For approval workflows you also need to add this label to the `Storage` resources:
+
+```yaml
+metadata:
+  labels:
+    storages.pkg.internal/discoverable: "true"
+```
+
 ## Storage Credentials
 
 For each `Storage` resource, the provider automatically provisions a Kubernetes Secret in the same namespace.  

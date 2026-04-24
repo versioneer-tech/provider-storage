@@ -5,30 +5,6 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: observe-joe-s-jeff-shared
-  labels:
-    crossplane.io/composite: s-joe
-  name: observe-joe-s-jeff-shared
-  namespace: default
-  ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-joe
-    uid: ""
-status:
-  atProvider:
-    manifest:
-      apiVersion: minio.crossplane.io/v1
-      kind: Policy
-      metadata:
-        name: joe.s-jeff-shared
----
-apiVersion: kubernetes.m.crossplane.io/v1alpha1
-kind: Object
-metadata:
-  annotations:
     crossplane.io/composition-resource-name: observe-secret-s-joe
   labels:
     crossplane.io/composite: s-joe

@@ -12,7 +12,6 @@ Everything in this guide is **namespaced**:
 - You **apply** `Storage` claims **to a namespace** (e.g., `workspace`).
 - The **provisioned Secret lives in the same namespace** as the `Storage` claim (Secret name = **principal**).
 - Any **namespaced ProviderConfigs** or supporting objects that the compositions depend on **must exist in that same target namespace** (e.g., `workspace`).
-
 > In short: choose your target namespace (e.g., `workspace`), apply the provider configs there, and create your `Storage` claims in that namespace.
 
 ---

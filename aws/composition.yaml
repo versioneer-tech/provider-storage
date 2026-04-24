@@ -49,7 +49,7 @@ spec:
                       }
                   })
 
-    - step: create-owner-policies
+    - step: create-principal-policies
       functionRef:
         name: crossplane-contrib-function-python
       input:
@@ -95,7 +95,7 @@ spec:
                       }
                   })
 
-    - step: create-policies
+    - step: create-grant-policies
       functionRef:
         name: crossplane-contrib-function-python
       input:
@@ -156,50 +156,6 @@ spec:
                       }
                   })
 
-    - step: observe-requested-policies
-      functionRef:
-        name: crossplane-contrib-function-python
-      input:
-        apiVersion: python.fn.crossplane.io/v1beta1
-        kind: Script
-        script: |
-          from crossplane.function.proto.v1 import run_function_pb2 as fnv1
-          from google.protobuf import json_format
-          def _to_dict(struct):
-              return {} if struct is None else (struct if isinstance(struct, dict) else json_format.MessageToDict(struct, preserving_proto_field_name=True))
-          def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
-              xr = _to_dict(req.observed.composite.resource)
-              meta = xr.get("metadata", {}) or {}
-              spec = xr.get("spec", {}) or {}
-              ns   = (meta.get("labels", {}) or {}).get("crossplane.io/claim-namespace") or meta.get("namespace") or "default"
-              principal = (spec.get("principal") or meta.get("name") or "<principal>").strip()
-              for r in (spec.get("bucketAccessRequests") or []):
-                  bucket = (r.get("bucketName") or "").strip()
-                  if not bucket:
-                      continue
-                  polname = f"{principal}.{bucket}"
-                  key = f"observe-{principal}-{bucket}"
-                  rsp.desired.resources[key].resource.update({
-                      "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
-                      "kind": "Object",
-                      "metadata": {
-                          "name": key,
-                          "namespace": ns,
-                          "annotations": {"crossplane.io/composition-resource-name": key}
-                      },
-                      "spec": {
-                          "managementPolicies": ["Observe"],
-                          "forProvider": {
-                              "manifest": {
-                                  "apiVersion": "iam.aws.m.upbound.io/v1beta1",
-                                  "kind": "Policy",
-                                  "metadata": {"name": polname, "namespace": ns}
-                              }
-                          },
-                          "providerConfigRef": {"name": "provider-kubernetes", "kind": "ProviderConfig"}
-                      }
-                  })
-
     - step: create-users
       functionRef:
         name: crossplane-contrib-function-python
@@ -208,6 +164,7 @@ spec:
         kind: Script
         script: |
           from datetime import datetime, timedelta, timezone
+          from crossplane.function import request, response
           from crossplane.function.proto.v1 import run_function_pb2 as fnv1
           from google.protobuf import json_format
           def _to_dict(struct):
@@ -271,7 +228,6 @@ spec:
               spec = xr.get("spec", {}) or {}
               ns = (meta.get("labels", {}) or {}).get("crossplane.io/claim-namespace") or meta.get("namespace") or "default"
               principal = (spec.get("principal") or meta.get("name") or "<principal>").strip()
-
               interval, max_to_keep = _get_rollover(spec)
               now = datetime.now(timezone.utc)
               suffixes = _suffixes(now, interval, max_to_keep)
@@ -324,6 +280,7 @@ spec:
         kind: Script
         script: |
           from datetime import datetime, timedelta, timezone
+          from crossplane.function import request, response
           from crossplane.function.proto.v1 import run_function_pb2 as fnv1
           from google.protobuf import json_format
 
@@ -382,19 +339,45 @@ spec:
                       out.append(str(i))
               return ["-" + s for s in out]
 
+          def _bucket_grants_access(storage: dict, bucket: str, grantee: str) -> bool | None:
+              spec = (storage.get("spec") or {})
+              owns_bucket = any((b.get("bucketName") or "").strip() == bucket for b in (spec.get("buckets") or []))
+              if not owns_bucket:
+                  return None
+
+              decision = None
+              for grant in (spec.get("bucketAccessGrants") or []):
+                  grant_bucket = (grant.get("bucketName") or "").strip()
+                  grant_grantee = (grant.get("grantee") or "").strip()
+                  permission = (grant.get("permission") or "").strip().lower()
+                  if grant_bucket != bucket or grant_grantee != grantee:
+                      continue
+                  if permission == "none":
+                      return False
+                  if permission in ("readonly", "writeonly", "readwrite"):
+                      decision = True
+              return decision
+
           def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
               xr = _to_dict(req.observed.composite.resource)
               meta = xr.get("metadata", {}) or {}
               spec = xr.get("spec", {}) or {}
               ns = (meta.get("labels", {}) or {}).get("crossplane.io/claim-namespace") or meta.get("namespace") or "default"
               principal = (spec.get("principal") or meta.get("name") or "<principal>").strip()
-
+              # Peer Storage objects are loaded by a discoverable label so request resolution can inspect grants.
+              response.require_resources(
+                  rsp,
+                  name="peer-storages",
+                  api_version="pkg.internal/v1beta1",
+                  kind="Storage",
+                  namespace=ns,
+                  match_labels={"storages.pkg.internal/discoverable": "true"},
+              )
+              peer_storages = request.get_required_resources(req, "peer-storages") or []
               interval, max_to_keep = _get_rollover(spec)
               now = datetime.now(timezone.utc)
               suffixes = _suffixes(now, interval, max_to_keep)
               user_names = [f"{principal}{suf}" for suf in suffixes] if suffixes else [f"{principal}-1"]
-
-              observed = getattr(req.observed, "resources", {}) or {}
 
               for user_name in user_names:
                   for b in (spec.get("buckets") or []):
@@ -425,17 +408,17 @@ spec:
                       if not bucket:
                           continue
                       polname = f"{principal}.{bucket}"
-                      obs_key = f"observe-{principal}-{bucket}"
-                      oc = observed.get(obs_key)
-                      exists = False
-                      if oc and getattr(oc, "resource", None):
-                          od = _to_dict(oc.resource)
-                          st = (od.get("status") or {})
-                          has_manifest = bool((st.get("atProvider") or {}).get("manifest"))
-                          conds = st.get("conditions") or []
-                          is_ready = any(c.get("type") == "Ready" and c.get("status") in ("True", True) for c in conds)
-                          exists = has_manifest or is_ready
-                      if not exists:
+                      granted = None
+                      for peer in peer_storages:
+                          peer_meta = (peer.get("metadata") or {})
+                          if (peer_meta.get("namespace") or ns) != ns:
+                              continue
+                          if (peer_meta.get("name") or "") == meta.get("name"):
+                              continue
+                          granted = _bucket_grants_access(peer, bucket, principal)
+                          if granted is not None:
+                              break
+                      if not granted:
                           continue
                       key = f"upa-req-{user_name}-{bucket}"
                       rsp.desired.resources[key].resource.update({

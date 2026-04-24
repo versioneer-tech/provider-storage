@@ -9,6 +9,8 @@ apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
   name: s-jeff
+  labels:
+    storages.pkg.internal/discoverable: "true"
 spec:
   principal: s-jeff
   credentialsRollover:

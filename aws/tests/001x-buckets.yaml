@@ -5,6 +5,8 @@
 apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
+  labels:
+    storages.pkg.internal/discoverable: "true"
   name: s-joe
 spec:
   bucketAccessGrants:
@@ -23,8 +25,8 @@ spec:
 status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: access-key-s-joe-1, bucket-s-joe, observe-s-joe-s-jeff-shared,
-      and 7 more'
+    message: 'Unready resources: access-key-s-joe-1, bucket-s-joe, observe-secret-s-joe,
+      and 6 more'
     reason: Creating
     status: "False"
     type: Ready
@@ -78,36 +80,6 @@ spec:
   providerConfigRef:
     kind: ProviderConfig
     name: provider-aws
----
-apiVersion: kubernetes.m.crossplane.io/v1alpha1
-kind: Object
-metadata:
-  annotations:
-    crossplane.io/composition-resource-name: observe-s-joe-s-jeff-shared
-  labels:
-    crossplane.io/composite: s-joe
-  name: observe-s-joe-s-jeff-shared
-  namespace: default
-  ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-joe
-    uid: ""
-spec:
-  forProvider:
-    manifest:
-      apiVersion: iam.aws.m.upbound.io/v1beta1
-      kind: Policy
-      metadata:
-        name: s-joe.s-jeff-shared
-        namespace: default
-  managementPolicies:
-  - Observe
-  providerConfigRef:
-    kind: ProviderConfig
-    name: provider-kubernetes
 ---
 apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object

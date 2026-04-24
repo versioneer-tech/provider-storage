@@ -18,6 +18,16 @@ Instead of exposing raw cloud-specific permission actions, permissions are norma
 A bucket must be marked as **discoverable** by its owner before others can request access.  
 This is done by setting `discoverable: true` in the bucket definition of the owner’s `Storage` claim.
 
+Any `Storage` object that exposes at least one discoverable bucket must also carry:
+
+```yaml
+metadata:
+  labels:
+    storages.pkg.internal/discoverable: "true"
+```
+
+For MinIO and AWS, this label is used to load peer `Storage` resources via Crossplane required resources and resolve requests from the owner’s `bucketAccessGrants`. For OTC, the same label is still recommended as the discoverable-owner marker even though the current composition still relies on observed identities for final policy generation.
+
 Example (owner Joe making his bucket discoverable):
 
 ```yaml
@@ -25,6 +35,8 @@ apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
   name: s-joe
+  labels:
+    storages.pkg.internal/discoverable: "true"
 spec:
   principal: s-joe
   buckets:

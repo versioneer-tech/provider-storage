@@ -5,6 +5,8 @@
 apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
+  labels:
+    storages.pkg.internal/discoverable: "true"
   name: s-joe
 spec:
   bucketAccessGrants:

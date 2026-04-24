@@ -299,7 +299,7 @@ spec:
                       }
                   })
 
-    - step: create-access-keys
+    - step: create-user-access-keys
       functionRef:
         name: crossplane-contrib-function-python
       input:

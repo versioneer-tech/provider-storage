@@ -1,0 +1,20 @@
+# Copyright 2025, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  name: s-jeff
+  namespace: default
+  labels:
+    storages.pkg.internal/discoverable: "true"
+spec:
+  principal: s-jeff
+  buckets:
+  - bucketName: s-jeff-shared
+    discoverable: true
+  bucketAccessGrants:
+  - bucketName: s-jeff-shared
+    grantee: s-joe
+    permission: ReadOnly
+    grantedAt: "2025-09-29T10:15:00Z"

@@ -5,13 +5,15 @@
 apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
+  labels:
+    storages.pkg.internal/discoverable: "true"
   name: s-john
 spec:
   bucketAccessGrants:
   - bucketName: s-john
     grantedAt: "2025-09-29T10:28:00Z"
     grantee: s-jane
-    permission: None
+    permission: ReadWrite
   bucketAccessRequests:
   - bucketName: s-joe
     reason: Need access
@@ -129,7 +131,7 @@ spec:
       apiVersion: identity.opentelekomcloud.crossplane.io/v1alpha1
       kind: CredentialV3
       metadata:
-        name: aksk-s-john-20260216
+        name: aksk-s-john-20260424
   managementPolicies:
   - Observe
   providerConfigRef:
@@ -169,10 +171,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: user-s-john-20260216
+    crossplane.io/composition-resource-name: user-s-john-20260424
   labels:
     crossplane.io/composite: s-john
-  name: user-s-john-20260216
+  name: user-s-john-20260424
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -187,12 +189,12 @@ spec:
       apiVersion: identity.opentelekomcloud.crossplane.io/v1alpha1
       kind: UserV3
       metadata:
-        name: s-john-20260216
+        name: s-john-20260424
       spec:
         forProvider:
           access_type: programmatic
           enabled: true
-          name: s-john-20260216
+          name: s-john-20260424
         providerConfigRef:
           name: provider-otc
   providerConfigRef:

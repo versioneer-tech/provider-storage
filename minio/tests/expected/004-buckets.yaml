@@ -5,13 +5,15 @@
 apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
+  labels:
+    storages.pkg.internal/discoverable: "true"
   name: s-john
 spec:
   bucketAccessGrants:
   - bucketName: s-john
     grantedAt: "2025-09-29T10:28:00Z"
     grantee: s-jane
-    permission: None
+    permission: ReadWrite
   bucketAccessRequests:
   - bucketName: s-joe
     reason: Need access
@@ -31,8 +33,8 @@ spec:
 status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: bucket-s-john, observe-s-john-s-jane, observe-s-john-s-jeff,
-      and 5 more'
+    message: 'Unready resources: bucket-s-john, policy-full-s-john, policy-s-jane-s-john,
+      and 1 more'
     reason: Creating
     status: "False"
     type: Ready
@@ -73,93 +75,6 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: observe-s-john-s-jane
-  labels:
-    crossplane.io/composite: s-john
-  name: observe-s-john-s-jane
-  namespace: default
-  ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-john
-    uid: ""
-spec:
-  forProvider:
-    manifest:
-      apiVersion: minio.crossplane.io/v1
-      kind: Policy
-      metadata:
-        name: s-john.s-jane
-  managementPolicies:
-  - Observe
-  providerConfigRef:
-    kind: ProviderConfig
-    name: provider-kubernetes
----
-apiVersion: kubernetes.m.crossplane.io/v1alpha1
-kind: Object
-metadata:
-  annotations:
-    crossplane.io/composition-resource-name: observe-s-john-s-jeff
-  labels:
-    crossplane.io/composite: s-john
-  name: observe-s-john-s-jeff
-  namespace: default
-  ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-john
-    uid: ""
-spec:
-  forProvider:
-    manifest:
-      apiVersion: minio.crossplane.io/v1
-      kind: Policy
-      metadata:
-        name: s-john.s-jeff
-  managementPolicies:
-  - Observe
-  providerConfigRef:
-    kind: ProviderConfig
-    name: provider-kubernetes
----
-apiVersion: kubernetes.m.crossplane.io/v1alpha1
-kind: Object
-metadata:
-  annotations:
-    crossplane.io/composition-resource-name: observe-s-john-s-joe
-  labels:
-    crossplane.io/composite: s-john
-  name: observe-s-john-s-joe
-  namespace: default
-  ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-john
-    uid: ""
-spec:
-  forProvider:
-    manifest:
-      apiVersion: minio.crossplane.io/v1
-      kind: Policy
-      metadata:
-        name: s-john.s-joe
-  managementPolicies:
-  - Observe
-  providerConfigRef:
-    kind: ProviderConfig
-    name: provider-kubernetes
----
-apiVersion: kubernetes.m.crossplane.io/v1alpha1
-kind: Object
-metadata:
-  annotations:
     crossplane.io/composition-resource-name: observe-secret-s-john
   labels:
     crossplane.io/composite: s-john
@@ -178,7 +93,7 @@ spec:
       apiVersion: v1
       kind: Secret
       metadata:
-        name: s-john-20260116
+        name: s-john-20260424
         namespace: default
   managementPolicies:
   - Observe
@@ -261,7 +176,22 @@ spec:
           rawPolicy: |-
             {
               "Version": "2012-10-17",
-              "Statement": []
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:GetBucketLocation",
+                    "s3:ListBucket",
+                    "s3:GetObject",
+                    "s3:PutObject",
+                    "s3:DeleteObject"
+                  ],
+                  "Resource": [
+                    "arn:aws:s3:::s-john",
+                    "arn:aws:s3:::s-john/*"
+                  ]
+                }
+              ]
             }
         providerConfigRef:
           name: provider-minio
@@ -273,10 +203,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: user-s-john-20260116
+    crossplane.io/composition-resource-name: user-s-john-20260424
   labels:
     crossplane.io/composite: s-john
-  name: user-s-john-20260116
+  name: user-s-john-20260424
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -291,16 +221,16 @@ spec:
       apiVersion: minio.crossplane.io/v1
       kind: User
       metadata:
-        name: s-john-20260116
+        name: s-john-20260424
       spec:
         forProvider:
           policies:
           - s-john.s-john
-          userName: s-john-20260116
+          userName: s-john-20260424
         providerConfigRef:
           name: provider-minio
         writeConnectionSecretToRef:
-          name: s-john-20260116
+          name: s-john-20260424
           namespace: default
   providerConfigRef:
     kind: ProviderConfig

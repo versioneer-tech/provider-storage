@@ -18,9 +18,18 @@ for file in examples/base/00*-buckets.yaml; do
     -s
 
   obs="otc/tests/observed/00${idx}-buckets.yaml"
-  if [[ -f "$obs" ]]; then
+  req="otc/tests/required/00${idx}x-buckets.yaml"
+  if [[ -f "$obs" || -f "$req" ]]; then
+    render_args=()
+    if [[ -f "$obs" ]]; then
+      render_args+=(--observed-resources "$obs")
+    fi
+    if [[ -f "$req" ]]; then
+      render_args+=(--required-resources "$req")
+    fi
+
     crossplane render "$file" otc/composition.yaml otc/dependencies/functions.yaml \
-      --observed-resources "$obs" \
+      "${render_args[@]}" \
       -x \
       > "otc/tests/00${idx}x-buckets.yaml"
 

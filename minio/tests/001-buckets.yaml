@@ -5,6 +5,8 @@
 apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
+  labels:
+    storages.pkg.internal/discoverable: "true"
   name: s-joe
 spec:
   bucketAccessGrants:
@@ -23,8 +25,8 @@ spec:
 status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: bucket-s-joe, observe-s-joe-s-jeff-shared, observe-secret-s-joe,
-      and 3 more'
+    message: 'Unready resources: bucket-s-joe, policy-full-s-joe, policy-s-jeff-s-joe,
+      and 1 more'
     reason: Creating
     status: "False"
     type: Ready
@@ -57,35 +59,6 @@ spec:
       spec:
         providerConfigRef:
           name: provider-minio
-  providerConfigRef:
-    kind: ProviderConfig
-    name: provider-kubernetes
----
-apiVersion: kubernetes.m.crossplane.io/v1alpha1
-kind: Object
-metadata:
-  annotations:
-    crossplane.io/composition-resource-name: observe-s-joe-s-jeff-shared
-  labels:
-    crossplane.io/composite: s-joe
-  name: observe-s-joe-s-jeff-shared
-  namespace: default
-  ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-joe
-    uid: ""
-spec:
-  forProvider:
-    manifest:
-      apiVersion: minio.crossplane.io/v1
-      kind: Policy
-      metadata:
-        name: s-joe.s-jeff-shared
-  managementPolicies:
-  - Observe
   providerConfigRef:
     kind: ProviderConfig
     name: provider-kubernetes

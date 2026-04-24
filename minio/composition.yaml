@@ -124,7 +124,7 @@ spec:
                       }
                   })
 
-    - step: create-policies
+    - step: create-grant-policies
       functionRef:
         name: crossplane-contrib-function-python
       input:
@@ -202,53 +202,6 @@ spec:
                       }
                   })
 
-    - step: check-if-requested-policies-exist
-      functionRef:
-        name: crossplane-contrib-function-python
-      input:
-        apiVersion: python.fn.crossplane.io/v1beta1
-        kind: Script
-        script: |
-          from crossplane.function.proto.v1 import run_function_pb2 as fnv1
-          from google.protobuf import json_format
-
-          def _to_dict(struct):
-              return {} if struct is None else (struct if isinstance(struct, dict) else json_format.MessageToDict(struct, preserving_proto_field_name=True))
-
-          def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
-              xr = _to_dict(req.observed.composite.resource)
-              meta = xr.get("metadata", {}) or {}
-              spec = xr.get("spec", {}) or {}
-              ns = meta.get("namespace") or "default"
-              principal = (spec.get("principal") or meta.get("name") or "<principal-missing>").strip()
-
-              for r in (spec.get("bucketAccessRequests") or []):
-                  bucket = (r.get("bucketName") or "").strip()
-                  if not bucket:
-                      continue
-                  polname = f"{principal}.{bucket}"
-                  key = f"observe-{principal}-{bucket}"
-                  rsp.desired.resources[key].resource.update({
-                      "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
-                      "kind": "Object",
-                      "metadata": {
-                          "name": key,
-                          "namespace": ns,
-                          "annotations": {"crossplane.io/composition-resource-name": key}
-                      },
-                      "spec": {
-                          "managementPolicies": ["Observe"],
-                          "forProvider": {
-                              "manifest": {
-                                  "apiVersion": "minio.crossplane.io/v1",
-                                  "kind": "Policy",
-                                  "metadata": {"name": polname}
-                              }
-                          },
-                          "providerConfigRef": {"name": "provider-kubernetes", "kind": "ProviderConfig"}
-                      }
-                  })
-
     - step: create-users-with-policies
       functionRef:
         name: crossplane-contrib-function-python
@@ -258,6 +211,7 @@ spec:
         script: |
           from datetime import datetime, timedelta, timezone
 
+          from crossplane.function import request, response
           from crossplane.function.proto.v1 import run_function_pb2 as fnv1
           from google.protobuf import json_format
 
@@ -317,6 +271,25 @@ spec:
 
               return ["-" + s for s in out]
 
+          def _bucket_grants_access(storage: dict, bucket: str, grantee: str) -> bool | None:
+              spec = (storage.get("spec") or {})
+              owns_bucket = any((b.get("bucketName") or "").strip() == bucket for b in (spec.get("buckets") or []))
+              if not owns_bucket:
+                  return None
+
+              decision = None
+              for grant in (spec.get("bucketAccessGrants") or []):
+                  grant_bucket = (grant.get("bucketName") or "").strip()
+                  grant_grantee = (grant.get("grantee") or "").strip()
+                  permission = (grant.get("permission") or "").strip().lower()
+                  if grant_bucket != bucket or grant_grantee != grantee:
+                      continue
+                  if permission == "none":
+                      return False
+                  if permission in ("readonly", "writeonly", "readwrite"):
+                      decision = True
+              return decision
+
           def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
               xr = _to_dict(req.observed.composite.resource)
               meta = xr.get("metadata", {}) or {}
@@ -324,6 +297,16 @@ spec:
               ns = meta.get("namespace") or "default"
 
               principal = (spec.get("principal") or meta.get("name") or "<principal-missing>").strip()
+              # Peer Storage objects are loaded by a shared label so request resolution can inspect grants.
+              response.require_resources(
+                  rsp,
+                  name="peer-storages",
+                  api_version="pkg.internal/v1beta1",
+                  kind="Storage",
+                  namespace=ns,
+                  match_labels={"storages.pkg.internal/discoverable": "true"},
+              )
+              peer_storages = request.get_required_resources(req, "peer-storages") or []
 
               policies = []
               for b in (spec.get("buckets") or []):
@@ -331,22 +314,21 @@ spec:
                   if bucket:
                       policies.append(f"{principal}.{bucket}")
 
-              observed_resources = getattr(req.observed, "resources", {}) or {}
               for r in (spec.get("bucketAccessRequests") or []):
                   bucket = (r.get("bucketName") or "").strip()
                   if not bucket:
                       continue
-                  obs_key = f"observe-{principal}-{bucket}"
-                  oc = observed_resources.get(obs_key)
-                  exists = False
-                  if oc and getattr(oc, "resource", None):
-                      od = _to_dict(oc.resource)
-                      st = (od.get("status") or {})
-                      has_manifest = bool((st.get("atProvider") or {}).get("manifest"))
-                      conds = st.get("conditions") or []
-                      is_ready = any(c.get("type") == "Ready" and str(c.get("status")).lower() == "true" for c in conds)
-                      exists = has_manifest or is_ready
-                  if exists:
+                  granted = None
+                  for peer in peer_storages:
+                      peer_meta = (peer.get("metadata") or {})
+                      if (peer_meta.get("namespace") or ns) != ns:
+                          continue
+                      if (peer_meta.get("name") or "") == meta.get("name"):
+                          continue
+                      granted = _bucket_grants_access(peer, bucket, principal)
+                      if granted is not None:
+                          break
+                  if granted:
                       policies.append(f"{principal}.{bucket}")
 
               interval, max_to_keep = _get_rollover(spec)
@@ -387,6 +369,7 @@ spec:
 
               current_user_name = f"{principal}{suffixes[0] if suffixes else '-1'}"
               obs_key = f"observe-secret-{principal}"
+              rsp.desired.resources[obs_key].ready = fnv1.READY_TRUE
               rsp.desired.resources[obs_key].resource.update({
                   "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
                   "kind": "Object",
