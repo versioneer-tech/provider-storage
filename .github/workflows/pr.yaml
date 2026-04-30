@@ -26,7 +26,7 @@ jobs:
       LIFECYCLE_WAIT_SECONDS: "75"
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Create kind cluster
         uses: helm/kind-action@v1
