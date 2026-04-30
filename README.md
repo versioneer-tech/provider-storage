@@ -11,6 +11,8 @@ The following S3 compatible storage systems are supported:
 
 ✨ For a full introduction, see the [documentation](https://versioneer-tech.github.io/provider-storage/).
 
+For local setup and MinIO end-to-end testing, see the [local setup guide](https://versioneer-tech.github.io/provider-storage/latest/how-to-guides/local_setup/).
+
 ## API Reference
 
 The published XRD with all fields is documented here:  
