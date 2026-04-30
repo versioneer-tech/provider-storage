@@ -33,7 +33,7 @@ spec:
 status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: access-key-s-john-20260424, bucket-s-john, observe-secret-s-john,
+    message: 'Unready resources: access-key-s-john-20260430, bucket-s-john, observe-secret-s-john,
       and 4 more'
     reason: Creating
     status: "False"
@@ -43,10 +43,10 @@ apiVersion: iam.aws.m.upbound.io/v1beta1
 kind: AccessKey
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: access-key-s-john-20260424
+    crossplane.io/composition-resource-name: access-key-s-john-20260430
   labels:
     crossplane.io/composite: s-john
-  name: s-john-20260424
+  name: s-john-20260430
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -58,12 +58,12 @@ metadata:
 spec:
   forProvider:
     userRef:
-      name: s-john-20260424
+      name: s-john-20260430
   providerConfigRef:
     kind: ProviderConfig
     name: provider-aws
   writeConnectionSecretToRef:
-    name: s-john-20260424
+    name: s-john-20260430
     namespace: default
 ---
 apiVersion: s3.aws.m.upbound.io/v1beta1
@@ -111,7 +111,7 @@ spec:
       apiVersion: v1
       kind: Secret
       metadata:
-        name: s-john-20260424
+        name: s-john-20260430
         namespace: default
   managementPolicies:
   - Observe
@@ -202,10 +202,10 @@ apiVersion: iam.aws.m.upbound.io/v1beta1
 kind: UserPolicyAttachment
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: upa-own-s-john-20260424-s-john
+    crossplane.io/composition-resource-name: upa-own-s-john-20260430-s-john
   labels:
     crossplane.io/composite: s-john
-  name: s-john-20260424.s-john.own
+  name: s-john-20260430.s-john.own
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -219,7 +219,7 @@ spec:
     policyArnRef:
       name: s-john.s-john
     userRef:
-      name: s-john-20260424
+      name: s-john-20260430
   providerConfigRef:
     kind: ProviderConfig
     name: provider-aws
@@ -228,10 +228,10 @@ apiVersion: iam.aws.m.upbound.io/v1beta1
 kind: User
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: user-s-john-20260424
+    crossplane.io/composition-resource-name: user-s-john-20260430
   labels:
     crossplane.io/composite: s-john
-  name: s-john-20260424
+  name: s-john-20260430
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1

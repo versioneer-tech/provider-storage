@@ -26,6 +26,7 @@ This Composition expects the following Crossplane components to be installed (ve
 
 S3 buckets are managed via **AWS** using `provider-aws`. You must supply:
 - A reachable AWS endpoint and credentials (referenced by the **`ProviderConfig`**).
+- Backend defaults such as region in the **`EnvironmentConfig`** named `storage`.
 
 ## Best practices
 

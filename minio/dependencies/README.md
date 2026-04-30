@@ -26,6 +26,7 @@ This Composition expects the following Crossplane components to be installed (ve
 
 S3 buckets are managed via **MinIO** using `provider-minio`. You must supply:
 - A reachable MinIO endpoint and credentials (referenced by the **`ProviderConfig`**).
+- Backend defaults such as endpoint and lifecycle schedule in the **`EnvironmentConfig`** named `storage`.
 
 ## Best practices
 

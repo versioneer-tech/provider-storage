@@ -63,6 +63,7 @@ See the [`examples`](examples/base) for complete scenarios, including:
 - Storage claims with multiple buckets
 - Access requests to other buckets (`bucketAccessRequests`)
 - Access grants for own buckets (`bucketAccessGrants`)
+- Bucket lifecycle rules (`lifecycleRules`)
 
 > Note: When multiple configuration packages are installed (for example, to provision both **MinIO** and **AWS**), the `Storage` claim must be labeled so it is matched with the correct provider.
 
@@ -93,6 +94,9 @@ The mechanism is provider-agnostic and consistently exposes the following enviro
 - `AWS_SECRET_ACCESS_KEY`
 
 Workloads and other compositions can mount or reference this Secret directly to authenticate against the provisioned storage backend.
+
+Bucket lifecycle rules are documented in the
+[Usage & Concepts guide](https://versioneer-tech.github.io/provider-storage/latest/how-to-guides/usage_concepts/#lifecycle-rules).
 
 ## License
 

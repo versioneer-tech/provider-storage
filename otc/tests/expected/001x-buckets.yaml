@@ -93,7 +93,7 @@ spec:
       spec:
         forProvider:
           bucket: s-joe
-          region: eu-nl
+          region: acme
         providerConfigRef:
           name: provider-otc
   providerConfigRef:
@@ -277,6 +277,8 @@ spec:
     manifest:
       apiVersion: v1
       data:
+        AWS_ENDPOINT_URL: aHR0cHM6Ly9vYnMuYWNtZQ==
+        AWS_REGION: YWNtZQ==
         KEY: dmFsdWU=
       kind: Secret
       metadata:

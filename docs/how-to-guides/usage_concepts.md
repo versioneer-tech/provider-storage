@@ -18,6 +18,16 @@ A configurable history can be kept so that **previous credentials remain valid f
 A `Storage` claim defines one or more **buckets** for a user (the `principal`).  
 Each bucket is created on the configured storage backend (MinIO, AWS S3, OTC OBS) and may optionally be marked **discoverable** so that others can see and request access for it.
 
+### Lifecycle Rules
+Buckets can optionally define lifecycle rules under `spec.buckets[].lifecycleRules`.
+Rules target either the whole bucket (`*`) or a prefix such as `tmp/*`, then either delete matching objects or report them without changing data.
+
+`Delete` removes matching objects when the time condition is met.
+`Notify` logs matching objects when the time condition is met and does not change objects.
+
+Supported `minAge` suffixes are `s` seconds, `m` minutes, `h` hours, `d` days, and `w` weeks.
+Rules may alternatively use `at` with an RFC3339 timestamp for a fixed UTC cutoff.
+
 ### Access Requests
 A user may **request access** to another user’s bucket.  
 This is expressed in the `bucketAccessRequests` section of their `Storage` claim.  
@@ -42,6 +52,8 @@ apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
   name: s-joe
+  labels:
+    storages.pkg.internal/discoverable: "true"
 spec:
   principal: s-joe
   buckets:
@@ -62,13 +74,17 @@ spec:
 
 ```yaml
 # Jeff creates two buckets, requests access to Joe's bucket,
-# and grants Joe ReadOnly access to one of his own buckets.
+# grants Joe ReadOnly access to one of his own buckets, cleans
+# tmp/ under the shared bucket after twelve hours, and notifies
+# on week-old scratch/ data.
 # Credentials are automatically rolled over every week,
 # keeping the current plus the previous credential active.
 apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
   name: s-jeff
+  labels:
+    storages.pkg.internal/discoverable: "true"
 spec:
   principal: s-jeff
   credentialsRollover:
@@ -78,6 +94,13 @@ spec:
     - bucketName: s-jeff
     - bucketName: s-jeff-shared
       discoverable: true
+      lifecycleRules:
+        - target: tmp/*
+          mode: Delete
+          minAge: 12h
+        - target: scratch/*
+          mode: Notify
+          minAge: 1w
   bucketAccessRequests:
     - bucketName: s-joe
       reason: Need access
@@ -95,6 +118,7 @@ In this example:
 - Joe requests access to `s-jeff-shared`, Jeff requests access to `s-joe`.
 - Joe grants Jeff **ReadWrite** access to `s-joe`.
 - Jeff grants Joe **ReadOnly** access to `s-jeff-shared`.
+- Jeff cleans `tmp/` in `s-jeff-shared` and reports week-old `scratch/` objects.
 
 ---
 
@@ -128,13 +152,15 @@ This shows that a `Storage` claim may consist solely of access requests without 
 ## Example: John responding to Jane
 
 ```yaml
-# John owns s-john. He grants Jane WriteOnly access to his bucket after her request.
+# John owns s-john. He grants Jane ReadWrite access to his bucket even she requested WriteOnly access.
 # His request to s-jane cannot resolve until that bucket exists.
 # Credentials are automatically rolled over every day.
 apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
   name: s-john
+  labels:
+    storages.pkg.internal/discoverable: "true"
 spec:
   principal: s-john
   credentialsRollover:
@@ -155,14 +181,14 @@ spec:
   bucketAccessGrants:
     - bucketName: s-john
       grantee: s-jane
-      permission: None
+      permission: ReadWrite
       grantedAt: "2025-09-29T10:28:00Z"
 ```
 
 In this scenario:
 
 - Jane requests **WriteOnly** access to `s-john`.
-- John grants it, so the request becomes effective.
+- John grants **ReadWrite** access, so Jane receives broader access than she requested.
 - The system reconciles and attaches the effective permission.
 
 ---
@@ -227,9 +253,7 @@ kubectl get secret joe -n workspace -o jsonpath='{.data.AWS_ACCESS_KEY_ID}' | ba
 kubectl get secret joe -n workspace -o jsonpath='{.data.AWS_SECRET_ACCESS_KEY}' | base64 -d; echo
 ```
 
-**Key names by provider:**
-- **MinIO / AWS**: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`
-- **OTC**: `attribute.access`, `attribute.secret`
+All providers expose `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` in the normalized Secret.
 
 You can now use these credentials with any S3-compatible tool, e.g.:
 
@@ -242,6 +266,7 @@ aws s3 ls s3://s-joe
 ## Summary
 
 - A `Storage` claim defines buckets, access requests, and access grants.  
+- Lifecycle rules can delete or report objects by target prefix and age.
 - Requests only take effect once the bucket owner provides a matching grant.  
 - Every claim produces a Secret in the same namespace with the **principal’s name**.  
 - Check `kubectl get storages` for readiness and inspect the Secret for connection info.  

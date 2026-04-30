@@ -1,6 +1,6 @@
 # Dependencies
 
-These manifests declare the dependencies required for the **`storage-aws`** Composition.  
+These manifests declare the dependencies required for the **`storage-otc`** Composition.
 They set up the Crossplane runtime (providers, configs, and permissions) that the Storage resources rely on.
 
 ## Runtime prerequisites
@@ -12,8 +12,7 @@ They set up the Crossplane runtime (providers, configs, and permissions) that th
 This Composition expects the following Crossplane components to be installed (versions are examples — pin to the versions you have validated):
 
 - **Providers**
-  - `provider-aws-s3` (e.g., `xpkg.upbound.io/upbound/provider-aws-s3:v2.1.0`)
-  - `provider-aws-iam` (e.g., `xpkg.upbound.io/upbound/provider-aws-iam:v2.1.0`)
+  - `provider-opentelekomcloud` (pin to the version you have validated)
   - `provider-kubernetes` (e.g., `xpkg.upbound.io/crossplane-contrib/provider-kubernetes:v1.0.0`)
 
 - **Functions**
@@ -22,10 +21,11 @@ This Composition expects the following Crossplane components to be installed (ve
 
   > Pin exact versions (or digests) and upgrade intentionally.
 
-## AWS notes
+## OTC notes
 
-S3 buckets are managed via **AWS** using `provider-aws`. You must supply:
-- A reachable AWS endpoint and credentials (referenced by the **`ProviderConfig`**).
+S3-compatible buckets are managed via **OTC OBS** using `provider-otc`. You must supply:
+- OTC credentials referenced by the **`ProviderConfig`**.
+- Backend defaults such as OBS endpoint and region in the **`EnvironmentConfig`** named `storage`.
 
 ## Best practices
 

@@ -18,3 +18,13 @@ spec:
     grantee: s-joe
     permission: ReadOnly
     grantedAt: "2025-09-29T10:15:00Z"
+---
+apiVersion: apiextensions.crossplane.io/v1beta1
+kind: EnvironmentConfig
+metadata:
+  name: storage
+data:
+  storage:
+    provider: AWS
+    region: eu-west-1
+    type: s3

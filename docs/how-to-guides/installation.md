@@ -26,7 +26,7 @@ Everything in this guide is **namespaced**:
 helm repo add crossplane-stable https://charts.crossplane.io/stable
 helm repo update
 helm install crossplane
-  --namespace crossplane-system
+  --namespace crossplane
   --create-namespace crossplane-stable/crossplane
   --version 2.0.2
   --set provider.defaultActivations={}
@@ -51,12 +51,13 @@ Repository root: <https://github.com/versioneer-tech/provider-storage/>
 
 ### MinIO
 
-> You operate a MinIO endpoint yourself (same/different cluster or DC). For a one-stop local dev on `kind`, see the guide around [**Local Setup**](how-to-guides/local_setup.md).
+> You operate a MinIO endpoint yourself (same/different cluster or DC). For a one-stop local dev on `kind`, see the guide around [**Local Setup**](local_setup.md).
 
 - [00-mrap.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/minio/dependencies/00-mrap.yaml) – Activate MinIO-specific Managed Resources.
 - [01-deploymentRuntimeConfigs.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/minio/dependencies/01-deploymentRuntimeConfigs.yaml) – Runtime configs for providers/functions.
 - [02-providers.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/minio/dependencies/02-providers.yaml) – Install `provider-minio` and `provider-kubernetes`.
 - [03-providerConfigs.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/minio/dependencies/03-providerConfigs.yaml) – **Apply in your target namespace** (e.g., `workspace`); points to your MinIO endpoint/credentials.
+- [04-environmentConfigs.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/minio/dependencies/04-environmentConfigs.yaml) – Backend settings consumed by the composition.
 - [functions.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/minio/dependencies/functions.yaml) – Functions used by compositions.
 - [rbac.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/minio/dependencies/rbac.yaml) – RBAC for `provider-kubernetes`.
 
@@ -68,6 +69,7 @@ Repository root: <https://github.com/versioneer-tech/provider-storage/>
 - [01-deploymentRuntimeConfigs.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/aws/dependencies/01-deploymentRuntimeConfigs.yaml) – Runtime configs for AWS + Kubernetes providers.
 - [02-providers.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/aws/dependencies/02-providers.yaml) – Install `provider-upjet-aws` and `provider-kubernetes`.
 - [03-providerConfigs.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/aws/dependencies/03-providerConfigs.yaml) – **Apply in your target namespace**; references AWS credentials Secret.
+- [04-environmentConfigs.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/aws/dependencies/04-environmentConfigs.yaml) – Backend settings consumed by the composition.
 - [functions.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/aws/dependencies/functions.yaml) – Functions used by compositions.
 - [rbac.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/aws/dependencies/rbac.yaml) – RBAC for `provider-kubernetes`.
 
@@ -79,6 +81,7 @@ Repository root: <https://github.com/versioneer-tech/provider-storage/>
 - [01-deploymentRuntimeConfigs.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/otc/dependencies/01-deploymentRuntimeConfigs.yaml) – Runtime configs for OTC + Kubernetes providers.
 - [02-providers.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/otc/dependencies/02-providers.yaml) – Install OTC provider(s) and `provider-kubernetes`.
 - [03-providerConfigs.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/otc/dependencies/03-providerConfigs.yaml) – **Apply in your target namespace**; references OTC credentials Secret.
+- [04-environmentConfigs.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/otc/dependencies/04-environmentConfigs.yaml) – Backend settings consumed by the composition.
 - [functions.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/otc/dependencies/functions.yaml) – Functions used by compositions.
 - [rbac.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/otc/dependencies/rbac.yaml) – RBAC for `provider-kubernetes`.
 

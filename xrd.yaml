@@ -84,6 +84,54 @@ spec:
                           If true, the bucket is advertised for discovery by other
                           principals. Defaults to false when omitted.
                         default: false
+                      lifecycleRules:
+                        type: array
+                        description: >
+                          Optional lifecycle rules for objects in this bucket. Rules
+                          are keyed by target and determine whether matching objects
+                          are reported or deleted either after a relative age or once
+                          a fixed timestamp has been reached.
+                        x-kubernetes-list-type: map
+                        x-kubernetes-list-map-keys: ["target"]
+                        items:
+                          type: object
+                          x-kubernetes-validations:
+                            - rule: "has(self.minAge) != has(self.at)"
+                              message: "Lifecycle rules must set exactly one of minAge or at."
+                          properties:
+                            target:
+                              type: string
+                              description: >
+                                Target path inside the bucket. Use * for the whole
+                                bucket, or a prefix ending in * such as tmp/*.
+                              pattern: ^(\*|[^*]+(\*)?)$
+                            mode:
+                              type: string
+                              description: >
+                                Notify reports that a matching lifecycle target is
+                                present when the time condition is met without
+                                changing objects. Delete removes matching objects
+                                when the time condition is met.
+                              enum:
+                                - Notify
+                                - Delete
+                            minAge:
+                              type: string
+                              description: >
+                                Per-object minimum age for Delete rules, for example
+                                30s, 15m, 2h, 1d, or 2w. Supported suffixes are
+                                s for seconds, m for minutes, h for hours, d for
+                                days, and w for weeks.
+                              pattern: ^\+?[0-9]+[smhdw]$
+                            at:
+                              type: string
+                              format: date-time
+                              description: >
+                                Fixed UTC timestamp after which Delete rules remove
+                                all matching objects.
+                          required:
+                            - target
+                            - mode
                     required:
                       - bucketName
                 bucketAccessRequests:

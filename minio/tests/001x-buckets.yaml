@@ -212,6 +212,9 @@ spec:
     manifest:
       apiVersion: v1
       data:
+        AWS_ENDPOINT_URL: aHR0cHM6Ly9zMy5hY21l
+        AWS_REGION: YWNtZQ==
+        AWS_S3_FORCE_PATH_STYLE: dHJ1ZQ==
         KEY: dmFsdWU=
       kind: Secret
       metadata:

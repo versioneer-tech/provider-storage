@@ -21,6 +21,7 @@ At its core, Provider Storage provides:
 - A **Storage Composite Resource Definition (XRD)**  
 - **Compositions** to provision buckets, manage access, and reconcile credentials  
 - Support for **cross-user sharing** and collaboration  
+- **Bucket lifecycle rules** for object cleanup by prefix and age
 
 With Provider Storage, storage becomes **declarative, multi-tenant, and self-service**, all while staying under operator control.
 ---
@@ -81,13 +82,9 @@ This will provision a bucket named **`wonderland`**, along with the required clo
 
 For each `Storage` resource, a Secret is created in the same namespace, containing credentials for the selected backend.
 
-- **MinIO, AWS**:  
+- **MinIO, AWS, OTC**:
   - `AWS_ACCESS_KEY_ID`  
   - `AWS_SECRET_ACCESS_KEY`
-
-- **OTC**:  
-  - `attribute.access`  
-  - `attribute.secret`
 
 Use these secrets in your workloads to connect directly to the provisioned storage with standard S3 tooling, for example:
 
@@ -102,3 +99,32 @@ Check the [examples folder](https://github.com/versioneer-tech/provider-storage/
 
 - Storage claims with multiple buckets
 - Cross-team access requests and grants
+
+### Lifecycle Rules
+
+Lifecycle rules are defined per bucket under `spec.buckets[].lifecycleRules`.
+
+```yaml
+spec:
+  buckets:
+    - bucketName: s-jeff-shared
+      discoverable: true
+      lifecycleRules:
+        - target: tmp/*
+          mode: Delete
+          minAge: 12h
+        - target: scratch/*
+          mode: Notify
+          minAge: 1w
+```
+
+`Delete` removes matching objects when the time condition is met. `Notify` logs
+matching objects when the time condition is met and does not change objects.
+
+Supported `minAge` suffixes:
+
+- `s` seconds
+- `m` minutes
+- `h` hours
+- `d` days
+- `w` weeks

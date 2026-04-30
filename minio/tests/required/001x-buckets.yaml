@@ -18,3 +18,16 @@ spec:
     grantee: s-joe
     permission: ReadOnly
     grantedAt: "2025-09-29T10:15:00Z"
+---
+apiVersion: apiextensions.crossplane.io/v1beta1
+kind: EnvironmentConfig
+metadata:
+  name: storage
+data:
+  storage:
+    endpoint: https://s3.acme
+    force_path_style: "true"
+    provider: Other
+    region: acme
+    secretNamespace: datalab
+    type: s3

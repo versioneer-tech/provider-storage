@@ -35,7 +35,7 @@ Install Crossplane into the cluster using Helm:
 helm repo add crossplane-stable https://charts.crossplane.io/stable
 helm repo update
 helm install crossplane
-  --namespace crossplane-system
+  --namespace crossplane
   --create-namespace crossplane-stable/crossplane
   --version 2.0.2 
   --set provider.defaultActivations={}
@@ -101,8 +101,9 @@ Apply the provider dependency files from the repo (in order):
 - [01-deploymentRuntimeConfigs.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/minio/dependencies/01-deploymentRuntimeConfigs.yaml)  
 - [02-providers.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/minio/dependencies/02-providers.yaml)  
 - [03-providerConfigs.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/minio/dependencies/03-providerConfigs.yaml) *(apply in your target namespace, e.g. `workspace`)*  
+- [04-environmentConfigs.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/minio/dependencies/04-environmentConfigs.yaml)
 - [functions.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/minio/dependencies/functions.yaml)  
-- [rbac.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/minio/dependencies/rbac.yaml)  
+- [rbac.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/minio/dependencies/rbac.yaml)
 
 These configure the MinIO provider, Kubernetes provider, and required permissions.
 

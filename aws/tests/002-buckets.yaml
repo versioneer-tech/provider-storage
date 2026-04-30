@@ -22,6 +22,13 @@ spec:
   - bucketName: s-jeff
   - bucketName: s-jeff-shared
     discoverable: true
+    lifecycleRules:
+    - minAge: 12h
+      mode: Delete
+      target: tmp/*
+    - minAge: 1w
+      mode: Notify
+      target: scratch/*
   credentialsRollover:
     interval: weekly
     maxToKeep: 2
@@ -29,38 +36,11 @@ spec:
 status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: access-key-s-jeff-2026w16, access-key-s-jeff-2026w17,
-      bucket-s-jeff, and 11 more'
+    message: 'Unready resources: access-key-s-jeff-2026w17, access-key-s-jeff-2026w18,
+      bucket-s-jeff, and 13 more'
     reason: Creating
     status: "False"
     type: Ready
----
-apiVersion: iam.aws.m.upbound.io/v1beta1
-kind: AccessKey
-metadata:
-  annotations:
-    crossplane.io/composition-resource-name: access-key-s-jeff-2026w16
-  labels:
-    crossplane.io/composite: s-jeff
-  name: s-jeff-2026w16
-  namespace: default
-  ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-jeff
-    uid: ""
-spec:
-  forProvider:
-    userRef:
-      name: s-jeff-2026w16
-  providerConfigRef:
-    kind: ProviderConfig
-    name: provider-aws
-  writeConnectionSecretToRef:
-    name: s-jeff-2026w16
-    namespace: default
 ---
 apiVersion: iam.aws.m.upbound.io/v1beta1
 kind: AccessKey
@@ -87,6 +67,33 @@ spec:
     name: provider-aws
   writeConnectionSecretToRef:
     name: s-jeff-2026w17
+    namespace: default
+---
+apiVersion: iam.aws.m.upbound.io/v1beta1
+kind: AccessKey
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: access-key-s-jeff-2026w18
+  labels:
+    crossplane.io/composite: s-jeff
+  name: s-jeff-2026w18
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-jeff
+    uid: ""
+spec:
+  forProvider:
+    userRef:
+      name: s-jeff-2026w18
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-aws
+  writeConnectionSecretToRef:
+    name: s-jeff-2026w18
     namespace: default
 ---
 apiVersion: s3.aws.m.upbound.io/v1beta1
@@ -139,6 +146,169 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
+    crossplane.io/composition-resource-name: lifecycle-config-s-jeff
+  labels:
+    crossplane.io/composite: s-jeff
+  name: lifecycle-config-s-jeff
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-jeff
+    uid: ""
+spec:
+  forProvider:
+    manifest:
+      apiVersion: v1
+      data:
+        rule-01.sh: |
+          #!/bin/sh
+          set -eu
+          exec rclone delete storage:s-jeff-shared/tmp/ --min-age 12h --fast-list --s3-no-check-bucket
+        rule-02.sh: |
+          #!/bin/sh
+          set -eu
+          exec rclone lsf storage:s-jeff-shared/scratch/ --recursive --min-age 1w --fast-list --s3-no-check-bucket
+      kind: ConfigMap
+      metadata:
+        name: s-jeff-lifecycle
+        namespace: default
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-kubernetes
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: lifecycle-cron-s-jeff
+  labels:
+    crossplane.io/composite: s-jeff
+  name: lifecycle-cron-s-jeff
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-jeff
+    uid: ""
+spec:
+  forProvider:
+    manifest:
+      apiVersion: batch/v1
+      kind: CronJob
+      metadata:
+        labels:
+          app.kubernetes.io/name: storage-lifecycle
+          storages.pkg.internal/principal: s-jeff
+        name: s-jeff-lifecycle
+        namespace: default
+      spec:
+        concurrencyPolicy: Forbid
+        failedJobsHistoryLimit: 1
+        jobTemplate:
+          spec:
+            template:
+              spec:
+                automountServiceAccountToken: false
+                containers:
+                - command:
+                  - /bin/sh
+                  - /opt/lifecycle/run.sh
+                  env:
+                  - name: RCLONE_CONFIG_STORAGE_TYPE
+                    value: s3
+                  - name: RCLONE_CONFIG_STORAGE_PROVIDER
+                    value: AWS
+                  - name: RCLONE_CONFIG_STORAGE_REGION
+                    value: eu-central-1
+                  - name: RCLONE_CONFIG_STORAGE_ACCESS_KEY_ID
+                    valueFrom:
+                      secretKeyRef:
+                        key: AWS_ACCESS_KEY_ID
+                        name: s-jeff
+                  - name: RCLONE_CONFIG_STORAGE_SECRET_ACCESS_KEY
+                    valueFrom:
+                      secretKeyRef:
+                        key: AWS_SECRET_ACCESS_KEY
+                        name: s-jeff
+                  - name: STORAGE_LIFECYCLE_BUCKET
+                    value: s-jeff-shared
+                  - name: STORAGE_LIFECYCLE_TARGET
+                    value: tmp/
+                  image: rclone/rclone:1.69
+                  imagePullPolicy: IfNotPresent
+                  name: lifecycle-01
+                  resources:
+                    limits:
+                      cpu: 250m
+                      memory: 256Mi
+                    requests:
+                      cpu: 50m
+                      memory: 64Mi
+                  volumeMounts:
+                  - mountPath: /opt/lifecycle/run.sh
+                    name: lifecycle-scripts
+                    readOnly: true
+                    subPath: rule-01.sh
+                - command:
+                  - /bin/sh
+                  - /opt/lifecycle/run.sh
+                  env:
+                  - name: RCLONE_CONFIG_STORAGE_TYPE
+                    value: s3
+                  - name: RCLONE_CONFIG_STORAGE_PROVIDER
+                    value: AWS
+                  - name: RCLONE_CONFIG_STORAGE_REGION
+                    value: eu-central-1
+                  - name: RCLONE_CONFIG_STORAGE_ACCESS_KEY_ID
+                    valueFrom:
+                      secretKeyRef:
+                        key: AWS_ACCESS_KEY_ID
+                        name: s-jeff
+                  - name: RCLONE_CONFIG_STORAGE_SECRET_ACCESS_KEY
+                    valueFrom:
+                      secretKeyRef:
+                        key: AWS_SECRET_ACCESS_KEY
+                        name: s-jeff
+                  - name: STORAGE_LIFECYCLE_BUCKET
+                    value: s-jeff-shared
+                  - name: STORAGE_LIFECYCLE_TARGET
+                    value: scratch/
+                  image: rclone/rclone:1.69
+                  imagePullPolicy: IfNotPresent
+                  name: lifecycle-02
+                  resources:
+                    limits:
+                      cpu: 250m
+                      memory: 256Mi
+                    requests:
+                      cpu: 50m
+                      memory: 64Mi
+                  volumeMounts:
+                  - mountPath: /opt/lifecycle/run.sh
+                    name: lifecycle-scripts
+                    readOnly: true
+                    subPath: rule-02.sh
+                restartPolicy: OnFailure
+                volumes:
+                - configMap:
+                    defaultMode: 493
+                    name: s-jeff-lifecycle
+                  name: lifecycle-scripts
+        schedule: 17 2 * * *
+        successfulJobsHistoryLimit: 1
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-kubernetes
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  annotations:
     crossplane.io/composition-resource-name: observe-secret-s-jeff
   labels:
     crossplane.io/composite: s-jeff
@@ -157,7 +327,7 @@ spec:
       apiVersion: v1
       kind: Secret
       metadata:
-        name: s-jeff-2026w17
+        name: s-jeff-2026w18
         namespace: default
   managementPolicies:
   - Observe
@@ -291,58 +461,6 @@ apiVersion: iam.aws.m.upbound.io/v1beta1
 kind: UserPolicyAttachment
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: upa-own-s-jeff-2026w16-s-jeff
-  labels:
-    crossplane.io/composite: s-jeff
-  name: s-jeff-2026w16.s-jeff.own
-  namespace: default
-  ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-jeff
-    uid: ""
-spec:
-  forProvider:
-    policyArnRef:
-      name: s-jeff.s-jeff
-    userRef:
-      name: s-jeff-2026w16
-  providerConfigRef:
-    kind: ProviderConfig
-    name: provider-aws
----
-apiVersion: iam.aws.m.upbound.io/v1beta1
-kind: UserPolicyAttachment
-metadata:
-  annotations:
-    crossplane.io/composition-resource-name: upa-own-s-jeff-2026w16-s-jeff-shared
-  labels:
-    crossplane.io/composite: s-jeff
-  name: s-jeff-2026w16.s-jeff-shared.own
-  namespace: default
-  ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-jeff
-    uid: ""
-spec:
-  forProvider:
-    policyArnRef:
-      name: s-jeff.s-jeff-shared
-    userRef:
-      name: s-jeff-2026w16
-  providerConfigRef:
-    kind: ProviderConfig
-    name: provider-aws
----
-apiVersion: iam.aws.m.upbound.io/v1beta1
-kind: UserPolicyAttachment
-metadata:
-  annotations:
     crossplane.io/composition-resource-name: upa-own-s-jeff-2026w17-s-jeff
   labels:
     crossplane.io/composite: s-jeff
@@ -392,13 +510,65 @@ spec:
     name: provider-aws
 ---
 apiVersion: iam.aws.m.upbound.io/v1beta1
+kind: UserPolicyAttachment
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: upa-own-s-jeff-2026w18-s-jeff
+  labels:
+    crossplane.io/composite: s-jeff
+  name: s-jeff-2026w18.s-jeff.own
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-jeff
+    uid: ""
+spec:
+  forProvider:
+    policyArnRef:
+      name: s-jeff.s-jeff
+    userRef:
+      name: s-jeff-2026w18
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-aws
+---
+apiVersion: iam.aws.m.upbound.io/v1beta1
+kind: UserPolicyAttachment
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: upa-own-s-jeff-2026w18-s-jeff-shared
+  labels:
+    crossplane.io/composite: s-jeff
+  name: s-jeff-2026w18.s-jeff-shared.own
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-jeff
+    uid: ""
+spec:
+  forProvider:
+    policyArnRef:
+      name: s-jeff.s-jeff-shared
+    userRef:
+      name: s-jeff-2026w18
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-aws
+---
+apiVersion: iam.aws.m.upbound.io/v1beta1
 kind: User
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: user-s-jeff-2026w16
+    crossplane.io/composition-resource-name: user-s-jeff-2026w17
   labels:
     crossplane.io/composite: s-jeff
-  name: s-jeff-2026w16
+  name: s-jeff-2026w17
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -417,10 +587,10 @@ apiVersion: iam.aws.m.upbound.io/v1beta1
 kind: User
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: user-s-jeff-2026w17
+    crossplane.io/composition-resource-name: user-s-jeff-2026w18
   labels:
     crossplane.io/composite: s-jeff
-  name: s-jeff-2026w17
+  name: s-jeff-2026w18
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1

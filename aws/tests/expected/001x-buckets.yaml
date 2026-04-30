@@ -76,7 +76,7 @@ metadata:
     uid: ""
 spec:
   forProvider:
-    region: eu-central-1
+    region: eu-west-1
   providerConfigRef:
     kind: ProviderConfig
     name: provider-aws
@@ -211,6 +211,7 @@ spec:
     manifest:
       apiVersion: v1
       data:
+        AWS_REGION: ZXUtd2VzdC0x
         KEY: dmFsdWU=
       kind: Secret
       metadata:

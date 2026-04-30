@@ -2,7 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # Jeff creates two buckets, requests access to Joe's bucket,
-# and grants Joe ReadOnly access to one of his own buckets.
+# grants Joe ReadOnly access to one of his own buckets, cleans
+# tmp/ under the shared bucket after twelve hours, and notifies
+# on week-old scratch/ data.
 # Credentials are automatically rolled over every week,
 # keeping the current plus the previous credential active.
 apiVersion: pkg.internal/v1beta1
@@ -20,6 +22,13 @@ spec:
     - bucketName: s-jeff
     - bucketName: s-jeff-shared
       discoverable: true
+      lifecycleRules:
+        - target: tmp/*
+          mode: Delete
+          minAge: 12h
+        - target: scratch/*
+          mode: Notify
+          minAge: 1w
   bucketAccessRequests:
     - bucketName: s-joe
       reason: Need access

@@ -13,6 +13,45 @@ spec:
     kind: Storage
   mode: Pipeline
   pipeline:
+    - step: load-storage-environment
+      functionRef:
+        name: crossplane-contrib-function-python
+      input:
+        apiVersion: python.fn.crossplane.io/v1beta1
+        kind: Script
+        script: |
+          from crossplane.function import request, response, resource
+          from crossplane.function.proto.v1 import run_function_pb2 as fnv1
+          from google.protobuf import json_format
+
+          ENVIRONMENT_KEY = "apiextensions.crossplane.io/environment"
+
+          def to_dict(x):
+              return {} if x is None else (x if isinstance(x, dict) else json_format.MessageToDict(x, preserving_proto_field_name=True))
+
+          def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
+              xr = to_dict(req.observed.composite.resource)
+              meta = xr.get("metadata", {}) or {}
+              annotations = meta.get("annotations", {}) or {}
+              labels = meta.get("labels", {}) or {}
+              env_name = (
+                  annotations.get("storages.pkg.internal/environment")
+                  or labels.get("storages.pkg.internal/environment")
+                  or "storage"
+              ).strip() or "storage"
+
+              response.require_resources(
+                  rsp,
+                  name="storage-environment",
+                  api_version="apiextensions.crossplane.io/v1beta1",
+                  kind="EnvironmentConfig",
+                  match_name=env_name,
+              )
+
+              environment = request.get_required_resource(req, "storage-environment") or {}
+              environment_data = (environment.get("data") or {})
+              rsp.context.MergeFrom(resource.dict_to_struct({ENVIRONMENT_KEY: environment_data}))
+
     - step: create-users
       functionRef:
         name: crossplane-contrib-function-python
@@ -21,6 +60,7 @@ spec:
         kind: Script
         script: |
           from datetime import datetime, timedelta, timezone
+
           from crossplane.function.proto.v1 import run_function_pb2 as fnv1
           from google.protobuf import json_format
 
@@ -127,6 +167,7 @@ spec:
         kind: Script
         script: |
           from datetime import datetime, timedelta, timezone
+
           from crossplane.function.proto.v1 import run_function_pb2 as fnv1
           from google.protobuf import json_format
 
@@ -261,6 +302,8 @@ spec:
           from crossplane.function.proto.v1 import run_function_pb2 as fnv1
           from google.protobuf import json_format
 
+          ENVIRONMENT_KEY = "apiextensions.crossplane.io/environment"
+
           def to_dict(x):
               return {} if x is None else (x if isinstance(x, dict) else json_format.MessageToDict(x, preserving_proto_field_name=True))
 
@@ -268,8 +311,11 @@ spec:
               xr = to_dict(req.observed.composite.resource)
               meta = xr.get("metadata", {}) or {}
               spec = xr.get("spec", {}) or {}
+              ctx = to_dict(req.context)
+              env = (ctx.get(ENVIRONMENT_KEY) or {})
+              storage_env = (env.get("storage") or {})
               ns = (meta.get("labels", {}) or {}).get("crossplane.io/claim-namespace") or meta.get("namespace") or "default"
-              region = (spec.get("region") or "eu-nl").strip()
+              region = (storage_env.get("region") or spec.get("region") or "eu-nl").strip()
               for b in (spec.get("buckets") or []):
                   bucket = (b.get("bucketName") or "").strip()
                   if not bucket:
@@ -603,12 +649,19 @@ spec:
         apiVersion: python.fn.crossplane.io/v1beta1
         kind: Script
         script: |
+          import base64
           from datetime import datetime, timedelta, timezone
+
           from crossplane.function.proto.v1 import run_function_pb2 as fnv1
           from google.protobuf import json_format
 
+          ENVIRONMENT_KEY = "apiextensions.crossplane.io/environment"
+
           def to_dict(x):
               return {} if x is None else (x if isinstance(x, dict) else json_format.MessageToDict(x, preserving_proto_field_name=True))
+
+          def _b64(value):
+              return base64.b64encode(str(value).encode("utf-8")).decode("utf-8")
 
           def _get_rollover(spec: dict) -> tuple[str, int]:
               cfg = (spec.get("credentialsRollover") or {})
@@ -666,6 +719,9 @@ spec:
               xr = to_dict(req.observed.composite.resource)
               meta = xr.get("metadata", {}) or {}
               spec = xr.get("spec", {}) or {}
+              ctx = to_dict(req.context)
+              env = (ctx.get(ENVIRONMENT_KEY) or {})
+              storage_env = (env.get("storage") or {})
               ns = (meta.get("labels", {}) or {}).get("crossplane.io/claim-namespace") or meta.get("namespace") or "default"
               principal = (spec.get("principal") or meta.get("name") or "").strip()
               if not principal:
@@ -690,6 +746,25 @@ spec:
               if not isinstance(data, dict) or not data:
                   return
 
+              access_key = data.get("AWS_ACCESS_KEY_ID") or data.get("attribute.access") or data.get("access")
+              secret_key = data.get("AWS_SECRET_ACCESS_KEY") or data.get("attribute.secret") or data.get("secret")
+              if access_key:
+                  data["AWS_ACCESS_KEY_ID"] = access_key
+              if secret_key:
+                  data["AWS_SECRET_ACCESS_KEY"] = secret_key
+
+              region = (storage_env.get("region") or spec.get("region") or "eu-nl").strip()
+              endpoint = (storage_env.get("endpoint") or "").strip()
+              if not endpoint and region:
+                  endpoint = f"https://obs.{region}.otc.t-systems.com"
+              force_path_style = storage_env.get("force_path_style")
+              if endpoint:
+                  data["AWS_ENDPOINT_URL"] = _b64(endpoint)
+              if region:
+                  data["AWS_REGION"] = _b64(region)
+              if force_path_style not in (None, ""):
+                  data["AWS_S3_FORCE_PATH_STYLE"] = _b64(force_path_style)
+
               key = f"secret-{principal}"
               secret_name = f"{principal}"
               rsp.desired.resources[key].resource.update({
@@ -708,6 +783,266 @@ spec:
                               "metadata": {"name": secret_name, "namespace": ns},
                               "type": "Opaque",
                               "data": data,
+                          }
+                      },
+                      "providerConfigRef": {"name": "provider-kubernetes", "kind": "ProviderConfig"}
+                  }
+              })
+
+    - step: manage-lifecycle-rules
+      functionRef:
+        name: crossplane-contrib-function-python
+      input:
+        apiVersion: python.fn.crossplane.io/v1beta1
+        kind: Script
+        script: |
+          from datetime import datetime
+          import shlex
+
+          from crossplane.function.proto.v1 import run_function_pb2 as fnv1
+          from google.protobuf import json_format
+
+          ENVIRONMENT_KEY = "apiextensions.crossplane.io/environment"
+
+          def to_dict(x):
+              return {} if x is None else (x if isinstance(x, dict) else json_format.MessageToDict(x, preserving_proto_field_name=True))
+
+          def _normalize_target(target: str) -> str | None:
+              value = (target or "").strip()
+              if not value:
+                  return None
+              if value == "*":
+                  return ""
+              if "*" in value[:-1]:
+                  return None
+              if value.endswith("*"):
+                  value = value[:-1]
+              return value.lstrip("/")
+
+          def _normalize_after(value: str) -> str:
+              rel = (value or "").strip()
+              if rel.startswith("+"):
+                  rel = rel[1:]
+              if not rel:
+                  return rel
+              unit = rel[-1]
+              if unit in ("S", "s", "M", "m", "H", "h", "D", "d", "W", "w"):
+                  return rel[:-1] + unit.lower()
+              return rel
+
+          def _parse_at_epoch(value: str) -> int | None:
+              timestamp = (value or "").strip()
+              if not timestamp:
+                  return None
+              if timestamp.endswith("Z"):
+                  timestamp = timestamp[:-1] + "+00:00"
+              try:
+                  return int(datetime.fromisoformat(timestamp).timestamp())
+              except Exception:
+                  return None
+
+          def _build_script(bucket: str, rule: dict) -> str:
+              mode = (rule.get("mode") or "").strip()
+              target = _normalize_target(rule.get("target") or "")
+              remote_path = bucket if not target else f"{bucket}/{target}"
+              remote = shlex.quote(f"storage:{remote_path}")
+              target_display = target or "*"
+
+              min_age = (rule.get("minAge") or "").strip()
+              at = (rule.get("at") or "").strip()
+              if min_age:
+                  min_age = _normalize_after(min_age)
+                  action = "lsf" if mode == "Notify" else "delete"
+                  recursive = " --recursive" if mode == "Notify" else ""
+                  return "\n".join([
+                      "#!/bin/sh",
+                      "set -eu",
+                      f"exec rclone {action} {remote}{recursive} --min-age {shlex.quote(min_age)} --fast-list --s3-no-check-bucket",
+                  ]) + "\n"
+
+              at_epoch = _parse_at_epoch(at)
+              if at_epoch is None:
+                  return "\n".join([
+                      "#!/bin/sh",
+                      "set -eu",
+                      f"echo {shlex.quote(f'Invalid lifecycle timestamp for {bucket}/{target_display}; skipping.')}",
+                  ]) + "\n"
+              return "\n".join([
+                  "#!/bin/sh",
+                  "set -eu",
+                  'now="$(date -u +%s)"',
+                  f'cutoff="{at_epoch}"',
+                  'if [ "$now" -lt "$cutoff" ]; then',
+                  "  exit 0",
+                  "fi",
+                  f"exec rclone {'lsf' if mode == 'Notify' else 'delete'} {remote}{' --recursive' if mode == 'Notify' else ''} --fast-list --s3-no-check-bucket",
+              ]) + "\n"
+
+          def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
+              xr = to_dict(req.observed.composite.resource)
+              meta = xr.get("metadata", {}) or {}
+              spec = xr.get("spec", {}) or {}
+              ctx = to_dict(req.context)
+              env = (ctx.get(ENVIRONMENT_KEY) or {})
+              storage_env = (env.get("storage") or {})
+              ns = (meta.get("labels", {}) or {}).get("crossplane.io/claim-namespace") or meta.get("namespace") or "default"
+              principal = (spec.get("principal") or meta.get("name") or "<principal-missing>").strip()
+
+              rules = []
+              for bucket_cfg in (spec.get("buckets") or []):
+                  bucket = (bucket_cfg.get("bucketName") or "").strip()
+                  if not bucket:
+                      continue
+                  for index, rule in enumerate(bucket_cfg.get("lifecycleRules") or [], start=1):
+                      target = _normalize_target(rule.get("target") or "")
+                      if target is None:
+                          continue
+                      rules.append({
+                          "bucket": bucket,
+                          "index": index,
+                          "target": target,
+                          "mode": (rule.get("mode") or "").strip(),
+                          "minAge": (rule.get("minAge") or "").strip(),
+                          "at": (rule.get("at") or "").strip(),
+                      })
+
+              if not rules:
+                  return
+
+              storage_type = (storage_env.get("type") or "").strip() or "s3"
+              storage_provider = (storage_env.get("provider") or "").strip() or "Other"
+              storage_region = (storage_env.get("region") or spec.get("region") or "eu-nl").strip()
+              endpoint = (storage_env.get("endpoint") or "").strip()
+              if not endpoint and storage_region:
+                  endpoint = f"https://obs.{storage_region}.otc.t-systems.com"
+              lifecycle = (storage_env.get("lifecycle") or {})
+              schedule = (lifecycle.get("schedule") or "").strip() or "17 2 * * *"
+              force_path_style = storage_env.get("force_path_style")
+              if force_path_style not in (None, ""):
+                  force_path_style = str(force_path_style)
+              image = "rclone/rclone:1.69"
+              for package in (env.get("packages") or []):
+                  if (package.get("name") or "").strip() != "rclone":
+                      continue
+                  for file_entry in (package.get("files") or []):
+                      image_url = (((file_entry.get("image") or {}).get("url")) or "").strip()
+                      if image_url:
+                          image = image_url
+                          break
+                  break
+
+              scripts = {}
+              containers = []
+              for idx, rule in enumerate(rules, start=1):
+                  key = f"rule-{idx:02d}.sh"
+                  display_target = rule["target"] or "*"
+                  scripts[key] = _build_script(rule["bucket"], rule)
+                  container_env = [
+                      {"name": "RCLONE_CONFIG_STORAGE_TYPE", "value": storage_type},
+                      {"name": "RCLONE_CONFIG_STORAGE_PROVIDER", "value": storage_provider},
+                  ]
+                  if endpoint:
+                      container_env.append({"name": "RCLONE_CONFIG_STORAGE_ENDPOINT", "value": endpoint})
+                  if force_path_style not in (None, ""):
+                      container_env.append({"name": "RCLONE_CONFIG_STORAGE_FORCE_PATH_STYLE", "value": force_path_style})
+                  if storage_region:
+                      container_env.append({"name": "RCLONE_CONFIG_STORAGE_REGION", "value": storage_region})
+                  container_env.extend([
+                      {"name": "RCLONE_CONFIG_STORAGE_ACCESS_KEY_ID", "valueFrom": {"secretKeyRef": {"name": principal, "key": "AWS_ACCESS_KEY_ID"}}},
+                      {"name": "RCLONE_CONFIG_STORAGE_SECRET_ACCESS_KEY", "valueFrom": {"secretKeyRef": {"name": principal, "key": "AWS_SECRET_ACCESS_KEY"}}},
+                      {"name": "STORAGE_LIFECYCLE_BUCKET", "value": rule["bucket"]},
+                      {"name": "STORAGE_LIFECYCLE_TARGET", "value": display_target},
+                  ])
+                  containers.append({
+                      "name": f"lifecycle-{idx:02d}",
+                      "image": image,
+                      "imagePullPolicy": "IfNotPresent",
+                      "command": ["/bin/sh", "/opt/lifecycle/run.sh"],
+                      "env": container_env,
+                      "volumeMounts": [
+                          {"name": "lifecycle-scripts", "mountPath": "/opt/lifecycle/run.sh", "subPath": key, "readOnly": True}
+                      ],
+                      "resources": {
+                          "requests": {"cpu": "50m", "memory": "64Mi"},
+                          "limits": {"cpu": "250m", "memory": "256Mi"},
+                      },
+                  })
+
+              config_key = f"lifecycle-config-{principal}"
+              config_name = f"{principal}-lifecycle"
+              rsp.desired.resources[config_key].resource.update({
+                  "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
+                  "kind": "Object",
+                  "metadata": {
+                      "name": config_key,
+                      "namespace": ns,
+                      "annotations": {"crossplane.io/composition-resource-name": config_key}
+                  },
+                  "spec": {
+                      "forProvider": {
+                          "manifest": {
+                              "apiVersion": "v1",
+                              "kind": "ConfigMap",
+                              "metadata": {
+                                  "name": config_name,
+                                  "namespace": ns,
+                              },
+                              "data": scripts,
+                          }
+                      },
+                      "providerConfigRef": {"name": "provider-kubernetes", "kind": "ProviderConfig"}
+                  }
+              })
+
+              cron_key = f"lifecycle-cron-{principal}"
+              cron_name = f"{principal}-lifecycle"
+              rsp.desired.resources[cron_key].resource.update({
+                  "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
+                  "kind": "Object",
+                  "metadata": {
+                      "name": cron_key,
+                      "namespace": ns,
+                      "annotations": {"crossplane.io/composition-resource-name": cron_key}
+                  },
+                  "spec": {
+                      "forProvider": {
+                          "manifest": {
+                              "apiVersion": "batch/v1",
+                              "kind": "CronJob",
+                              "metadata": {
+                                  "name": cron_name,
+                                  "namespace": ns,
+                                  "labels": {
+                                      "app.kubernetes.io/name": "storage-lifecycle",
+                                      "storages.pkg.internal/principal": principal,
+                                  }
+                              },
+                              "spec": {
+                                  "schedule": schedule,
+                                  "concurrencyPolicy": "Forbid",
+                                  "successfulJobsHistoryLimit": 1,
+                                  "failedJobsHistoryLimit": 1,
+                                  "jobTemplate": {
+                                      "spec": {
+                                          "template": {
+                                              "spec": {
+                                                  "automountServiceAccountToken": False,
+                                                  "restartPolicy": "OnFailure",
+                                                  "containers": containers,
+                                                  "volumes": [
+                                                      {
+                                                          "name": "lifecycle-scripts",
+                                                          "configMap": {
+                                                              "name": config_name,
+                                                              "defaultMode": 493,
+                                                          }
+                                                      }
+                                                  ],
+                                              }
+                                          }
+                                      }
+                                  }
+                              }
                           }
                       },
                       "providerConfigRef": {"name": "provider-kubernetes", "kind": "ProviderConfig"}
