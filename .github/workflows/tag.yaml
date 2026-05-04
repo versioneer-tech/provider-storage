@@ -45,7 +45,7 @@ jobs:
           crossplane xpkg build \
             --package-root=minio \
             --ignore 'dependencies/*' \
-            --ignore 'tests/expected/*,tests/observed/*,tests/*' \
+            --ignore 'tests/expected/*,tests/observed/*,tests/required/*,tests/*' \
             --package-file minio/storage-minio.xpkg \
             --verbose
 
@@ -67,7 +67,7 @@ jobs:
           crossplane xpkg build \
             --package-root=aws \
             --ignore 'dependencies/*' \
-            --ignore 'tests/expected/*,tests/observed/*,tests/*' \
+            --ignore 'tests/expected/*,tests/observed/*,tests/required/*,tests/*' \
             --package-file aws/storage-aws.xpkg \
             --verbose
 
@@ -89,7 +89,7 @@ jobs:
           crossplane xpkg build \
             --package-root=otc \
             --ignore 'dependencies/*' \
-            --ignore 'tests/expected/*,tests/observed/*,tests/*' \
+            --ignore 'tests/expected/*,tests/observed/*,tests/required/*,tests/*' \
             --package-file otc/storage-otc.xpkg \
             --verbose
 
