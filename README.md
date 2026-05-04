@@ -1,13 +1,26 @@
 # Storage Provider
 
-This package provides the **Storage** Composite Resource Definition (XRD) and ready-to-use Crossplane v2 Compositions to provision S3-compatible storage for users and teams.  
-It abstracts bucket creation, access policies, and cross-user sharing into a single spec.
+**Provider Storage is a PaaS-style building block for platform operators:** it turns one `Storage` claim into end-user object-storage buckets on MinIO, AWS S3, or OTC OBS. Users get smooth self-service bucket provisioning. Operators keep visibility and control over provider credentials, backend choice, access policy, sharing, lifecycle rules, and credential rotation.
 
-The following S3 compatible storage systems are supported:
-- MinIO (since 0.1)
-- AWS S3 (since 0.1)
-- OTC OBS (since 0.1)
-- Scaleway (coming soon)
+This package provides the **Storage** Composite Resource Definition (XRD) and ready-to-use Crossplane v2 Compositions for object-storage bucket provisioning.
+
+## The Goal
+
+Give platform operators one simple API for bucket self-service. Teams should not need to know the details of MinIO, AWS IAM, OTC OBS policies, or provider-specific credentials just to get a bucket.
+
+As the operator, you install the backend-specific configuration package, configure provider credentials, and decide which object-storage systems are available. A `Storage` claim can then create buckets, issue normalized S3 credentials, and describe access requests or grants.
+
+The API stays the same across all supported backends. Buckets, credentials, access requests, access grants, and lifecycle rules are the same concepts for MinIO, AWS S3, and OTC OBS. Only the implementation behind the composition changes.
+
+Provider Storage currently supports:
+
+- MinIO
+- AWS S3
+- OTC OBS
+
+Each `Storage` claim is the contract for one principal, usually a user, service account, team, or workspace. It records the buckets owned by that principal, which buckets are discoverable, which access was requested, which access was granted, and how credentials should rotate.
+
+Other platform building blocks and workloads can consume the generated Kubernetes Secret directly. For example, a Datalab can use the Secret to mount object-storage access into an end-user workspace.
 
 ✨ For a full introduction, see the [documentation](https://versioneer-tech.github.io/provider-storage/).
 
@@ -36,8 +49,6 @@ spec:
 
 ### Minimal example
 
-# Quickstart Example
-
 Just apply the following to your Kubernetes cluster:
 
 ```yaml
@@ -51,9 +62,9 @@ spec:
     - bucketName: wonderland
 ```
 
-This will provision a bucket named **`wonderland`**, along with the required cloud-specific entities such as IAM users, access credentials, and bucket policies.
+This creates a bucket named **`wonderland`**, plus the backend-specific resources needed for access, such as users, credentials, and bucket policies.
 
-A Kubernetes Secret is automatically created in the same namespace. From this Secret you can read the connection information and then use standard S3 tooling, for example:
+A Kubernetes Secret is created in the same namespace. It exposes normalized S3 credentials for workloads and other platform building blocks:
 
 ```bash
 aws s3 ls s3://wonderland
@@ -86,16 +97,16 @@ metadata:
 
 ## Storage Credentials
 
-For each `Storage` resource, the provider automatically provisions a Kubernetes Secret in the same namespace.  
-The Secret has the same name as the `Storage` resource (e.g. `team-wonderland`) and contains S3-compatible access credentials.
+For each `Storage` resource, Provider Storage creates a Kubernetes Secret in the same namespace.
+The Secret is named after `spec.principal` and contains S3-compatible access credentials.
 
-These credentials are automatically rotated - by default every 1 day - with the previous credentials remaining valid for an additional 1 day.
-The mechanism is provider-agnostic and consistently exposes the following environment variables:
+Credentials can be rotated automatically when `spec.credentialsRollover` is configured. By default, automatic rollover is disabled.
+The Secret shape is provider-agnostic and consistently exposes:
 
 - `AWS_ACCESS_KEY_ID`  
 - `AWS_SECRET_ACCESS_KEY`
 
-Workloads and other compositions can mount or reference this Secret directly to authenticate against the provisioned storage backend.
+Workloads and other compositions can mount or reference this Secret directly to authenticate against the provisioned bucket backend.
 
 Bucket lifecycle rules are documented in the
 [Usage & Concepts guide](https://versioneer-tech.github.io/provider-storage/latest/how-to-guides/usage_concepts/#lifecycle-rules).

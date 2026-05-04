@@ -4,6 +4,8 @@ The source of truth for the `Storage` API is the
 [`xrd.yaml`](https://github.com/versioneer-tech/provider-storage/blob/main/xrd.yaml)
 CompositeResourceDefinition.
 
+The API is the platform-facing contract for bucket self-service. Users describe buckets, access requests, grants, lifecycle rules, and credential rollover once. Operators choose whether the implementation is MinIO, AWS S3, or OTC OBS.
+
 ## Storage
 
 ```yaml
@@ -57,5 +59,5 @@ other principals.
 
 `spec.credentialsRollover` controls automatic credential rotation.
 
-- `interval`: `daily`, `weekly`, `monthly`, `quarterly`, `yearly`, or `none`.
+- `interval`: `daily`, `weekly`, `monthly`, `quarterly`, `yearly`, or `none` (default).
 - `maxToKeep`: number of active credential generations to keep.

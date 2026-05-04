@@ -1,7 +1,7 @@
 # Provider Storage – Installation Guide
 
-The `provider-storage` configuration packages let you provision **S3-compatible storage** on **MinIO**, **AWS S3**, **OTC OBS** and others using Crossplane.  
-Buckets, access policies, and cross-user sharing are declared via a single, namespaced `Storage` spec.
+The `provider-storage` configuration packages let platform operators offer S3-compatible bucket self-service on **MinIO**, **AWS S3**, and **OTC OBS** using Crossplane.
+Buckets, access policies, sharing, lifecycle rules, and credentials are declared through one namespaced `Storage` spec.
 
 ---
 
@@ -12,6 +12,7 @@ Everything in this guide is **namespaced**:
 - You **apply** `Storage` claims **to a namespace** (e.g., `workspace`).
 - The **provisioned Secret lives in the same namespace** as the `Storage` claim (Secret name = **principal**).
 - Any **namespaced ProviderConfigs** or supporting objects that the compositions depend on **must exist in that same target namespace** (e.g., `workspace`).
+
 > In short: choose your target namespace (e.g., `workspace`), apply the provider configs there, and create your `Storage` claims in that namespace.
 
 ---
@@ -25,10 +26,10 @@ Everything in this guide is **namespaced**:
 ```bash
 helm repo add crossplane-stable https://charts.crossplane.io/stable
 helm repo update
-helm install crossplane
-  --namespace crossplane
-  --create-namespace crossplane-stable/crossplane
-  --version 2.0.2
+helm install crossplane crossplane-stable/crossplane \
+  --namespace crossplane \
+  --create-namespace \
+  --version 2.0.2 \
   --set provider.defaultActivations={}
 ```
 
@@ -49,9 +50,11 @@ All providers follow the same staged pattern you **must** install **before** the
 
 Repository root: <https://github.com/versioneer-tech/provider-storage/>
 
+Install only the backend packages you want to offer as platform service classes. If you install multiple backends, label each `Storage` claim so Crossplane selects the intended composition.
+
 ### MinIO
 
-> You operate a MinIO endpoint yourself (same/different cluster or DC). For a one-stop local dev on `kind`, see the guide around [**Local Setup**](local_setup.md).
+> You operate the MinIO endpoint yourself. It can run in the same cluster, another cluster, or another data center. For a local `kind` setup, see [Local Setup](local_setup.md).
 
 - [00-mrap.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/minio/dependencies/00-mrap.yaml) – Activate MinIO-specific Managed Resources.
 - [01-deploymentRuntimeConfigs.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/minio/dependencies/01-deploymentRuntimeConfigs.yaml) – Runtime configs for providers/functions.
@@ -63,7 +66,7 @@ Repository root: <https://github.com/versioneer-tech/provider-storage/>
 
 ### AWS
 
-> You provide endpoint configuration and credentials via a Secret referenced by a namespaced `ProviderConfig`.
+> You provide AWS endpoint configuration and credentials via a Secret referenced by a namespaced `ProviderConfig`.
 
 - [00-mrap.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/aws/dependencies/00-mrap.yaml) – Activate AWS S3/IAM Managed Resources.
 - [01-deploymentRuntimeConfigs.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/aws/dependencies/01-deploymentRuntimeConfigs.yaml) – Runtime configs for AWS + Kubernetes providers.
@@ -75,7 +78,7 @@ Repository root: <https://github.com/versioneer-tech/provider-storage/>
 
 ### OTC
 
-> You do **not** deploy OBS; you provide OTC credentials via a Secret referenced by a namespaced `ProviderConfig`.
+> You do **not** deploy OBS. You provide OTC credentials via a Secret referenced by a namespaced `ProviderConfig`.
 
 - [00-mrap.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/otc/dependencies/00-mrap.yaml) – Activate OTC Managed Resources.
 - [01-deploymentRuntimeConfigs.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/otc/dependencies/01-deploymentRuntimeConfigs.yaml) – Runtime configs for OTC + Kubernetes providers.
@@ -89,7 +92,7 @@ Repository root: <https://github.com/versioneer-tech/provider-storage/>
 
 ## Step 2 – Install the Configuration Package (after dependencies)
 
-Once the provider dependencies are in place, install the configuration package for your chosen backend. This registers the `Storage` CRD and compositions and allows immediate reconciliation because the providers/configs already exist.
+Once the provider dependencies are in place, install the configuration package for your chosen backend. This registers the `Storage` CRD and compositions and allows reconciliation because the providers and configs already exist.
 
 **Example – MinIO**
 
@@ -134,4 +137,4 @@ kubectl apply -f configuration.yaml
 
 ## Step 3 – (Optional) Quick Verification
 
-After the package installs and providers are healthy, you can create a minimal `Storage` claim in your target namespace and verify readiness and credentials. See the **Usage & Concepts** guide for details (`kubectl get storages -n <ns>`, and inspect the Secret named after the principal).
+After the package installs and providers are healthy, create a minimal `Storage` claim in your target namespace and verify readiness and credentials. See the **Usage & Concepts** guide for details (`kubectl get storages -n <ns>`, and inspect the Secret named after the principal).

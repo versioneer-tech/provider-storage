@@ -1,49 +1,53 @@
 # Welcome to Provider Storage
 
-The **Provider Storage** package brings cloud-native, declarative storage management into your Kubernetes cluster, built on [Crossplane v2](https://crossplane.io). It gives **end users** a simple way to request and share S3 buckets, and it gives **operators** a consistent control plane to enforce policies across multiple backends such as **MinIO**, **AWS S3**, **OTC OBS**, and others.
+**Provider Storage is a PaaS-style building block for platform operators:** it turns one `Storage` claim into end-user object-storage buckets on MinIO, AWS S3, or OTC OBS. Users get smooth self-service bucket provisioning. Operators keep visibility and control over provider credentials, backend choice, access policy, sharing, lifecycle rules, and credential rotation.
 
-Instead of juggling credentials, APIs, and bucket lifecycles separately for each provider, everything is managed through a single Kubernetes Custom Resource: the `Storage` claim.  This claim captures a user’s storage needs — create a bucket, request access to someone else’s, or grant access to collaborators — while Crossplane and the compositions takes care of provisioning on the underlying backend.
+Provider Storage is built on [Crossplane v2](https://crossplane.io). It provides a tenant-facing `Storage` API and backend-specific compositions for MinIO, AWS S3, and OTC OBS.
 
-For **end users**, this means:
+The API stays the same across all supported backends. Buckets, credentials, access requests, access grants, and lifecycle rules are the same concepts for MinIO, AWS S3, and OTC OBS. Only the implementation behind the composition changes.
 
-- Create personal or shared buckets with one manifest.  
-- Request access to other buckets without having to ask operators directly.  
-- Receive credentials automatically in a Kubernetes Secret.  
+## Operator Contract
 
-For **operators**, this means:
+For an operator, a `Storage` claim is the contract for one principal and its object-storage access:
 
-- A unified model for managing storage across different S3-compatible systems.  
-- Consistent enforcement of access policies and sharing rules.  
-- Extensibility through Crossplane’s composition model — adapt the backend without changing the user-facing API.  
+- You install the backend package you want to offer: MinIO, AWS S3, or OTC OBS.
+- You configure provider credentials and backend settings in the target namespace.
+- Users or higher-level platform services submit `Storage` claims for buckets, access requests, and access grants.
+- Crossplane creates the backend-specific resources: buckets, users or IAM identities, policies, access keys, and a normalized Kubernetes Secret.
+- The resulting resources stay visible to the operator, so access, sharing, lifecycle rules, and credential rotation remain under platform control.
+
+This is the main design point: users get simple bucket self-service, while operators keep responsibility for the storage systems, provider credentials, access model, and lifecycle policy.
 
 At its core, Provider Storage provides:
 
-- A **Storage Composite Resource Definition (XRD)**  
-- **Compositions** to provision buckets, manage access, and reconcile credentials  
-- Support for **cross-user sharing** and collaboration  
+- A **Storage Composite Resource Definition (XRD)**
+- **Compositions** to provision buckets, manage access, and reconcile credentials
+- Support for **cross-user sharing** and collaboration
 - **Bucket lifecycle rules** for object cleanup by prefix and age
+- A normalized Secret shape with `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`
 
-With Provider Storage, storage becomes **declarative, multi-tenant, and self-service**, all while staying under operator control.
+Other platform building blocks and workloads can consume the generated Secret directly. For example, a Datalab can use it to mount object-storage access into an end-user workspace.
+
 ---
 
 ## Features
 
-- **Multi-cloud support**  
-  Provision S3-compatible storage across MinIO, AWS, OTC, and others.
-- **Unified abstraction**  
-  Manage buckets, access grants, and requests through a single spec.  
-- **Cross-user sharing**  
-  Easily grant and request access to buckets across teams.  
-- **Kubernetes-native secrets**  
-  Automatically provisions S3-compatible credentials as Kubernetes Secrets.
-- **Extensible by design**  
-  Built on Crossplane, ready to extend with new resources.  
+- **Backend support**
+  Provision S3-compatible buckets on MinIO, AWS S3, and OTC OBS.
+- **Clean abstraction**
+  Use the same bucket, access, credential, and lifecycle concepts across MinIO, AWS S3, and OTC OBS.
+- **Cross-user sharing**
+  Let owners grant or deny bucket access across users or teams.
+- **Kubernetes-native secrets**
+  Create S3-compatible credentials as Kubernetes Secrets.
+- **Operator control**
+  Keep provider credentials, policies, lifecycle rules, and credential rotation visible.
 
 ---
 
 ## Installation
 
-To install the configuration package into your Crossplane empowered Kubernetes environment, use e.g. for MinIO: 
+To install the configuration package into your Crossplane-enabled Kubernetes environment, use a backend-specific package. For MinIO:
 
 ```yaml
 apiVersion: pkg.crossplane.io/v1
@@ -72,7 +76,7 @@ spec:
     - bucketName: wonderland
 ```
 
-This will provision a bucket named **`wonderland`**, along with the required cloud-specific entities such as IAM users, access credentials, and bucket policies granting bucket `ReadWrite` access to `alice`
+This creates a bucket named **`wonderland`**, plus the backend-specific resources needed for `alice` to access it.
 
 !!! note
 
@@ -80,9 +84,9 @@ This will provision a bucket named **`wonderland`**, along with the required clo
 
 ---
 
-For each `Storage` resource, a Secret is created in the same namespace, containing credentials for the selected backend.
+For each `Storage` resource, a Secret is created in the same namespace. The Secret is named after `spec.principal` and contains credentials for the selected backend.
 
-- **MinIO, AWS, OTC**:
+- **MinIO, AWS S3, OTC OBS**:
   - `AWS_ACCESS_KEY_ID`  
   - `AWS_SECRET_ACCESS_KEY`
 

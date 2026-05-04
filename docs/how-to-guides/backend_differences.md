@@ -1,8 +1,8 @@
 # Provider Storage – Backend Differences
 
-The `Storage` API is the same for all providers, but the backend resources are not.
+The `Storage` API is the same for MinIO, AWS S3, and OTC OBS, but the resources created behind it are not.
 
-That is why the compositions look similar in many places, but not fully identical.
+This is the clean abstraction: users work with the same buckets, credentials, access requests, access grants, and lifecycle rules everywhere. Operators choose the backend. Each composition handles the backend-specific identity and policy model.
 
 ## Quick View
 
@@ -38,7 +38,7 @@ flowchart TD
 ### MinIO
 
 - Access is attached directly to the user as a list of policy names.
-- So the composition can resolve requests and build the final user in one step.
+- The composition can resolve requests and build the final user in one step.
 
 ### AWS
 
@@ -47,24 +47,24 @@ flowchart TD
   - `User`
   - `UserPolicyAttachment`
   - `AccessKey`
-- So AWS needs more steps than MinIO.
+- AWS needs more steps than MinIO.
 
 ### OTC
 
 - Access is not mainly modeled as “attach this named policy to that user”.
 - Instead, bucket policies are built with real identity IDs.
-- So OTC must first observe users and IDs, then build bucket policies from them.
+- OTC must first observe users and IDs, then build bucket policies from them.
 
 ## Why The Compositions Differ
 
-MinIO and AWS are close because both are policy-based user access models.
+MinIO and AWS S3 are close because both are policy-based user access models.
 
 OTC is different because it is more identity-and-bucket-policy based.
 
-So:
+This means:
 
 - MinIO and AWS can share more naming and structure
-- OTC must stay a bit different because the backend works differently
+- OTC must stay different because the backend works differently
 
 ## Request Resolution
 
@@ -80,4 +80,4 @@ metadata:
 
 Only `Storage` objects with at least one discoverable bucket should carry that label.
 
-For OTC, the same label is still a good shared marker for discoverable owners, even though the current OTC composition still needs observed user IDs to build the final bucket policy.
+For OTC, the same label is still a good shared marker for discoverable owners, even though the current OTC composition also needs observed user IDs to build the final bucket policy.

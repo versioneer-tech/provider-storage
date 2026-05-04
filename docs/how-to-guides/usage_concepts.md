@@ -1,6 +1,8 @@
 # Provider Storage – Usage & Concepts
 
-This section explains how to **use** the `provider-storage` configuration packages once they are installed. It focuses on the **concepts** of Buckets, Access Requests, and Access Grants, and shows how to verify provisioning and access credentials.
+This section explains how to use `provider-storage` after installation. Read it as an operator-facing contract: users request buckets and access through a `Storage` claim, while the platform controls the backend, policies, credentials, lifecycle rules, and credential rotation.
+
+The concepts are the same for MinIO, AWS S3, and OTC OBS. Buckets, credentials, access requests, access grants, and lifecycle rules use one API. The backend implementation is different, but the user-facing model stays clean.
 
 ---
 
@@ -8,18 +10,19 @@ This section explains how to **use** the `provider-storage` configuration packag
 
 ### Credentials
 
-For every `Storage` claim, **access credentials are automatically created** for the defined `principal` and **provided as a Kubernetes Secret** in the same namespace.  
-Applications can directly consume this Secret to access the underlying object storage without any additional user management.
+For every `Storage` claim, access credentials are created for `spec.principal` and stored in a Kubernetes Secret in the same namespace. The Secret is named after the principal and exposes normalized S3-style keys on every supported backend.
 
-Optionally, credentials can be **automatically rolled over** based on a configurable interval.  
-A configurable history can be kept so that **previous credentials remain valid for a period of overlap**, avoiding disruptions for running workloads during key rotation.
+Applications and other platform building blocks can consume this Secret directly. For example, a Datalab can use it to mount object-storage access into a workspace.
+
+Credentials can be rolled over on a schedule. A configurable number of older credentials can stay valid during rotation, which avoids disruptions for running workloads.
 
 ### Buckets
-A `Storage` claim defines one or more **buckets** for a user (the `principal`).  
-Each bucket is created on the configured storage backend (MinIO, AWS S3, OTC OBS) and may optionally be marked **discoverable** so that others can see and request access for it.
+A `Storage` claim defines one or more buckets for a principal. Each bucket is created on the selected backend: MinIO, AWS S3, or OTC OBS.
+
+Buckets can be marked **discoverable** so other principals can request access. Operators still control which backend is used and which provider credentials are allowed to create resources.
 
 ### Lifecycle Rules
-Buckets can optionally define lifecycle rules under `spec.buckets[].lifecycleRules`.
+Buckets can define lifecycle rules under `spec.buckets[].lifecycleRules`. The same lifecycle rule model applies to MinIO, AWS S3, and OTC OBS.
 Rules target either the whole bucket (`*`) or a prefix such as `tmp/*`, then either delete matching objects or report them without changing data.
 
 `Delete` removes matching objects when the time condition is met.
@@ -29,13 +32,13 @@ Supported `minAge` suffixes are `s` seconds, `m` minutes, `h` hours, `d` days, a
 Rules may alternatively use `at` with an RFC3339 timestamp for a fixed UTC cutoff.
 
 ### Access Requests
-A user may **request access** to another user’s bucket.  
-This is expressed in the `bucketAccessRequests` section of their `Storage` claim.  
+A user may **request access** to another user’s bucket.
+This is expressed in the `bucketAccessRequests` section of their `Storage` claim.
 Requests specify the target bucket and a free-text reason field.
 
 ### Access Grants
-The owner of a bucket can **grant access** to other users via the `bucketAccessGrants` section.  
-A grant specifies the bucket, the grantee (user) and the permission – `ReadOnly`, `ReadWrite`, `WriteOnly`, or `None` in case of deny.  
+The owner of a bucket can **grant access** to other users via the `bucketAccessGrants` section.
+A grant specifies the bucket, the grantee, and the permission: `ReadOnly`, `ReadWrite`, `WriteOnly`, or `None` to deny access.
 A request only becomes effective once the corresponding grant is present.
 
 ---
@@ -225,8 +228,8 @@ Look for conditions like `Ready=True` and check any event messages.
 
 ### Find the Secret with Credentials
 
-Each `Storage` claim produces a **Secret in the same namespace** with the **principal’s name**.  
-For example, the claim `s-joe` with principal `joe` creates a Secret `joe`.
+Each `Storage` claim produces a **Secret in the same namespace** named after `spec.principal`.
+For example, the claim `s-joe` with principal `s-joe` creates a Secret `s-joe`.
 
 List Secrets in the namespace:
 
@@ -237,20 +240,20 @@ kubectl get secrets -n workspace
 Inspect the Secret:
 
 ```bash
-kubectl describe secret joe -n workspace
+kubectl describe secret s-joe -n workspace
 ```
 
 View raw YAML (keys are base64-encoded):
 
 ```bash
-kubectl get secret joe -n workspace -o yaml
+kubectl get secret s-joe -n workspace -o yaml
 ```
 
 Decode credentials locally, e.g. for AWS-style keys:
 
 ```bash
-kubectl get secret joe -n workspace -o jsonpath='{.data.AWS_ACCESS_KEY_ID}' | base64 -d; echo
-kubectl get secret joe -n workspace -o jsonpath='{.data.AWS_SECRET_ACCESS_KEY}' | base64 -d; echo
+kubectl get secret s-joe -n workspace -o jsonpath='{.data.AWS_ACCESS_KEY_ID}' | base64 -d; echo
+kubectl get secret s-joe -n workspace -o jsonpath='{.data.AWS_SECRET_ACCESS_KEY}' | base64 -d; echo
 ```
 
 All providers expose `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` in the normalized Secret.
@@ -265,9 +268,10 @@ aws s3 ls s3://s-joe
 
 ## Summary
 
-- A `Storage` claim defines buckets, access requests, and access grants.  
+- A `Storage` claim defines buckets, access requests, and access grants.
 - Lifecycle rules can delete or report objects by target prefix and age.
-- Requests only take effect once the bucket owner provides a matching grant.  
-- Every claim produces a Secret in the same namespace with the **principal’s name**.  
-- Check `kubectl get storages` for readiness and inspect the Secret for connection info.  
+- Requests only take effect once the bucket owner provides a matching grant.
+- Every claim produces a Secret in the same namespace named after `spec.principal`.
+- Check `kubectl get storages` for readiness and inspect the Secret for connection info.
 - Use the credentials directly with S3 tools or mount them into workloads.
+- Other platform building blocks, such as Datalab, can consume the generated Secret.
