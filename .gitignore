@@ -1,2 +1,27 @@
+# Editor and local tool state
+.vscode*
+.code*
+.idea*
+*.swp
+*.swo
+*~
+site/
 
-.venv/
+# Environment files
+.env*
+.envrc
+
+# TLS and secrets
+*.crt
+*.key
+
+# Python
+__pycache__/
+*.pyc
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.tox/
+build/
+dist/
+venv/
