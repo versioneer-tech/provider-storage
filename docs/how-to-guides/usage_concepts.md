@@ -34,7 +34,8 @@ Rules may alternatively use `at` with an RFC3339 timestamp for a fixed UTC cutof
 ### Access Requests
 A user may **request access** to another user’s bucket.
 This is expressed in the `bucketAccessRequests` section of their `Storage` claim.
-Requests specify the target bucket and a free-text reason field.
+Requests specify the target bucket, a timestamp, and an optional free-text reason.
+The request itself has no permission field; the bucket owner decides the effective permission in the grant.
 
 ### Access Grants
 The owner of a bucket can **grant access** to other users via the `bucketAccessGrants` section.
@@ -128,7 +129,8 @@ In this example:
 ## Example: Jane requesting access from John
 
 ```yaml
-# Jane has no buckets but requests WriteOnly access to John's bucket.
+# Jane has no buckets but requests access to John's bucket and explains
+# in the reason that she wants WriteOnly access.
 # Note: This request only becomes effective once John grants it.
 # Credentials are automatically rolled over every quarter,
 # keeping the current plus 4 previous credentials active.
@@ -155,7 +157,8 @@ This shows that a `Storage` claim may consist solely of access requests without 
 ## Example: John responding to Jane
 
 ```yaml
-# John owns s-john. He grants Jane ReadWrite access to his bucket even she requested WriteOnly access.
+# John owns s-john. He grants Jane ReadWrite access to his bucket even though
+# Jane's request reason asked for WriteOnly access.
 # His request to s-jane cannot resolve until that bucket exists.
 # Credentials are automatically rolled over every day.
 apiVersion: pkg.internal/v1beta1
@@ -190,7 +193,7 @@ spec:
 
 In this scenario:
 
-- Jane requests **WriteOnly** access to `s-john`.
+- Jane requests access to `s-john` and records **WriteOnly** intent in the request reason.
 - John grants **ReadWrite** access, so Jane receives broader access than she requested.
 - The system reconciles and attaches the effective permission.
 
@@ -257,6 +260,7 @@ kubectl get secret s-joe -n workspace -o jsonpath='{.data.AWS_SECRET_ACCESS_KEY}
 ```
 
 All providers expose `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` in the normalized Secret.
+When configured through the selected storage environment, the Secret also carries connection metadata such as `AWS_ENDPOINT_URL`, `AWS_REGION`, and `AWS_S3_FORCE_PATH_STYLE`.
 
 You can now use these credentials with any S3-compatible tool, e.g.:
 

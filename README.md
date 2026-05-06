@@ -106,6 +106,12 @@ The Secret shape is provider-agnostic and consistently exposes:
 - `AWS_ACCESS_KEY_ID`  
 - `AWS_SECRET_ACCESS_KEY`
 
+When the selected storage environment defines connection metadata, the Secret also includes S3 client settings such as:
+
+- `AWS_ENDPOINT_URL`
+- `AWS_REGION`
+- `AWS_S3_FORCE_PATH_STYLE`
+
 Workloads and other compositions can mount or reference this Secret directly to authenticate against the provisioned bucket backend.
 
 Bucket lifecycle rules are documented in the

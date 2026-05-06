@@ -1,7 +1,8 @@
 # Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
 # SPDX-License-Identifier: Apache-2.0
 
-# John owns s-john. He grants Jane ReadWrite access to his bucket even she requested WriteOnly access.
+# John owns s-john. He grants Jane ReadWrite access to his bucket even though
+# Jane's request reason asked for WriteOnly access.
 # His request to s-jane cannot resolve until that bucket exists.
 # Credentials are automatically rolled over every day.
 apiVersion: pkg.internal/v1beta1

@@ -46,6 +46,9 @@ other principals.
 - `reason`: optional free-text justification.
 - `requestedAt`: RFC3339 timestamp for the request.
 
+Requests do not carry a permission field. The effective permission is recorded
+only on the owner's matching `bucketAccessGrants[]` entry.
+
 ### Access Grants
 
 `spec.bucketAccessGrants[]` declares permissions granted by this principal.

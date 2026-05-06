@@ -24,7 +24,7 @@ At its core, Provider Storage provides:
 - **Compositions** to provision buckets, manage access, and reconcile credentials
 - Support for **cross-user sharing** and collaboration
 - **Bucket lifecycle rules** for object cleanup by prefix and age
-- A normalized Secret shape with `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`
+- A normalized Secret shape with `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and backend connection settings when configured
 
 Other platform building blocks and workloads can consume the generated Secret directly. For example, a Datalab can use it to mount object-storage access into an end-user workspace.
 
@@ -89,6 +89,7 @@ For each `Storage` resource, a Secret is created in the same namespace. The Secr
 - **MinIO, AWS S3, OTC OBS**:
   - `AWS_ACCESS_KEY_ID`  
   - `AWS_SECRET_ACCESS_KEY`
+  - `AWS_ENDPOINT_URL`, `AWS_REGION`, and `AWS_S3_FORCE_PATH_STYLE` when supplied by the selected storage environment
 
 Use these secrets in your workloads to connect directly to the provisioned storage with standard S3 tooling, for example:
 

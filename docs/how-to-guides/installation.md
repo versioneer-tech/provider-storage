@@ -133,6 +133,18 @@ Apply your chosen one with:
 kubectl apply -f configuration.yaml
 ```
 
+### Selecting the Storage Environment
+
+Each composition loads a Crossplane `EnvironmentConfig` named `storage` by default. To select a different environment, add the annotation or label `storages.pkg.internal/environment` to the `Storage` resource:
+
+```yaml
+metadata:
+  annotations:
+    storages.pkg.internal/environment: storage
+```
+
+This is the same hook used by higher-level workspace APIs to point new `Storage` resources at a specific provider-storage environment.
+
 ---
 
 ## Step 3 – (Optional) Quick Verification

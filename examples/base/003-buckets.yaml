@@ -1,7 +1,8 @@
 # Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
 # SPDX-License-Identifier: Apache-2.0
 
-# Jane has no buckets but requests WriteOnly access to John's bucket.
+# Jane has no buckets but requests access to John's bucket and explains
+# in the reason that she wants WriteOnly access.
 # Note: This request only becomes effective once John grants it.
 # Credentials are automatically rolled over every quarter,
 # keeping the current plus 4 previous credentials active.

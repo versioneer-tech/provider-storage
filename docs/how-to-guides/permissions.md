@@ -48,7 +48,8 @@ spec:
 ## Requesting Access
 
 Other users can **request access** to a discoverable bucket by adding a `bucketAccessRequests` entry.
-Requests include the bucket name and optionally a reason or timestamp.
+Requests include the bucket name, a `requestedAt` timestamp, and optionally a free-text reason.
+The `Storage` API does not store a requested permission on the request itself; the effective permission is decided by the bucket owner's grant.
 
 Example (Jeff requesting access to Joe’s bucket):
 
@@ -107,7 +108,7 @@ If Joe wanted to explicitly **deny** the request, he would set `permission: None
 ## Lifecycle of a Permission
 
 1. **Bucket owner marks bucket discoverable.**
-2. **Requester adds a `bucketAccessRequests` entry** with desired permission.
+2. **Requester adds a `bucketAccessRequests` entry** with the target bucket, timestamp, and optional reason.
 3. **Owner responds with a `bucketAccessGrants` entry.**
    - If permission is one of `ReadWrite`, `ReadOnly`, or `WriteOnly`, access is granted.
    - If permission is `None`, access is explicitly denied.
@@ -164,6 +165,6 @@ Outcome:
 
 - The permission model is abstracted into **ReadWrite**, **ReadOnly**, **WriteOnly**, and **None**.
 - Owners must mark buckets **discoverable** for others to request access.
-- Access requests include the **desired permission** and an optional **reason**.
+- Access requests include the target bucket, **requestedAt**, and an optional **reason**.
 - Owners grant or deny access explicitly, recorded with **grantedAt** and the resulting permission.
 - This workflow ensures transparency, auditability, and consistent handling across all storage backends.
