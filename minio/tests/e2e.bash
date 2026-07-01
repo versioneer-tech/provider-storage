@@ -23,7 +23,7 @@ set -euo pipefail
 : "${VERIFY_OBJECT_ROUNDTRIP:=true}"
 : "${VERIFY_LIFECYCLE:=true}"
 : "${MINIO_IMAGE:=minio/minio:RELEASE.2025-04-22T22-12-26Z}"
-: "${MINIO_MC_IMAGE:=minio/mc:latest}"
+: "${MINIO_MC_IMAGE:=minio/mc:RELEASE.2025-04-16T18-13-26Z}"
 : "${RCLONE_IMAGE:=rclone/rclone:1.69}"
 : "${LIFECYCLE_TEST_NAME:=lifecycle-test}"
 : "${LIFECYCLE_WAIT_SECONDS:=75}"
