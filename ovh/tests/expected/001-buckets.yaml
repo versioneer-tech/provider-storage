@@ -1,0 +1,172 @@
+# Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+---
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  labels:
+    storages.pkg.internal/discoverable: "true"
+  name: s-joe
+spec:
+  bucketAccessGrants:
+  - bucketName: s-joe
+    grantedAt: "2025-09-29T10:05:00Z"
+    grantee: s-jeff
+    permission: ReadWrite
+  bucketAccessRequests:
+  - bucketName: s-jeff-shared
+    reason: Need access
+    requestedAt: "2025-09-29T10:00:00Z"
+  buckets:
+  - bucketName: s-joe
+    discoverable: true
+  principal: s-joe
+status:
+  conditions:
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    message: 'Unready resources: credentials-s-joe, observe-secret-s-joe, owner-s-joe,
+      and 2 more'
+    reason: Creating
+    status: "False"
+    type: Ready
+---
+apiVersion: cloud.ovh.m.edixos.io/v1alpha1
+kind: S3Credentials
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: credentials-s-joe
+  labels:
+    crossplane.io/composite: s-joe
+  name: s-joe
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-joe
+    uid: ""
+spec:
+  forProvider:
+    serviceName: "00000000000000000000000000000000"
+    userIdRef:
+      name: s-joe
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-ovh
+  writeConnectionSecretToRef:
+    name: s-joe-credentials
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: observe-secret-s-joe
+  labels:
+    crossplane.io/composite: s-joe
+  name: observe-secret-s-joe
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-joe
+    uid: ""
+spec:
+  forProvider:
+    manifest:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: s-joe-credentials
+        namespace: default
+  managementPolicies:
+  - Observe
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-kubernetes
+---
+apiVersion: cloud.ovh.m.edixos.io/v1alpha1
+kind: User
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: owner-s-joe
+  labels:
+    crossplane.io/composite: s-joe
+  name: s-joe-owner
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-joe
+    uid: ""
+spec:
+  forProvider:
+    description: Stable owner for s-joe
+    roleNames:
+    - objectstore_operator
+    serviceName: "00000000000000000000000000000000"
+  managementPolicies:
+  - Observe
+  - Create
+  - Update
+  - LateInitialize
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-ovh
+---
+apiVersion: cloud.ovh.m.edixos.io/v1alpha1
+kind: S3Policy
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: policy-s-joe
+  labels:
+    crossplane.io/composite: s-joe
+  name: s-joe
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-joe
+    uid: ""
+spec:
+  forProvider:
+    policy: '{"Statement":[{"Action":["s3:ListAllMyBuckets"],"Effect":"Deny","Resource":["*"]},{"Action":["s3:GetBucketLocation","s3:ListBucket","s3:ListBucketMultipartUploads"],"Effect":"Allow","Resource":["arn:aws:s3:::s-joe"]},{"Action":["s3:AbortMultipartUpload","s3:DeleteObject","s3:GetObject","s3:ListMultipartUploadParts","s3:PutObject"],"Effect":"Allow","Resource":["arn:aws:s3:::s-joe/*"]},{"Action":["s3:*"],"Effect":"Deny","Resource":["arn:aws:s3:::s-jeff-shared","arn:aws:s3:::s-jeff-shared/*"]}]}'
+    serviceName: "00000000000000000000000000000000"
+    userIdRef:
+      name: s-joe
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-ovh
+---
+apiVersion: cloud.ovh.m.edixos.io/v1alpha1
+kind: User
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: user-s-joe
+  labels:
+    crossplane.io/composite: s-joe
+  name: s-joe
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-joe
+    uid: ""
+spec:
+  forProvider:
+    description: Credential generation for s-joe
+    roleNames:
+    - objectstore_operator
+    serviceName: "00000000000000000000000000000000"
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-ovh

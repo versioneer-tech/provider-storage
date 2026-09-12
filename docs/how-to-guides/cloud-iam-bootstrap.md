@@ -12,7 +12,7 @@ from the consumer identities and credentials that Provider Storage creates.
 
 !!! warning "Choose the bucket prefix during IAM bootstrap"
 
-    Bucket names are user-facing. The default prefixes are
+    Bucket names are user-facing. For AWS and OTC, the default prefixes are
     `aws-<account-id>` and `otc-<domain-id>`. Configure any override before
     bootstrap and reuse it for every `Storage` deployment. AWS enforces this
     prefix in IAM. The OTC bootstrap assigns OBS Administrator to all existing
@@ -189,3 +189,64 @@ AK/SK without recreating its user or policies, then update the provider Secret.
 
 For the complete Kind test sequence, see the
 [OTC integration test guide](https://github.com/versioneer-tech/provider-storage/blob/main/tests/integration/README.md#otc).
+
+## OVHcloud
+
+OVHcloud bootstrap has passed a live IAM check in a disposable EU Public
+Cloud project. The controller identity is an OAuth2 service account with an
+IAM policy for that one `publicCloudProject`. The script does not deploy a
+provider, create buckets, or test S3 access; later direct-resource probes
+confirmed User, S3 credential, and DE bucket readiness. A separate owner-key
+Job passed an S3 object upload, download, comparison, and delete.
+
+Review [`iam.sh`](https://github.com/versioneer-tech/provider-storage/blob/main/ovh/dependencies/iam.sh)
+and its [README](https://github.com/versioneer-tech/provider-storage/blob/main/ovh/dependencies/README.md).
+Install the official [`ovhcloud` CLI](https://docs.ovhcloud.com/en/guides/manage-and-operate/cli/getting-started)
+and `jq`. Run `ovhcloud login` to start an administrator session and save
+it in `~/.ovh.conf`, the CLI's default login file. You can also use the
+CLI's supported `OVH_*` variables. Select the same OVH API region for the CLI
+and script. This API region is separate from the Object Storage region.
+
+Set the exact project ID. The private controller JSON defaults to
+`~/.ovh-provider-storage-<project-id>.json`, separate from `~/.ovh.conf`.
+Unset any old `CROSSPLANE_OVH_CREDENTIALS_FILE` value that points to the CLI
+login. Run `status` before and after `apply`, then repeat `apply` to check
+that it is idempotent:
+
+```bash
+export CROSSPLANE_OVH_PROJECT_ID=0123456789abcdef0123456789abcdef
+export CROSSPLANE_OVH_API_REGION=EU
+unset CROSSPLANE_OVH_CREDENTIALS_FILE
+
+ovh/dependencies/iam.sh status
+ovh/dependencies/iam.sh apply
+ovh/dependencies/iam.sh status
+ovh/dependencies/iam.sh apply
+ovh/dependencies/iam.sh verify
+```
+
+`status` is read-only. `apply` writes `endpoint`, `client_id`, and
+`client_secret` as JSON with mode `0600`. Both commands print the credential
+file path, but not the secret.
+`verify` reads that file and reports access results without printing the
+credential. The script checks the exact target-project URN in the controller
+IAM policy. A second project is not needed to bootstrap or test this backend.
+If you already have another disposable project, you can set
+`CROSSPLANE_OVH_OTHER_PROJECT_ID` and run `verify` again for an optional denied
+API read. Send only redacted status and verification results to the team.
+
+For one EU test project, `status` found the managed identity, exact policy,
+and mode-`0600` credential file. A repeated `apply` completed, and `verify`
+confirmed a target-project read. The provider created a User with a numeric
+observed ID, an S3 credential with a non-empty key pair in its connection
+Secret, and a DE bucket with the expected owner ID. A direct owner-key S3 Job
+then passed upload, download, comparison, and delete against that bucket via
+the regional endpoint. A composed `Storage` and its normalized consumer Secret
+also passed an S3 round trip. An optional two-project controller denial check
+was not run.
+
+The provider credential Secret handoff and current direct-resource evidence
+are documented in the
+[integration test guide](https://github.com/versioneer-tech/provider-storage/blob/main/tests/integration/README.md#ovhcloud).
+Rotation, lifecycle, owner replacement, and cleanup behavior remain in the
+OVHcloud validation plan.

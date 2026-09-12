@@ -1,0 +1,466 @@
+# Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+---
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  labels:
+    storages.pkg.internal/discoverable: "true"
+  name: s-jeff
+spec:
+  bucketAccessGrants:
+  - bucketName: s-jeff-shared
+    grantedAt: "2025-09-29T10:15:00Z"
+    grantee: s-joe
+    permission: ReadOnly
+  bucketAccessRequests:
+  - bucketName: s-joe
+    reason: Need access
+    requestedAt: "2025-09-29T10:10:00Z"
+  buckets:
+  - bucketName: s-jeff
+  - bucketName: s-jeff-shared
+    discoverable: true
+    lifecycleRules:
+    - minAge: 12h
+      mode: Delete
+      target: tmp/*
+    - minAge: 1w
+      mode: Notify
+      target: scratch/*
+  credentialsRollover:
+    interval: weekly
+    maxToKeep: 2
+  principal: s-jeff
+status:
+  conditions:
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    message: 'Unready resources: credentials-s-jeff-2026w36, credentials-s-jeff-2026w37,
+      lifecycle-config-s-jeff, and 7 more'
+    reason: Creating
+    status: "False"
+    type: Ready
+---
+apiVersion: cloud.ovh.m.edixos.io/v1alpha1
+kind: S3Credentials
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: credentials-s-jeff-2026w36
+  labels:
+    crossplane.io/composite: s-jeff
+  name: s-jeff-2026w36
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-jeff
+    uid: ""
+spec:
+  forProvider:
+    serviceName: "00000000000000000000000000000000"
+    userIdRef:
+      name: s-jeff-2026w36
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-ovh
+  writeConnectionSecretToRef:
+    name: s-jeff-2026w36-credentials
+---
+apiVersion: cloud.ovh.m.edixos.io/v1alpha1
+kind: S3Credentials
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: credentials-s-jeff-2026w37
+  labels:
+    crossplane.io/composite: s-jeff
+  name: s-jeff-2026w37
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-jeff
+    uid: ""
+spec:
+  forProvider:
+    serviceName: "00000000000000000000000000000000"
+    userIdRef:
+      name: s-jeff-2026w37
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-ovh
+  writeConnectionSecretToRef:
+    name: s-jeff-2026w37-credentials
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: lifecycle-config-s-jeff
+  labels:
+    crossplane.io/composite: s-jeff
+  name: lifecycle-config-s-jeff
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-jeff
+    uid: ""
+spec:
+  forProvider:
+    manifest:
+      apiVersion: v1
+      data:
+        rule-01.sh: |
+          #!/bin/sh
+          set -eu
+          exec rclone delete storage:s-jeff-shared/tmp/ --min-age 12h --fast-list --s3-no-check-bucket
+        rule-02.sh: |
+          #!/bin/sh
+          set -eu
+          exec rclone lsf storage:s-jeff-shared/scratch/ --recursive --min-age 1w --fast-list --s3-no-check-bucket
+      kind: ConfigMap
+      metadata:
+        name: s-jeff-lifecycle
+        namespace: default
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-kubernetes
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: lifecycle-cron-s-jeff
+  labels:
+    crossplane.io/composite: s-jeff
+  name: lifecycle-cron-s-jeff
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-jeff
+    uid: ""
+spec:
+  forProvider:
+    manifest:
+      apiVersion: batch/v1
+      kind: CronJob
+      metadata:
+        labels:
+          app.kubernetes.io/name: storage-lifecycle
+          storages.pkg.internal/principal: s-jeff
+        name: s-jeff-lifecycle
+        namespace: default
+      spec:
+        concurrencyPolicy: Forbid
+        failedJobsHistoryLimit: 1
+        jobTemplate:
+          spec:
+            template:
+              spec:
+                automountServiceAccountToken: false
+                containers:
+                - command:
+                  - /bin/sh
+                  - /opt/lifecycle/run.sh
+                  env:
+                  - name: HOME
+                    value: /tmp
+                  - name: RCLONE_CONFIG
+                    value: /dev/null
+                  - name: RCLONE_CONFIG_STORAGE_TYPE
+                    value: s3
+                  - name: RCLONE_CONFIG_STORAGE_PROVIDER
+                    value: Other
+                  - name: RCLONE_CONFIG_STORAGE_ENDPOINT
+                    value: https://s3.de.io.cloud.ovh.net
+                  - name: RCLONE_CONFIG_STORAGE_FORCE_PATH_STYLE
+                    value: "true"
+                  - name: RCLONE_CONFIG_STORAGE_REGION
+                    value: de
+                  - name: RCLONE_CONFIG_STORAGE_ACCESS_KEY_ID
+                    valueFrom:
+                      secretKeyRef:
+                        key: AWS_ACCESS_KEY_ID
+                        name: s-jeff
+                  - name: RCLONE_CONFIG_STORAGE_SECRET_ACCESS_KEY
+                    valueFrom:
+                      secretKeyRef:
+                        key: AWS_SECRET_ACCESS_KEY
+                        name: s-jeff
+                  - name: STORAGE_LIFECYCLE_BUCKET
+                    value: s-jeff-shared
+                  - name: STORAGE_LIFECYCLE_TARGET
+                    value: tmp/
+                  image: rclone/rclone:1.75.1
+                  imagePullPolicy: IfNotPresent
+                  name: lifecycle-01
+                  resources:
+                    limits:
+                      cpu: 250m
+                      memory: 256Mi
+                    requests:
+                      cpu: 50m
+                      memory: 64Mi
+                  securityContext:
+                    allowPrivilegeEscalation: false
+                    capabilities:
+                      drop:
+                      - ALL
+                    readOnlyRootFilesystem: true
+                  volumeMounts:
+                  - mountPath: /opt/lifecycle/run.sh
+                    name: lifecycle-scripts
+                    readOnly: true
+                    subPath: rule-01.sh
+                  - mountPath: /tmp
+                    name: scratch
+                - command:
+                  - /bin/sh
+                  - /opt/lifecycle/run.sh
+                  env:
+                  - name: HOME
+                    value: /tmp
+                  - name: RCLONE_CONFIG
+                    value: /dev/null
+                  - name: RCLONE_CONFIG_STORAGE_TYPE
+                    value: s3
+                  - name: RCLONE_CONFIG_STORAGE_PROVIDER
+                    value: Other
+                  - name: RCLONE_CONFIG_STORAGE_ENDPOINT
+                    value: https://s3.de.io.cloud.ovh.net
+                  - name: RCLONE_CONFIG_STORAGE_FORCE_PATH_STYLE
+                    value: "true"
+                  - name: RCLONE_CONFIG_STORAGE_REGION
+                    value: de
+                  - name: RCLONE_CONFIG_STORAGE_ACCESS_KEY_ID
+                    valueFrom:
+                      secretKeyRef:
+                        key: AWS_ACCESS_KEY_ID
+                        name: s-jeff
+                  - name: RCLONE_CONFIG_STORAGE_SECRET_ACCESS_KEY
+                    valueFrom:
+                      secretKeyRef:
+                        key: AWS_SECRET_ACCESS_KEY
+                        name: s-jeff
+                  - name: STORAGE_LIFECYCLE_BUCKET
+                    value: s-jeff-shared
+                  - name: STORAGE_LIFECYCLE_TARGET
+                    value: scratch/
+                  image: rclone/rclone:1.75.1
+                  imagePullPolicy: IfNotPresent
+                  name: lifecycle-02
+                  resources:
+                    limits:
+                      cpu: 250m
+                      memory: 256Mi
+                    requests:
+                      cpu: 50m
+                      memory: 64Mi
+                  securityContext:
+                    allowPrivilegeEscalation: false
+                    capabilities:
+                      drop:
+                      - ALL
+                    readOnlyRootFilesystem: true
+                  volumeMounts:
+                  - mountPath: /opt/lifecycle/run.sh
+                    name: lifecycle-scripts
+                    readOnly: true
+                    subPath: rule-02.sh
+                  - mountPath: /tmp
+                    name: scratch
+                restartPolicy: OnFailure
+                securityContext:
+                  fsGroup: 1000
+                  runAsGroup: 1000
+                  runAsNonRoot: true
+                  runAsUser: 1000
+                  seccompProfile:
+                    type: RuntimeDefault
+                volumes:
+                - configMap:
+                    defaultMode: 493
+                    name: s-jeff-lifecycle
+                  name: lifecycle-scripts
+                - emptyDir: {}
+                  name: scratch
+        schedule: 17 2 * * *
+        successfulJobsHistoryLimit: 1
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-kubernetes
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: observe-secret-s-jeff
+  labels:
+    crossplane.io/composite: s-jeff
+  name: observe-secret-s-jeff
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-jeff
+    uid: ""
+spec:
+  forProvider:
+    manifest:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: s-jeff-2026w37-credentials
+        namespace: default
+  managementPolicies:
+  - Observe
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-kubernetes
+---
+apiVersion: cloud.ovh.m.edixos.io/v1alpha1
+kind: User
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: owner-s-jeff
+  labels:
+    crossplane.io/composite: s-jeff
+  name: s-jeff-owner
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-jeff
+    uid: ""
+spec:
+  forProvider:
+    description: Stable owner for s-jeff
+    roleNames:
+    - objectstore_operator
+    serviceName: "00000000000000000000000000000000"
+  managementPolicies:
+  - Observe
+  - Create
+  - Update
+  - LateInitialize
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-ovh
+---
+apiVersion: cloud.ovh.m.edixos.io/v1alpha1
+kind: S3Policy
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: policy-s-jeff-2026w36
+  labels:
+    crossplane.io/composite: s-jeff
+  name: s-jeff-2026w36
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-jeff
+    uid: ""
+spec:
+  forProvider:
+    policy: '{"Statement":[{"Action":["s3:ListAllMyBuckets"],"Effect":"Deny","Resource":["*"]},{"Action":["s3:GetBucketLocation","s3:ListBucket","s3:ListBucketMultipartUploads"],"Effect":"Allow","Resource":["arn:aws:s3:::s-jeff"]},{"Action":["s3:AbortMultipartUpload","s3:DeleteObject","s3:GetObject","s3:ListMultipartUploadParts","s3:PutObject"],"Effect":"Allow","Resource":["arn:aws:s3:::s-jeff/*"]},{"Action":["s3:GetBucketLocation","s3:ListBucket","s3:ListBucketMultipartUploads"],"Effect":"Allow","Resource":["arn:aws:s3:::s-jeff-shared"]},{"Action":["s3:AbortMultipartUpload","s3:DeleteObject","s3:GetObject","s3:ListMultipartUploadParts","s3:PutObject"],"Effect":"Allow","Resource":["arn:aws:s3:::s-jeff-shared/*"]},{"Action":["s3:GetBucketLocation","s3:ListBucket","s3:ListBucketMultipartUploads"],"Effect":"Allow","Resource":["arn:aws:s3:::s-joe"]},{"Action":["s3:AbortMultipartUpload","s3:DeleteObject","s3:GetObject","s3:ListMultipartUploadParts","s3:PutObject"],"Effect":"Allow","Resource":["arn:aws:s3:::s-joe/*"]}]}'
+    serviceName: "00000000000000000000000000000000"
+    userIdRef:
+      name: s-jeff-2026w36
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-ovh
+---
+apiVersion: cloud.ovh.m.edixos.io/v1alpha1
+kind: S3Policy
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: policy-s-jeff-2026w37
+  labels:
+    crossplane.io/composite: s-jeff
+  name: s-jeff-2026w37
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-jeff
+    uid: ""
+spec:
+  forProvider:
+    policy: '{"Statement":[{"Action":["s3:ListAllMyBuckets"],"Effect":"Deny","Resource":["*"]},{"Action":["s3:GetBucketLocation","s3:ListBucket","s3:ListBucketMultipartUploads"],"Effect":"Allow","Resource":["arn:aws:s3:::s-jeff"]},{"Action":["s3:AbortMultipartUpload","s3:DeleteObject","s3:GetObject","s3:ListMultipartUploadParts","s3:PutObject"],"Effect":"Allow","Resource":["arn:aws:s3:::s-jeff/*"]},{"Action":["s3:GetBucketLocation","s3:ListBucket","s3:ListBucketMultipartUploads"],"Effect":"Allow","Resource":["arn:aws:s3:::s-jeff-shared"]},{"Action":["s3:AbortMultipartUpload","s3:DeleteObject","s3:GetObject","s3:ListMultipartUploadParts","s3:PutObject"],"Effect":"Allow","Resource":["arn:aws:s3:::s-jeff-shared/*"]},{"Action":["s3:GetBucketLocation","s3:ListBucket","s3:ListBucketMultipartUploads"],"Effect":"Allow","Resource":["arn:aws:s3:::s-joe"]},{"Action":["s3:AbortMultipartUpload","s3:DeleteObject","s3:GetObject","s3:ListMultipartUploadParts","s3:PutObject"],"Effect":"Allow","Resource":["arn:aws:s3:::s-joe/*"]}]}'
+    serviceName: "00000000000000000000000000000000"
+    userIdRef:
+      name: s-jeff-2026w37
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-ovh
+---
+apiVersion: cloud.ovh.m.edixos.io/v1alpha1
+kind: User
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: user-s-jeff-2026w36
+  labels:
+    crossplane.io/composite: s-jeff
+  name: s-jeff-2026w36
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-jeff
+    uid: ""
+spec:
+  forProvider:
+    description: Credential generation for s-jeff-2026w36
+    roleNames:
+    - objectstore_operator
+    serviceName: "00000000000000000000000000000000"
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-ovh
+---
+apiVersion: cloud.ovh.m.edixos.io/v1alpha1
+kind: User
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: user-s-jeff-2026w37
+  labels:
+    crossplane.io/composite: s-jeff
+  name: s-jeff-2026w37
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-jeff
+    uid: ""
+spec:
+  forProvider:
+    description: Credential generation for s-jeff-2026w37
+    roleNames:
+    - objectstore_operator
+    serviceName: "00000000000000000000000000000000"
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-ovh

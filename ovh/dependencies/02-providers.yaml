@@ -1,0 +1,20 @@
+# Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-ovh
+spec:
+  package: xpkg.upbound.io/edixos/provider-ovh:v2.19.1
+  runtimeConfigRef:
+    name: provider-ovh
+---
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-kubernetes
+spec:
+  package: xpkg.upbound.io/crossplane-contrib/provider-kubernetes:v1.3.1
+  runtimeConfigRef:
+    name: provider-kubernetes

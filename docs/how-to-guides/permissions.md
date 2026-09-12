@@ -1,6 +1,12 @@
 # Provider Storage – Permission Model
 
-The **permission model** in `provider-storage` gives operators one simple access model across MinIO, AWS S3, and OTC OBS. Users work with four normalized permission levels instead of raw backend-specific IAM or policy actions. The composition translates that clean model into the right backend implementation.
+The **permission model** in `provider-storage` gives operators one access model across MinIO, AWS S3, OTC OBS, and OVHcloud Object Storage. Users work with four normalized permission levels instead of raw backend-specific IAM or policy actions. The composition translates that model into the backend implementation.
+
+The OVHcloud Composition maps the same levels to its S3 policy
+model. A live `ReadOnly` peer could read but not write. The `None` policy
+reconciled automatically and eventually revoked read access, though the first
+read shortly after the deny policy was reported still succeeded. Other grant
+levels and immediate access cutoff remain unverified.
 
 - **ReadWrite** → Full read and write access to bucket contents.  
   Includes: `ListBucket`, `GetObject`, `PutObject`, `DeleteObject`  
@@ -8,16 +14,20 @@ The **permission model** in `provider-storage` gives operators one simple access
   Includes: `ListBucket`, `GetObject`  
 - **WriteOnly** → Append/write access without read visibility.  
   Includes: `ListBucket`, `PutObject`, `DeleteObject`  
-- **None** → Deny access (default when no permission is granted).
+- **None** → Record that access is not granted by this claim. Backends differ
+  in whether they remove an allow or write an explicit deny.
+
+The [backend comparison](backend_differences.md#from-request-to-access) shows
+what each Composition writes while a request is pending, granted, or denied.
 
 ---
 
 ## Discoverable Buckets
 
-A bucket must be marked as **discoverable** by its owner before others can request access.
-This is done by setting `discoverable: true` in the bucket definition of the owner’s `Storage` claim.
-
-Any `Storage` object that exposes at least one discoverable bucket must also carry:
+`spec.buckets[].discoverable` records whether a bucket should be shown to
+potential requesters. The Compositions do not use that field to decide
+access. On MinIO, AWS, and OVHcloud, the owner `Storage` must carry this label
+so a requester's Composition can load it:
 
 ```yaml
 metadata:
@@ -25,7 +35,10 @@ metadata:
     storages.pkg.internal/discoverable: "true"
 ```
 
-For MinIO and AWS, this label is used to load peer `Storage` resources via Crossplane required resources and resolve requests from the owner’s `bucketAccessGrants`. For OTC, the same label is still recommended as the discoverable-owner marker even though the current composition still relies on observed identities for final policy generation.
+Once loaded, the Composition checks that the peer owns the named bucket and
+has a matching `bucketAccessGrants` entry for the requester. OTC uses
+observed grantee identities to build bucket policies; its current
+Composition does not inspect peer `Storage` resources for requests.
 
 Example (owner Joe making his bucket discoverable):
 
@@ -89,6 +102,8 @@ apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
   name: s-joe
+  labels:
+    storages.pkg.internal/discoverable: "true"
 spec:
   principal: s-joe
   buckets:
@@ -101,7 +116,9 @@ spec:
       grantedAt: "2025-09-29T10:15:00Z"
 ```
 
-If Joe wanted to explicitly **deny** the request, he would set `permission: None` in the grant.
+If Joe wanted to record a denial, he would set `permission: None` in the
+grant. Whether this produces an explicit cloud policy deny depends on the
+backend.
 
 ---
 
@@ -111,8 +128,9 @@ If Joe wanted to explicitly **deny** the request, he would set `permission: None
 2. **Requester adds a `bucketAccessRequests` entry** with the target bucket, timestamp, and optional reason.
 3. **Owner responds with a `bucketAccessGrants` entry.**
    - If permission is one of `ReadWrite`, `ReadOnly`, or `WriteOnly`, access is granted.
-   - If permission is `None`, access is explicitly denied.
-4. The system captures both the **requestedAt** and **grantedAt** timestamps for traceability.
+   - If permission is `None`, the claim records a denial; the generated
+     policy behavior differs by backend.
+4. Callers supply **requestedAt** and **grantedAt** timestamps for traceability.
 
 This keeps the workflow transparent: requests, reasons, grants, and denials are recorded in the claims and remain visible to operators.
 
@@ -128,6 +146,8 @@ apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
   name: s-joe
+  labels:
+    storages.pkg.internal/discoverable: "true"
 spec:
   principal: s-joe
   buckets:
@@ -155,16 +175,7 @@ spec:
 ```
 
 Outcome:
+
 - Jeff requested access to Joe’s `s-joe`.  
 - Joe granted it at a later time.  
 - Both the **request** and **grant** are recorded declaratively.  
-
----
-
-## Summary
-
-- The permission model is abstracted into **ReadWrite**, **ReadOnly**, **WriteOnly**, and **None**.
-- Owners must mark buckets **discoverable** for others to request access.
-- Access requests include the target bucket, **requestedAt**, and an optional **reason**.
-- Owners grant or deny access explicitly, recorded with **grantedAt** and the resulting permission.
-- This workflow ensures transparency, auditability, and consistent handling across all storage backends.

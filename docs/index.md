@@ -1,24 +1,29 @@
 # Welcome to Provider Storage
 
-**Provider Storage is a PaaS-style building block for platform operators:** it turns one `Storage` claim into end-user object-storage buckets on MinIO, AWS S3, or OTC OBS. Users get smooth self-service bucket provisioning. Operators keep visibility and control over provider credentials, backend choice, access policy, sharing, lifecycle rules, and credential rotation.
+**Provider Storage is a PaaS-style building block for platform operators:** it turns one `Storage` claim into end-user object-storage buckets on MinIO, AWS S3, OTC OBS, or OVHcloud Object Storage. Users get smooth self-service bucket provisioning. Operators keep visibility and control over provider credentials, backend choice, access policy, sharing, lifecycle rules, and credential rotation.
 
-Provider Storage is built on [Crossplane v2](https://crossplane.io). It provides a tenant-facing `Storage` API and backend-specific compositions for MinIO, AWS S3, and OTC OBS.
+Provider Storage is built on [Crossplane v2](https://crossplane.io). It provides a tenant-facing `Storage` API and backend-specific compositions for MinIO, AWS S3, OTC OBS, and OVHcloud Object Storage.
 
-The API stays the same across all supported backends. Buckets, credentials, access requests, access grants, and lifecycle rules are the same concepts for MinIO, AWS S3, and OTC OBS. Only the implementation behind the composition changes.
+The API stays the same across all backends. Buckets, credentials, access requests, access grants, and lifecycle rules use the same concepts. Only the implementation behind the composition changes.
 
 !!! warning "Bootstrap cloud IAM before deployment"
 
     Before you deploy cloud provider components, an administrator must follow
     the backend's initial IAM procedure. Review its
     `<cloud>/dependencies/iam.sh` script and any policy templates before you run an
-    implemented bootstrap. AWS and OTC have implementations. Read the
+    implemented bootstrap. AWS, OTC, and OVHcloud have cloud backends. The
+    OVHcloud backend has a project-scoped bootstrap and provider
+    manifests. A disposable live project has passed direct-resource and
+    composed `Storage` checks, including the normalized consumer Secret and
+    a `ReadOnly` peer grant and eventual `None` revocation. Rotation,
+    lifecycle, and orphan cleanup remain unverified. Read the
     [cloud IAM bootstrap guide](how-to-guides/cloud-iam-bootstrap.md).
 
 ## Operator Contract
 
 For an operator, a `Storage` claim is the contract for one principal and its object-storage access:
 
-- You install the backend package you want to offer: MinIO, AWS S3, or OTC OBS.
+- You install the backend package you want to offer: MinIO, AWS S3, OTC OBS, or OVHcloud Object Storage.
 - You configure provider credentials and backend settings in the target namespace.
 - Users or higher-level platform services submit `Storage` claims for buckets, access requests, and access grants.
 - Crossplane creates the backend-specific resources: buckets, users or IAM identities, policies, access keys, and a normalized Kubernetes Secret.
@@ -41,9 +46,9 @@ Other platform building blocks and workloads can consume the generated Secret di
 ## Features
 
 - **Backend support**
-  Provision S3-compatible buckets on MinIO, AWS S3, and OTC OBS.
+  Provision S3-compatible buckets on MinIO, AWS S3, OTC OBS, and OVHcloud Object Storage.
 - **Clean abstraction**
-  Use the same bucket, access, credential, and lifecycle concepts across MinIO, AWS S3, and OTC OBS.
+  Use the same bucket, access, credential, and lifecycle concepts across all backends.
 - **Cross-user sharing**
   Let owners grant or deny bucket access across users or teams.
 - **Kubernetes-native secrets**

@@ -1,0 +1,9 @@
+# Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-ovh-probe
+spec:
+  package: xpkg.upbound.io/edixos/provider-ovh:v2.19.1

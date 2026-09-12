@@ -1,6 +1,6 @@
 # Storage Provider
 
-**Provider Storage is a PaaS-style building block for platform operators:** it turns one `Storage` claim into end-user object-storage buckets on MinIO, AWS S3, or OTC OBS. Users get smooth self-service bucket provisioning. Operators keep visibility and control over provider credentials, backend choice, access policy, sharing, lifecycle rules, and credential rotation.
+**Provider Storage is a PaaS-style building block for platform operators:** it turns one `Storage` claim into end-user object-storage buckets on MinIO, AWS S3, OTC OBS, or OVHcloud Object Storage. Users get smooth self-service bucket provisioning. Operators keep visibility and control over provider credentials, backend choice, access policy, sharing, lifecycle rules, and credential rotation.
 
 This package provides the **Storage** Composite Resource Definition (XRD) and ready-to-use Crossplane v2 Compositions for object-storage bucket provisioning.
 
@@ -10,13 +10,14 @@ Give platform operators one simple API for bucket self-service. Teams should not
 
 As the operator, you install the backend-specific configuration package, configure provider credentials, and decide which object-storage systems are available. A `Storage` claim can then create buckets, issue normalized S3 credentials, and describe access requests or grants.
 
-The API stays the same across all supported backends. Buckets, credentials, access requests, access grants, and lifecycle rules are the same concepts for MinIO, AWS S3, and OTC OBS. Only the implementation behind the composition changes.
+The API stays the same across all backends. Buckets, credentials, access requests, access grants, and lifecycle rules use the same concepts. Only the implementation behind the composition changes.
 
 Provider Storage currently supports:
 
 - MinIO
 - AWS S3
 - OTC OBS
+- OVHcloud Object Storage
 
 Each `Storage` claim is the contract for one principal, usually a user, service account, team, or workspace. It records the buckets owned by that principal, which buckets are discoverable, which access was requested, which access was granted, and how credentials should rotate.
 
@@ -30,6 +31,18 @@ see the [local setup guide](https://versioneer-tech.github.io/provider-storage/l
 Before you deploy a managed cloud backend, an administrator must review its
 `<cloud>/dependencies/iam.sh` script and any policy templates as described in the
 [cloud IAM bootstrap guide](docs/how-to-guides/cloud-iam-bootstrap.md).
+
+The OVHcloud backend uses the same `Storage` API. Its
+[IAM bootstrap guide](ovh/dependencies/README.md) creates a project-scoped
+controller service account with the official `ovhcloud` CLI and `jq`. In a
+disposable EU project, repeated bootstrap and the direct managed resources
+passed live checks. A composed `Storage` reached Ready; its normalized
+consumer Secret passed an S3 round trip. A composed peer passed ungranted
+denial, `ReadOnly` read with denied write, and eventual `None` revocation.
+The [`Storage` Composition](ovh/composition.yaml) and package are available.
+Rotation, lifecycle, owner replacement, quotas, and orphan cleanup remain in
+validation. Peer policies updated automatically within about a minute, but
+S3 enforcement lagged the policy update in the live test.
 
 ## API Reference
 
@@ -46,7 +59,7 @@ kind: Configuration
 metadata:
   name: storage
 spec:
-  package: ghcr.io/versioneer-tech/provider-storage/<minio|aws|otc|...>:<x.x>
+  package: ghcr.io/versioneer-tech/provider-storage/<minio|aws|otc|ovh>:<x.x>
   skipDependencyResolution: true
 ```
 
@@ -92,7 +105,8 @@ kubectl get storage -A -o name \
   -p '{"spec":{"crossplane":{"compositionSelector":{"matchLabels":{"provider":"minio"}}}}}'
 ```
 
-For approval workflows you also need to add this label to the `Storage` resources:
+For MinIO, AWS, and OVHcloud peer grants, add this label to the bucket owner's
+`Storage` resource so the requester's Composition can find it:
 
 ```yaml
 metadata:

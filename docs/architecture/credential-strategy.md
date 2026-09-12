@@ -1,6 +1,6 @@
 # Consumer Credential Strategy
 
-Last reviewed: 2026-09-11
+Last reviewed: 2026-09-12
 
 This document defines how bucket consumers receive and replace credentials.
 It is a living architecture strategy. An ADR records one accepted or proposed
@@ -60,6 +60,17 @@ consumers that Provider Storage supports today. All current backend resource
 models can issue an access-key pair. Common S3 clients, including AWS SDKs and
 rclone, can use the same key names and endpoint settings. This contract does
 not depend on the cloud that hosts the Kubernetes cluster.
+
+The OVHcloud provider has produced an S3 credential with
+`access_key_id` and `attribute.secret_access_key` in a connection Secret.
+Its Composition must normalize those into the same two required consumer
+keys. The Composition gives each retained generation its own User, credential,
+and S3 policy while keeping a separate bucket owner User stable across
+generations. A direct owner-key Job passed S3 upload, download, comparison,
+and delete against a DE bucket. This demonstrates that the provider-issued
+key can use the regional S3 endpoint. The Composition's normalized Secret
+passed an S3 round trip. A peer grant passed `ReadOnly` read with denied write
+and eventual `None` revocation. Rollover remains a live validation item.
 
 This baseline is not the only possible cloud-neutral design, and it is not the
 preferred credential type for every deployment. Static keys are long-lived
@@ -125,4 +136,5 @@ promises.
 | --- | --- |
 | Portable consumer credentials | Static S3 access-key pairs for AWS, OTC, and MinIO. |
 | Consumer rollover | Generation-based overlap through `spec.credentialsRollover`. |
+| OVHcloud qualification | Direct owner-key and normalized Composition Secret S3 round trips passed; a peer `ReadOnly` grant and eventual `None` revocation passed. Rollover still requires a live test. |
 | Provider-native consumer identity | Not implemented. |

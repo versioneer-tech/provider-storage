@@ -1,0 +1,23 @@
+# Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  name: storage-ovh-it
+  namespace: provider-storage-it
+  annotations:
+    storages.pkg.internal/environment: storage-ovh
+  labels:
+    storages.pkg.internal/backend: ovh
+    storages.pkg.internal/discoverable: "true"
+spec:
+  principal: xyz-ovh-it-__OVH_PROJECT_PREFIX__
+  providerIdentity: it
+  buckets:
+    - bucketName: xyz-ovh-__OVH_PROJECT_PREFIX__-__OVH_STORAGE_REGION__-compose
+      discoverable: true
+  crossplane:
+    compositionSelector:
+      matchLabels:
+        provider: ovh

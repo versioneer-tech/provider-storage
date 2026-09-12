@@ -1,0 +1,59 @@
+# Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+# Synthetic owner and credentials; no live credential is stored here.
+apiVersion: cloud.ovh.m.edixos.io/v1alpha1
+kind: User
+metadata:
+  name: s-joe-owner
+  namespace: default
+  annotations:
+    crossplane.io/composition-resource-name: owner-s-joe
+status:
+  atProvider:
+    id: "12345"
+  conditions:
+    - type: Ready
+      status: "True"
+      reason: Available
+      lastTransitionTime: "2024-01-01T00:00:00Z"
+---
+apiVersion: cloud.ovh.m.edixos.io/v1alpha1
+kind: S3Credentials
+metadata:
+  name: s-joe
+  namespace: default
+  annotations:
+    crossplane.io/composition-resource-name: credentials-s-joe
+status:
+  atProvider:
+    accessKeyId: EXAMPLEACCESSKEY
+  conditions:
+    - type: Ready
+      status: "True"
+      reason: Available
+      lastTransitionTime: "2024-01-01T00:00:00Z"
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  name: observe-secret-s-joe
+  namespace: default
+  annotations:
+    crossplane.io/composition-resource-name: observe-secret-s-joe
+status:
+  atProvider:
+    manifest:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: s-joe-credentials
+        namespace: default
+      data:
+        access_key_id: RVhBTVBMRUFDQ0VTU0tFWQ==
+        attribute.secret_access_key: RVhBTVBMRVNFQ1JFVEtFWQ==
+  conditions:
+    - type: Ready
+      status: "True"
+      reason: Available
+      lastTransitionTime: "2024-01-01T00:00:00Z"

@@ -1,0 +1,24 @@
+# Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: cloud.ovh.m.edixos.io/v1alpha1
+kind: ProjectStorage
+metadata:
+  name: __OVH_BUCKET_NAME__
+  namespace: provider-storage-it
+spec:
+  forProvider:
+    serviceName: "__OVH_PROJECT_ID__"
+    name: __OVH_BUCKET_NAME__
+    regionName: __OVH_REGION_NAME__
+    ownerId: __OVH_OWNER_ID__
+    hideObjects: true
+  managementPolicies:
+    - Observe
+    - Create
+    - Update
+    - Delete
+    - LateInitialize
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-ovh

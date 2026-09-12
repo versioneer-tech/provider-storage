@@ -1,0 +1,16 @@
+# Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+# Schema fixture only. No Secret is created or read by this offline probe.
+apiVersion: ovh.m.edixos.io/v1beta1
+kind: ProviderConfig
+metadata:
+  name: provider-ovh
+  namespace: default
+spec:
+  credentials:
+    source: Secret
+    secretRef:
+      key: credentials
+      name: ovh-provider-creds
+      namespace: default

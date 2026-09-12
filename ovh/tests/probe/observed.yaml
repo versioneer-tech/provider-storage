@@ -1,0 +1,45 @@
+# Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+# Synthetic observations. IDs here are fixtures, not cloud credentials.
+apiVersion: cloud.ovh.m.edixos.io/v1alpha1
+kind: User
+metadata:
+  name: xyz-ovh-owner
+  namespace: default
+  annotations:
+    crossplane.io/composition-resource-name: owner
+spec:
+  forProvider:
+    roleNames:
+      - objectstore_operator
+    serviceName: "00000000000000000000000000000000"
+status:
+  atProvider:
+    id: "12345"
+  conditions:
+    - type: Ready
+      status: "True"
+      reason: Available
+      lastTransitionTime: "2024-01-01T00:00:00Z"
+---
+apiVersion: cloud.ovh.m.edixos.io/v1alpha1
+kind: S3Credentials
+metadata:
+  name: xyz-ovh-writer
+  namespace: default
+  annotations:
+    crossplane.io/composition-resource-name: writer-credentials
+spec:
+  forProvider:
+    serviceName: "00000000000000000000000000000000"
+    userIdRef:
+      name: xyz-ovh-writer
+status:
+  atProvider:
+    accessKeyId: PROBE_ACCESS_KEY_ID
+  conditions:
+    - type: Ready
+      status: "True"
+      reason: Available
+      lastTransitionTime: "2024-01-01T00:00:00Z"

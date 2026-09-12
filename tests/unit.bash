@@ -8,7 +8,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 if (($#)); then
   BACKENDS=("$@")
 else
-  BACKENDS=(minio aws otc)
+  BACKENDS=(minio aws otc ovh)
 fi
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "${TMP_DIR}"' EXIT
@@ -122,6 +122,24 @@ validate_aws_secret_readiness() {
     "${rendered}" >"${composite}"
   dyff between "${composite}" "${scenario}/expected.yaml" -s
   validate_schemas aws "${rendered}"
+}
+
+validate_ovh_secret_readiness() {
+  local missing="${TMP_DIR}/ovh-missing-credential.yaml"
+
+  printf 'Validate OVHcloud readiness while the credential Secret lacks its secret key\n'
+  crossplane render \
+    "${REPO_ROOT}/examples/base/001-buckets.yaml" \
+    "${REPO_ROOT}/ovh/composition.yaml" \
+    "${REPO_ROOT}/ovh/dependencies/functions.yaml" \
+    --required-resources "${REPO_ROOT}/ovh/tests/required/001x-buckets.yaml" \
+    --observed-resources "${REPO_ROOT}/ovh/tests/readiness/observed-missing.yaml" \
+    -x >"${missing}"
+  if grep -Fq 'crossplane.io/composition-resource-name: secret-s-joe' "${missing}"; then
+    printf 'OVHcloud published a consumer Secret without a secret access key.\n' >&2
+    return 1
+  fi
+  validate_schemas ovh "${missing}"
 }
 
 validate_otc_iam_bootstrap() {
@@ -252,15 +270,20 @@ render_and_compare() {
 run_backend() {
   local backend="$1"
   local source name idx observed required
-  local -a render_args
+  local -a render_args base_args
 
   case "${backend}" in
-    minio|aws|otc) ;;
+    minio|aws|otc|ovh) ;;
     *)
-      printf 'Unknown backend: %s (expected minio, aws, or otc)\n' "${backend}" >&2
+      printf 'Unknown backend: %s (expected minio, aws, otc, or ovh)\n' "${backend}" >&2
       exit 1
       ;;
   esac
+
+  base_args=()
+  if [[ "${backend}" == "ovh" ]]; then
+    base_args+=(--required-resources "${REPO_ROOT}/ovh/tests/required/environment.yaml")
+  fi
 
   for source in "${REPO_ROOT}"/examples/base/00*-buckets.yaml; do
     name="$(basename "${source}")"
@@ -271,13 +294,17 @@ run_backend() {
       "${backend}" \
       "${source}" \
       "${REPO_ROOT}/${backend}/tests/expected/00${idx}-buckets.yaml" \
-      "${TMP_DIR}/${backend}-00${idx}-buckets.yaml"
+      "${TMP_DIR}/${backend}-00${idx}-buckets.yaml" \
+      "${base_args[@]}"
 
     observed="${REPO_ROOT}/${backend}/tests/observed/00${idx}-buckets.yaml"
     required="${REPO_ROOT}/${backend}/tests/required/00${idx}x-buckets.yaml"
     render_args=()
     [[ ! -f "${observed}" ]] || render_args+=(--observed-resources "${observed}")
     [[ ! -f "${required}" ]] || render_args+=(--required-resources "${required}")
+    if ((${#render_args[@]})) && [[ "${backend}" == "ovh" && ! -f "${required}" ]]; then
+      render_args+=("${base_args[@]}")
+    fi
 
     if ((${#render_args[@]})); then
       render_and_compare \
@@ -294,6 +321,9 @@ main() {
   require_command crossplane
   require_command dyff
 
+  printf 'Validate OVHcloud IAM bootstrap\n'
+  bash "${REPO_ROOT}/ovh/tests/test_iam.bash"
+
   local backend
   for backend in "${BACKENDS[@]}"; do
     if [[ "${backend}" == "aws" ]]; then
@@ -307,6 +337,9 @@ main() {
     run_backend "${backend}"
     if [[ "${backend}" == "aws" ]]; then
       validate_aws_secret_readiness
+    fi
+    if [[ "${backend}" == "ovh" ]]; then
+      validate_ovh_secret_readiness
     fi
   done
 
