@@ -1,0 +1,48 @@
+# Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: iam.aws.m.upbound.io/v1beta1
+kind: AccessKey
+metadata:
+  name: s-pending
+  namespace: default
+  annotations:
+    crossplane.io/composition-resource-name: access-key-s-pending
+status:
+  conditions:
+  - type: Ready
+    status: 'True'
+    reason: Available
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  name: observe-secret-s-pending
+  namespace: default
+  annotations:
+    crossplane.io/composition-resource-name: observe-secret-s-pending
+status:
+  conditions:
+  - type: Ready
+    status: 'True'
+    reason: Available
+  atProvider:
+    manifest:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: s-pending-credentials
+        namespace: default
+---
+apiVersion: iam.aws.m.upbound.io/v1beta1
+kind: User
+metadata:
+  name: s-pending
+  namespace: default
+  annotations:
+    crossplane.io/composition-resource-name: user-s-pending
+status:
+  conditions:
+  - type: Ready
+    status: 'True'
+    reason: Available

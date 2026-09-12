@@ -13,6 +13,7 @@ site/
 
 # TLS and secrets
 *.crt
+*.credentials
 *.key
 
 # Python
@@ -26,6 +27,3 @@ build/
 dist/
 venv/
 .venv/
-
-# Tests
-testjob-20*

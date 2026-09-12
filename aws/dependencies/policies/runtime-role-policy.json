@@ -1,0 +1,102 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ProtectBootstrapUser",
+      "Effect": "Deny",
+      "Action": "iam:*",
+      "Resource": "__BOOTSTRAP_USER_ARN__"
+    },
+    {
+      "Sid": "ManageUsersAndAccessKeys",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateUser",
+        "iam:DeleteUser",
+        "iam:UpdateUser",
+        "iam:TagUser",
+        "iam:UntagUser",
+        "iam:ListUserTags",
+        "iam:CreateAccessKey",
+        "iam:DeleteAccessKey",
+        "iam:ListAccessKeys",
+        "iam:UpdateAccessKey"
+      ],
+      "Resource": "__MANAGED_USER_ARN_PATTERN__"
+    },
+    {
+      "Sid": "ReadUsersForReconciliation",
+      "Effect": "Allow",
+      "Action": "iam:GetUser",
+      "Resource": "__ACCOUNT_USER_ARN_PATTERN__"
+    },
+    {
+      "Sid": "ManagePolicies",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreatePolicy",
+        "iam:DeletePolicy",
+        "iam:GetPolicy",
+        "iam:GetPolicyVersion",
+        "iam:CreatePolicyVersion",
+        "iam:DeletePolicyVersion",
+        "iam:ListPolicyVersions",
+        "iam:ListEntitiesForPolicy",
+        "iam:TagPolicy",
+        "iam:UntagPolicy",
+        "iam:ListPolicyTags"
+      ],
+      "Resource": "__MANAGED_POLICY_ARN_PATTERN__"
+    },
+    {
+      "Sid": "AttachManagedPoliciesToManagedUsers",
+      "Effect": "Allow",
+      "Action": [
+        "iam:AttachUserPolicy",
+        "iam:DetachUserPolicy"
+      ],
+      "Resource": "__MANAGED_USER_ARN_PATTERN__",
+      "Condition": {
+        "ArnLike": {
+          "iam:PolicyARN": "__MANAGED_POLICY_ARN_PATTERN__"
+        }
+      }
+    },
+    {
+      "Sid": "ListManagedUserPolicyAttachments",
+      "Effect": "Allow",
+      "Action": "iam:ListAttachedUserPolicies",
+      "Resource": "__MANAGED_USER_ARN_PATTERN__"
+    },
+    {
+      "Sid": "ReadAccessKeyUsage",
+      "Effect": "Allow",
+      "Action": "iam:GetAccessKeyLastUsed",
+      "Resource": "*"
+    },
+    {
+      "Sid": "ListBuckets",
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListAllMyBuckets",
+        "s3:GetAccountPublicAccessBlock"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ManagePrefixedBuckets",
+      "Effect": "Allow",
+      "Action": "s3:*",
+      "Resource": [
+        "__BUCKET_ARN_PATTERN__",
+        "__OBJECT_ARN_PATTERN__"
+      ]
+    },
+    {
+      "Sid": "IdentifySession",
+      "Effect": "Allow",
+      "Action": "sts:GetCallerIdentity",
+      "Resource": "*"
+    }
+  ]
+}

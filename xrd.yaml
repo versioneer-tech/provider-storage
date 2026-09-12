@@ -32,11 +32,19 @@ spec:
                     Unique identifier of the storage principal (typically a user or
                     service account). All buckets, access requests, and grants in
                     this resource are owned and managed under this principal.
+                providerIdentity:
+                  type: string
+                  description: >
+                    Optional short name for the provider-native user. Defaults to
+                    principal. The backend adds its path or managed-resource prefix.
                 credentialsRollover:
                   type: object
                   description: >
                     Configuration controlling automated rotation of access credentials
                     issued for this storage principal.
+                  x-kubernetes-validations:
+                    - rule: self.interval != 'none' || self.maxToKeep == 1
+                      message: maxToKeep must be 1 when interval is none
                   properties:
                     interval:
                       type: string
@@ -54,8 +62,8 @@ spec:
                     maxToKeep:
                       type: integer
                       description: >
-                        Maximum number of previous credentials that remain valid after
-                        a rollover. Older credentials beyond this limit are removed.
+                        Maximum number of active credential generations, including the
+                        current generation. Must be 1 when interval is none.
                       default: 1
                       minimum: 1
                       maximum: 10

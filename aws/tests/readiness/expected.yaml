@@ -1,0 +1,18 @@
+# Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+---
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  name: s-pending
+spec:
+  buckets: []
+  principal: s-pending
+status:
+  conditions:
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    message: 'Unready resources: observe-secret-s-pending'
+    reason: Creating
+    status: "False"
+    type: Ready

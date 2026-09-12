@@ -85,7 +85,7 @@ spec:
       apiVersion: v1
       kind: Secret
       metadata:
-        name: s-joe-1
+        name: s-joe-credentials
         namespace: default
   managementPolicies:
   - Observe
@@ -115,7 +115,7 @@ spec:
       apiVersion: minio.crossplane.io/v1
       kind: Policy
       metadata:
-        name: s-joe.s-joe
+        name: provider-storage.s-joe
       spec:
         forProvider:
           rawPolicy: |-
@@ -162,7 +162,7 @@ spec:
       apiVersion: minio.crossplane.io/v1
       kind: Policy
       metadata:
-        name: s-jeff.s-joe
+        name: provider-storage.s-jeff.s-joe
       spec:
         forProvider:
           rawPolicy: |-
@@ -212,10 +212,11 @@ spec:
     manifest:
       apiVersion: v1
       data:
+        AWS_ACCESS_KEY_ID: YWNjZXNzLWtleQ==
         AWS_ENDPOINT_URL: aHR0cHM6Ly9zMy5hY21l
         AWS_REGION: YWNtZQ==
         AWS_S3_FORCE_PATH_STYLE: dHJ1ZQ==
-        KEY: dmFsdWU=
+        AWS_SECRET_ACCESS_KEY: c2VjcmV0LWtleQ==
       kind: Secret
       metadata:
         name: s-joe
@@ -229,10 +230,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: user-s-joe-1
+    crossplane.io/composition-resource-name: user-s-joe
   labels:
     crossplane.io/composite: s-joe
-  name: user-s-joe-1
+  name: user-s-joe
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -247,17 +248,17 @@ spec:
       apiVersion: minio.crossplane.io/v1
       kind: User
       metadata:
-        name: s-joe-1
+        name: provider-storage-managed-s-joe
       spec:
         forProvider:
           policies:
-          - s-joe.s-joe
-          - s-joe.s-jeff-shared
-          userName: s-joe-1
+          - provider-storage.s-joe
+          - provider-storage.s-joe.s-jeff-shared
+          userName: provider-storage-managed-s-joe
         providerConfigRef:
           name: provider-minio
         writeConnectionSecretToRef:
-          name: s-joe-1
+          name: s-joe-credentials
           namespace: default
   providerConfigRef:
     kind: ProviderConfig

@@ -1,0 +1,13 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowProviderStorageController",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "__TRUSTED_PRINCIPAL_ARN__"
+      },
+      "Action": "sts:AssumeRole"
+    }
+  ]
+}

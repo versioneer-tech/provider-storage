@@ -104,19 +104,25 @@ spec:
           import json
           from crossplane.function.proto.v1 import run_function_pb2 as fnv1
           from google.protobuf import json_format
+          ENVIRONMENT_KEY = "apiextensions.crossplane.io/environment"
           def _to_dict(struct):
               return {} if struct is None else (struct if isinstance(struct, dict) else json_format.MessageToDict(struct, preserving_proto_field_name=True))
           def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
               xr = _to_dict(req.observed.composite.resource)
               meta = xr.get("metadata", {}) or {}
               spec = xr.get("spec", {}) or {}
+              ctx = _to_dict(req.context)
+              env = (ctx.get(ENVIRONMENT_KEY) or {})
+              storage_env = (env.get("storage") or {})
+              iam_env = (storage_env.get("iam") or {})
+              policy_path = (iam_env.get("policyPath") or "/provider-storage/managed/").strip()
               ns   = (meta.get("labels", {}) or {}).get("crossplane.io/claim-namespace") or meta.get("namespace") or "default"
               principal = (spec.get("principal") or meta.get("name") or "<principal>").strip()
               for b in (spec.get("buckets") or []):
                   bucket = (b.get("bucketName") or "").strip()
                   if not bucket:
                       continue
-                  polname = f"{principal}.{bucket}"
+                  polname = f"provider-storage.{bucket}"
                   policy_doc = {
                       "Version": "2012-10-17",
                       "Statement": [{
@@ -135,7 +141,10 @@ spec:
                           "annotations": {"crossplane.io/composition-resource-name": key}
                       },
                       "spec": {
-                          "forProvider": {"policy": json.dumps(policy_doc, indent=2)},
+                          "forProvider": {
+                              "path": policy_path,
+                              "policy": json.dumps(policy_doc, indent=2)
+                          },
                           "providerConfigRef": {"name": "provider-aws", "kind": "ProviderConfig"}
                       }
                   })
@@ -150,6 +159,7 @@ spec:
           import json
           from crossplane.function.proto.v1 import run_function_pb2 as fnv1
           from google.protobuf import json_format
+          ENVIRONMENT_KEY = "apiextensions.crossplane.io/environment"
           def _to_dict(struct):
               return {} if struct is None else (struct if isinstance(struct, dict) else json_format.MessageToDict(struct, preserving_proto_field_name=True))
           def _policy_for(bucket, perm):
@@ -177,6 +187,11 @@ spec:
               xr = _to_dict(req.observed.composite.resource)
               meta = xr.get("metadata", {}) or {}
               spec = xr.get("spec", {}) or {}
+              ctx = _to_dict(req.context)
+              env = (ctx.get(ENVIRONMENT_KEY) or {})
+              storage_env = (env.get("storage") or {})
+              iam_env = (storage_env.get("iam") or {})
+              policy_path = (iam_env.get("policyPath") or "/provider-storage/managed/").strip()
               ns   = (meta.get("labels", {}) or {}).get("crossplane.io/claim-namespace") or meta.get("namespace") or "default"
               for g in (spec.get("bucketAccessGrants") or []):
                   bucket  = (g.get("bucketName") or "").strip()
@@ -185,7 +200,7 @@ spec:
                   if not bucket or not grantee or not perm:
                       continue
                   policy_doc = _policy_for(bucket, perm)
-                  pname = f"{grantee}.{bucket}"
+                  pname = f"provider-storage.{grantee}.{bucket}"
                   key = f"policy-{grantee}-{bucket}"
                   rsp.desired.resources[key].resource.update({
                       "apiVersion": "iam.aws.m.upbound.io/v1beta1",
@@ -196,7 +211,10 @@ spec:
                           "annotations": {"crossplane.io/composition-resource-name": key}
                       },
                       "spec": {
-                          "forProvider": {"policy": json.dumps(policy_doc, indent=2)},
+                          "forProvider": {
+                              "path": policy_path,
+                              "policy": json.dumps(policy_doc, indent=2)
+                          },
                           "providerConfigRef": {"name": "provider-aws", "kind": "ProviderConfig"}
                       }
                   })
@@ -212,6 +230,7 @@ spec:
           from crossplane.function import request, response
           from crossplane.function.proto.v1 import run_function_pb2 as fnv1
           from google.protobuf import json_format
+          ENVIRONMENT_KEY = "apiextensions.crossplane.io/environment"
           def _to_dict(struct):
               return {} if struct is None else (struct if isinstance(struct, dict) else json_format.MessageToDict(struct, preserving_proto_field_name=True))
 
@@ -263,23 +282,29 @@ spec:
                   for i in range(max_to_keep):
                       out.append(str(now.year - i))
               else:
-                  for i in range(1, max_to_keep + 1):
-                      out.append(str(i))
+                  return [""]
               return ["-" + s for s in out]
 
           def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
               xr = _to_dict(req.observed.composite.resource)
               meta = xr.get("metadata", {}) or {}
               spec = xr.get("spec", {}) or {}
+              ctx = _to_dict(req.context)
+              env = (ctx.get(ENVIRONMENT_KEY) or {})
+              storage_env = (env.get("storage") or {})
+              iam_env = (storage_env.get("iam") or {})
+              user_path = (iam_env.get("userPath") or "/provider-storage/managed/").strip()
               ns = (meta.get("labels", {}) or {}).get("crossplane.io/claim-namespace") or meta.get("namespace") or "default"
               principal = (spec.get("principal") or meta.get("name") or "<principal>").strip()
+              provider_identity = (spec.get("providerIdentity") or principal).strip()
               interval, max_to_keep = _get_rollover(spec)
               now = datetime.now(timezone.utc)
               suffixes = _suffixes(now, interval, max_to_keep)
 
               for suf in suffixes:
-                  user_name = f"{principal}{suf}"
-                  key = f"user-{user_name}"
+                  user_name = f"{provider_identity}{suf}"
+                  resource_name = f"{principal}{suf}"
+                  key = f"user-{resource_name}"
                   rsp.desired.resources[key].resource.update({
                       "apiVersion": "iam.aws.m.upbound.io/v1beta1",
                       "kind": "User",
@@ -289,12 +314,13 @@ spec:
                           "annotations": {"crossplane.io/composition-resource-name": key}
                       },
                       "spec": {
-                          "forProvider": {},
+                          "forProvider": {"path": user_path},
                           "providerConfigRef": {"name": "provider-aws", "kind": "ProviderConfig"}
                       }
                   })
 
-              current_user_name = f"{principal}{suffixes[0] if suffixes else '-1'}"
+              current_user_name = f"{principal}{suffixes[0] if suffixes else ''}"
+              current_secret_name = current_user_name if suffixes and suffixes[0] else f"{principal}-credentials"
               obs_key = f"observe-secret-{principal}"
               rsp.desired.resources[obs_key].resource.update({
                   "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
@@ -310,7 +336,7 @@ spec:
                           "manifest": {
                               "apiVersion": "v1",
                               "kind": "Secret",
-                              "metadata": {"name": current_user_name, "namespace": ns}
+                              "metadata": {"name": current_secret_name, "namespace": ns}
                           }
                       },
                       "providerConfigRef": {"name": "provider-kubernetes", "kind": "ProviderConfig"}
@@ -380,8 +406,7 @@ spec:
                   for i in range(max_to_keep):
                       out.append(str(now.year - i))
               else:
-                  for i in range(1, max_to_keep + 1):
-                      out.append(str(i))
+                  return [""]
               return ["-" + s for s in out]
 
           def _bucket_grants_access(storage: dict, bucket: str, grantee: str) -> bool | None:
@@ -409,6 +434,7 @@ spec:
               spec = xr.get("spec", {}) or {}
               ns = (meta.get("labels", {}) or {}).get("crossplane.io/claim-namespace") or meta.get("namespace") or "default"
               principal = (spec.get("principal") or meta.get("name") or "<principal>").strip()
+              provider_identity = (spec.get("providerIdentity") or principal).strip()
               # Peer Storage objects are loaded by a discoverable label so request resolution can inspect grants.
               response.require_resources(
                   rsp,
@@ -422,14 +448,14 @@ spec:
               interval, max_to_keep = _get_rollover(spec)
               now = datetime.now(timezone.utc)
               suffixes = _suffixes(now, interval, max_to_keep)
-              user_names = [f"{principal}{suf}" for suf in suffixes] if suffixes else [f"{principal}-1"]
+              user_names = [f"{provider_identity}{suf}" for suf in suffixes] if suffixes else [provider_identity]
 
               for user_name in user_names:
                   for b in (spec.get("buckets") or []):
                       bucket = (b.get("bucketName") or "").strip()
                       if not bucket:
                           continue
-                      polname = f"{principal}.{bucket}"
+                      polname = f"provider-storage.{bucket}"
                       key = f"upa-own-{user_name}-{bucket}"
                       rsp.desired.resources[key].resource.update({
                           "apiVersion": "iam.aws.m.upbound.io/v1beta1",
@@ -452,7 +478,7 @@ spec:
                       bucket = (r.get("bucketName") or "").strip()
                       if not bucket:
                           continue
-                      polname = f"{principal}.{bucket}"
+                      polname = f"provider-storage.{principal}.{bucket}"
                       granted = None
                       for peer in peer_storages:
                           peer_meta = (peer.get("metadata") or {})
@@ -545,8 +571,7 @@ spec:
                   for i in range(max_to_keep):
                       out.append(str(now.year - i))
               else:
-                  for i in range(1, max_to_keep + 1):
-                      out.append(str(i))
+                  return [""]
               return ["-" + s for s in out]
 
           def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
@@ -555,26 +580,29 @@ spec:
               spec = xr.get("spec", {}) or {}
               ns = (meta.get("labels", {}) or {}).get("crossplane.io/claim-namespace") or meta.get("namespace") or "default"
               principal = (spec.get("principal") or meta.get("name") or "<principal>").strip()
+              provider_identity = (spec.get("providerIdentity") or principal).strip()
 
               interval, max_to_keep = _get_rollover(spec)
               now = datetime.now(timezone.utc)
               suffixes = _suffixes(now, interval, max_to_keep)
 
               for suf in suffixes:
-                  user_name = f"{principal}{suf}"
-                  key = f"access-key-{user_name}"
+                  user_name = f"{provider_identity}{suf}"
+                  resource_name = f"{principal}{suf}"
+                  connection_secret_name = resource_name if suf else f"{principal}-credentials"
+                  key = f"access-key-{resource_name}"
                   rsp.desired.resources[key].resource.update({
                       "apiVersion": "iam.aws.m.upbound.io/v1beta1",
                       "kind": "AccessKey",
                       "metadata": {
-                          "name": user_name,
+                          "name": resource_name,
                           "namespace": ns,
                           "annotations": {"crossplane.io/composition-resource-name": key}
                       },
                       "spec": {
                           "forProvider": {"userRef": {"name": user_name}},
                           "providerConfigRef": {"name": "provider-aws", "kind": "ProviderConfig"},
-                          "writeConnectionSecretToRef": {"name": user_name, "namespace": ns}
+                          "writeConnectionSecretToRef": {"name": connection_secret_name}
                       }
                   })
 
@@ -613,6 +641,7 @@ spec:
               oc = observed_resources.get(obs_key)
 
               if not oc or not getattr(oc, "resource", None):
+                  rsp.desired.resources[obs_key].ready = fnv1.READY_FALSE
                   return
 
               od = _to_dict(oc.resource)
@@ -620,17 +649,28 @@ spec:
               manifest = ((st.get("atProvider") or {}).get("manifest") or {})
               data = manifest.get("data") or {}
               if not isinstance(data, dict) or not data:
+                  rsp.desired.resources[obs_key].ready = fnv1.READY_FALSE
                   return
+
+              access_key = data.get("AWS_ACCESS_KEY_ID") or data.get("username")
+              secret_key = data.get("AWS_SECRET_ACCESS_KEY") or data.get("password") or data.get("attribute.secret")
+              if not access_key or not secret_key:
+                  rsp.desired.resources[obs_key].ready = fnv1.READY_FALSE
+                  return
+              secret_data = {
+                  "AWS_ACCESS_KEY_ID": access_key,
+                  "AWS_SECRET_ACCESS_KEY": secret_key,
+              }
 
               endpoint = (storage_env.get("endpoint") or "").strip()
               region = (storage_env.get("region") or spec.get("region") or "eu-central-1").strip()
               force_path_style = storage_env.get("force_path_style")
               if endpoint:
-                  data["AWS_ENDPOINT_URL"] = _b64(endpoint)
+                  secret_data["AWS_ENDPOINT_URL"] = _b64(endpoint)
               if region:
-                  data["AWS_REGION"] = _b64(region)
+                  secret_data["AWS_REGION"] = _b64(region)
               if force_path_style not in (None, ""):
-                  data["AWS_S3_FORCE_PATH_STYLE"] = _b64(force_path_style)
+                  secret_data["AWS_S3_FORCE_PATH_STYLE"] = _b64(force_path_style)
 
               key = f"secret-{principal}"
               secret_name = f"{principal}"
@@ -654,7 +694,7 @@ spec:
                                   "namespace": ns,
                               },
                               "type": "Opaque",
-                              "data": data,
+                              "data": secret_data,
                           }
                       },
                       "providerConfigRef": {"name": "provider-kubernetes", "kind": "ProviderConfig"}
@@ -790,7 +830,7 @@ spec:
               force_path_style = storage_env.get("force_path_style")
               if force_path_style not in (None, ""):
                   force_path_style = str(force_path_style)
-              image = "rclone/rclone:1.69"
+              image = "rclone/rclone:1.75.1"
               for package in (env.get("packages") or []):
                   if (package.get("name") or "").strip() != "rclone":
                       continue
@@ -808,6 +848,8 @@ spec:
                   display_target = rule["target"] or "*"
                   scripts[key] = _build_script(rule["bucket"], rule)
                   container_env = [
+                      {"name": "HOME", "value": "/tmp"},
+                      {"name": "RCLONE_CONFIG", "value": "/dev/null"},
                       {"name": "RCLONE_CONFIG_STORAGE_TYPE", "value": storage_type},
                       {"name": "RCLONE_CONFIG_STORAGE_PROVIDER", "value": storage_provider},
                   ]
@@ -828,9 +870,15 @@ spec:
                       "image": image,
                       "imagePullPolicy": "IfNotPresent",
                       "command": ["/bin/sh", "/opt/lifecycle/run.sh"],
+                      "securityContext": {
+                          "allowPrivilegeEscalation": False,
+                          "capabilities": {"drop": ["ALL"]},
+                          "readOnlyRootFilesystem": True,
+                      },
                       "env": container_env,
                       "volumeMounts": [
-                          {"name": "lifecycle-scripts", "mountPath": "/opt/lifecycle/run.sh", "subPath": key, "readOnly": True}
+                          {"name": "lifecycle-scripts", "mountPath": "/opt/lifecycle/run.sh", "subPath": key, "readOnly": True},
+                          {"name": "scratch", "mountPath": "/tmp"},
                       ],
                       "resources": {
                           "requests": {"cpu": "50m", "memory": "64Mi"},
@@ -898,6 +946,13 @@ spec:
                                               "spec": {
                                                   "automountServiceAccountToken": False,
                                                   "restartPolicy": "OnFailure",
+                                                  "securityContext": {
+                                                      "runAsNonRoot": True,
+                                                      "runAsUser": 1000,
+                                                      "runAsGroup": 1000,
+                                                      "fsGroup": 1000,
+                                                      "seccompProfile": {"type": "RuntimeDefault"},
+                                                  },
                                                   "containers": containers,
                                                   "volumes": [
                                                       {
@@ -906,7 +961,8 @@ spec:
                                                               "name": config_name,
                                                               "defaultMode": 493,
                                                           }
-                                                      }
+                                                      },
+                                                      {"name": "scratch", "emptyDir": {}},
                                                   ],
                                               }
                                           }

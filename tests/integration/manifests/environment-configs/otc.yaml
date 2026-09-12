@@ -1,0 +1,13 @@
+# Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: apiextensions.crossplane.io/v1beta1
+kind: EnvironmentConfig
+metadata:
+  name: storage-otc
+data:
+  storage:
+    endpoint: __OTC_ENDPOINT__
+    provider: Other
+    region: __OTC_REGION__
+    type: s3

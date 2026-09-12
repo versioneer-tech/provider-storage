@@ -12,6 +12,9 @@ The concepts are the same for MinIO, AWS S3, and OTC OBS. Buckets, credentials, 
 
 For every `Storage` claim, access credentials are created for `spec.principal` and stored in a Kubernetes Secret in the same namespace. The Secret is named after the principal and exposes normalized S3-style keys on every supported backend.
 
+Set `spec.providerIdentity` only when the provider-native user needs a
+different short name. This does not change the consumer Secret name.
+
 Applications and other platform building blocks can consume this Secret directly. For example, a Datalab can use it to mount object-storage access into a workspace.
 
 Credentials can be rolled over on a schedule. A configurable number of older credentials can stay valid during rotation, which avoids disruptions for running workloads.
@@ -233,6 +236,8 @@ Look for conditions like `Ready=True` and check any event messages.
 
 Each `Storage` claim produces a **Secret in the same namespace** named after `spec.principal`.
 For example, the claim `s-joe` with principal `s-joe` creates a Secret `s-joe`.
+Do not use internal Secrets such as `s-joe-credentials` or
+`s-joe-20260911`. Providers create them with provider-native key names.
 
 List Secrets in the namespace:
 
@@ -259,8 +264,9 @@ kubectl get secret s-joe -n workspace -o jsonpath='{.data.AWS_ACCESS_KEY_ID}' | 
 kubectl get secret s-joe -n workspace -o jsonpath='{.data.AWS_SECRET_ACCESS_KEY}' | base64 -d; echo
 ```
 
-All providers expose `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` in the normalized Secret.
-When configured through the selected storage environment, the Secret also carries connection metadata such as `AWS_ENDPOINT_URL`, `AWS_REGION`, and `AWS_S3_FORCE_PATH_STYLE`.
+All providers expose only `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and the
+configured connection keys in the normalized Secret. The connection keys are
+`AWS_ENDPOINT_URL`, `AWS_REGION`, and `AWS_S3_FORCE_PATH_STYLE`.
 
 You can now use these credentials with any S3-compatible tool, e.g.:
 

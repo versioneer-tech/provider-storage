@@ -36,7 +36,7 @@ spec:
 status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: access-key-s-jeff-2026w17, access-key-s-jeff-2026w18,
+    message: 'Unready resources: access-key-s-jeff-2026w36, access-key-s-jeff-2026w37,
       bucket-s-jeff, and 13 more'
     reason: Creating
     status: "False"
@@ -46,10 +46,10 @@ apiVersion: iam.aws.m.upbound.io/v1beta1
 kind: AccessKey
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: access-key-s-jeff-2026w17
+    crossplane.io/composition-resource-name: access-key-s-jeff-2026w36
   labels:
     crossplane.io/composite: s-jeff
-  name: s-jeff-2026w17
+  name: s-jeff-2026w36
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -61,22 +61,21 @@ metadata:
 spec:
   forProvider:
     userRef:
-      name: s-jeff-2026w17
+      name: s-jeff-2026w36
   providerConfigRef:
     kind: ProviderConfig
     name: provider-aws
   writeConnectionSecretToRef:
-    name: s-jeff-2026w17
-    namespace: default
+    name: s-jeff-2026w36
 ---
 apiVersion: iam.aws.m.upbound.io/v1beta1
 kind: AccessKey
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: access-key-s-jeff-2026w18
+    crossplane.io/composition-resource-name: access-key-s-jeff-2026w37
   labels:
     crossplane.io/composite: s-jeff
-  name: s-jeff-2026w18
+  name: s-jeff-2026w37
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -88,13 +87,12 @@ metadata:
 spec:
   forProvider:
     userRef:
-      name: s-jeff-2026w18
+      name: s-jeff-2026w37
   providerConfigRef:
     kind: ProviderConfig
     name: provider-aws
   writeConnectionSecretToRef:
-    name: s-jeff-2026w18
-    namespace: default
+    name: s-jeff-2026w37
 ---
 apiVersion: s3.aws.m.upbound.io/v1beta1
 kind: Bucket
@@ -219,6 +217,10 @@ spec:
                   - /bin/sh
                   - /opt/lifecycle/run.sh
                   env:
+                  - name: HOME
+                    value: /tmp
+                  - name: RCLONE_CONFIG
+                    value: /dev/null
                   - name: RCLONE_CONFIG_STORAGE_TYPE
                     value: s3
                   - name: RCLONE_CONFIG_STORAGE_PROVIDER
@@ -239,7 +241,7 @@ spec:
                     value: s-jeff-shared
                   - name: STORAGE_LIFECYCLE_TARGET
                     value: tmp/
-                  image: rclone/rclone:1.69
+                  image: rclone/rclone:1.75.1
                   imagePullPolicy: IfNotPresent
                   name: lifecycle-01
                   resources:
@@ -249,15 +251,27 @@ spec:
                     requests:
                       cpu: 50m
                       memory: 64Mi
+                  securityContext:
+                    allowPrivilegeEscalation: false
+                    capabilities:
+                      drop:
+                      - ALL
+                    readOnlyRootFilesystem: true
                   volumeMounts:
                   - mountPath: /opt/lifecycle/run.sh
                     name: lifecycle-scripts
                     readOnly: true
                     subPath: rule-01.sh
+                  - mountPath: /tmp
+                    name: scratch
                 - command:
                   - /bin/sh
                   - /opt/lifecycle/run.sh
                   env:
+                  - name: HOME
+                    value: /tmp
+                  - name: RCLONE_CONFIG
+                    value: /dev/null
                   - name: RCLONE_CONFIG_STORAGE_TYPE
                     value: s3
                   - name: RCLONE_CONFIG_STORAGE_PROVIDER
@@ -278,7 +292,7 @@ spec:
                     value: s-jeff-shared
                   - name: STORAGE_LIFECYCLE_TARGET
                     value: scratch/
-                  image: rclone/rclone:1.69
+                  image: rclone/rclone:1.75.1
                   imagePullPolicy: IfNotPresent
                   name: lifecycle-02
                   resources:
@@ -288,17 +302,34 @@ spec:
                     requests:
                       cpu: 50m
                       memory: 64Mi
+                  securityContext:
+                    allowPrivilegeEscalation: false
+                    capabilities:
+                      drop:
+                      - ALL
+                    readOnlyRootFilesystem: true
                   volumeMounts:
                   - mountPath: /opt/lifecycle/run.sh
                     name: lifecycle-scripts
                     readOnly: true
                     subPath: rule-02.sh
+                  - mountPath: /tmp
+                    name: scratch
                 restartPolicy: OnFailure
+                securityContext:
+                  fsGroup: 1000
+                  runAsGroup: 1000
+                  runAsNonRoot: true
+                  runAsUser: 1000
+                  seccompProfile:
+                    type: RuntimeDefault
                 volumes:
                 - configMap:
                     defaultMode: 493
                     name: s-jeff-lifecycle
                   name: lifecycle-scripts
+                - emptyDir: {}
+                  name: scratch
         schedule: 17 2 * * *
         successfulJobsHistoryLimit: 1
   providerConfigRef:
@@ -327,7 +358,7 @@ spec:
       apiVersion: v1
       kind: Secret
       metadata:
-        name: s-jeff-2026w18
+        name: s-jeff-2026w37
         namespace: default
   managementPolicies:
   - Observe
@@ -342,7 +373,7 @@ metadata:
     crossplane.io/composition-resource-name: policy-s-jeff
   labels:
     crossplane.io/composite: s-jeff
-  name: s-jeff.s-jeff
+  name: provider-storage.s-jeff
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -353,6 +384,7 @@ metadata:
     uid: ""
 spec:
   forProvider:
+    path: /provider-storage/managed/
     policy: |-
       {
         "Version": "2012-10-17",
@@ -380,7 +412,7 @@ metadata:
     crossplane.io/composition-resource-name: policy-s-jeff-shared
   labels:
     crossplane.io/composite: s-jeff
-  name: s-jeff.s-jeff-shared
+  name: provider-storage.s-jeff-shared
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -391,6 +423,7 @@ metadata:
     uid: ""
 spec:
   forProvider:
+    path: /provider-storage/managed/
     policy: |-
       {
         "Version": "2012-10-17",
@@ -418,7 +451,7 @@ metadata:
     crossplane.io/composition-resource-name: policy-s-joe-s-jeff-shared
   labels:
     crossplane.io/composite: s-jeff
-  name: s-joe.s-jeff-shared
+  name: provider-storage.s-joe.s-jeff-shared
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -429,6 +462,7 @@ metadata:
     uid: ""
 spec:
   forProvider:
+    path: /provider-storage/managed/
     policy: |-
       {
         "Version": "2012-10-17",
@@ -461,10 +495,10 @@ apiVersion: iam.aws.m.upbound.io/v1beta1
 kind: UserPolicyAttachment
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: upa-own-s-jeff-2026w17-s-jeff
+    crossplane.io/composition-resource-name: upa-own-s-jeff-2026w36-s-jeff
   labels:
     crossplane.io/composite: s-jeff
-  name: s-jeff-2026w17.s-jeff.own
+  name: s-jeff-2026w36.s-jeff.own
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -476,9 +510,9 @@ metadata:
 spec:
   forProvider:
     policyArnRef:
-      name: s-jeff.s-jeff
+      name: provider-storage.s-jeff
     userRef:
-      name: s-jeff-2026w17
+      name: s-jeff-2026w36
   providerConfigRef:
     kind: ProviderConfig
     name: provider-aws
@@ -487,10 +521,10 @@ apiVersion: iam.aws.m.upbound.io/v1beta1
 kind: UserPolicyAttachment
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: upa-own-s-jeff-2026w17-s-jeff-shared
+    crossplane.io/composition-resource-name: upa-own-s-jeff-2026w36-s-jeff-shared
   labels:
     crossplane.io/composite: s-jeff
-  name: s-jeff-2026w17.s-jeff-shared.own
+  name: s-jeff-2026w36.s-jeff-shared.own
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -502,9 +536,9 @@ metadata:
 spec:
   forProvider:
     policyArnRef:
-      name: s-jeff.s-jeff-shared
+      name: provider-storage.s-jeff-shared
     userRef:
-      name: s-jeff-2026w17
+      name: s-jeff-2026w36
   providerConfigRef:
     kind: ProviderConfig
     name: provider-aws
@@ -513,10 +547,10 @@ apiVersion: iam.aws.m.upbound.io/v1beta1
 kind: UserPolicyAttachment
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: upa-own-s-jeff-2026w18-s-jeff
+    crossplane.io/composition-resource-name: upa-own-s-jeff-2026w37-s-jeff
   labels:
     crossplane.io/composite: s-jeff
-  name: s-jeff-2026w18.s-jeff.own
+  name: s-jeff-2026w37.s-jeff.own
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -528,9 +562,9 @@ metadata:
 spec:
   forProvider:
     policyArnRef:
-      name: s-jeff.s-jeff
+      name: provider-storage.s-jeff
     userRef:
-      name: s-jeff-2026w18
+      name: s-jeff-2026w37
   providerConfigRef:
     kind: ProviderConfig
     name: provider-aws
@@ -539,10 +573,10 @@ apiVersion: iam.aws.m.upbound.io/v1beta1
 kind: UserPolicyAttachment
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: upa-own-s-jeff-2026w18-s-jeff-shared
+    crossplane.io/composition-resource-name: upa-own-s-jeff-2026w37-s-jeff-shared
   labels:
     crossplane.io/composite: s-jeff
-  name: s-jeff-2026w18.s-jeff-shared.own
+  name: s-jeff-2026w37.s-jeff-shared.own
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -554,9 +588,9 @@ metadata:
 spec:
   forProvider:
     policyArnRef:
-      name: s-jeff.s-jeff-shared
+      name: provider-storage.s-jeff-shared
     userRef:
-      name: s-jeff-2026w18
+      name: s-jeff-2026w37
   providerConfigRef:
     kind: ProviderConfig
     name: provider-aws
@@ -565,10 +599,10 @@ apiVersion: iam.aws.m.upbound.io/v1beta1
 kind: User
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: user-s-jeff-2026w17
+    crossplane.io/composition-resource-name: user-s-jeff-2026w36
   labels:
     crossplane.io/composite: s-jeff
-  name: s-jeff-2026w17
+  name: s-jeff-2026w36
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -578,7 +612,8 @@ metadata:
     name: s-jeff
     uid: ""
 spec:
-  forProvider: {}
+  forProvider:
+    path: /provider-storage/managed/
   providerConfigRef:
     kind: ProviderConfig
     name: provider-aws
@@ -587,10 +622,10 @@ apiVersion: iam.aws.m.upbound.io/v1beta1
 kind: User
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: user-s-jeff-2026w18
+    crossplane.io/composition-resource-name: user-s-jeff-2026w37
   labels:
     crossplane.io/composite: s-jeff
-  name: s-jeff-2026w18
+  name: s-jeff-2026w37
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -600,7 +635,8 @@ metadata:
     name: s-jeff
     uid: ""
 spec:
-  forProvider: {}
+  forProvider:
+    path: /provider-storage/managed/
   providerConfigRef:
     kind: ProviderConfig
     name: provider-aws

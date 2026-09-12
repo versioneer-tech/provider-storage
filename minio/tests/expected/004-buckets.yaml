@@ -93,7 +93,7 @@ spec:
       apiVersion: v1
       kind: Secret
       metadata:
-        name: s-john-20260430
+        name: s-john-20260911
         namespace: default
   managementPolicies:
   - Observe
@@ -123,7 +123,7 @@ spec:
       apiVersion: minio.crossplane.io/v1
       kind: Policy
       metadata:
-        name: s-john.s-john
+        name: provider-storage.s-john
       spec:
         forProvider:
           rawPolicy: |-
@@ -170,7 +170,7 @@ spec:
       apiVersion: minio.crossplane.io/v1
       kind: Policy
       metadata:
-        name: s-jane.s-john
+        name: provider-storage.s-jane.s-john
       spec:
         forProvider:
           rawPolicy: |-
@@ -203,10 +203,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: user-s-john-20260430
+    crossplane.io/composition-resource-name: user-s-john-20260911
   labels:
     crossplane.io/composite: s-john
-  name: user-s-john-20260430
+  name: user-s-john-20260911
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -221,16 +221,16 @@ spec:
       apiVersion: minio.crossplane.io/v1
       kind: User
       metadata:
-        name: s-john-20260430
+        name: provider-storage-managed-s-john-20260911
       spec:
         forProvider:
           policies:
-          - s-john.s-john
-          userName: s-john-20260430
+          - provider-storage.s-john
+          userName: provider-storage-managed-s-john-20260911
         providerConfigRef:
           name: provider-minio
         writeConnectionSecretToRef:
-          name: s-john-20260430
+          name: s-john-20260911
           namespace: default
   providerConfigRef:
     kind: ProviderConfig

@@ -1,0 +1,25 @@
+# Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  name: storage-otc-it
+  namespace: provider-storage-it
+  annotations:
+    storages.pkg.internal/environment: storage-otc
+  labels:
+    storages.pkg.internal/backend: otc
+    storages.pkg.internal/discoverable: "true"
+spec:
+  principal: provider-storage-otc-it
+  providerIdentity: it
+  buckets:
+    - bucketName: __OTC_BUCKET_A__
+      discoverable: true
+    - bucketName: __OTC_BUCKET_B__
+      discoverable: true
+  crossplane:
+    compositionSelector:
+      matchLabels:
+        provider: otc

@@ -37,6 +37,17 @@ helm install crossplane crossplane-stable/crossplane \
 
 ---
 
+## Step 0 – Bootstrap the Cloud Identity
+
+!!! danger "Required before cloud provider deployment"
+
+    Before deployment, a cloud administrator must review the backend's
+    `<cloud>/dependencies/iam.sh` script and any policy templates. AWS and OTC have
+    implementations. Follow the
+    [cloud IAM bootstrap guide](cloud-iam-bootstrap.md).
+
+---
+
 ## Step 1 – Install Provider Dependencies (per backend)
 
 All providers follow the same staged pattern you **must** install **before** the configuration package:
@@ -66,19 +77,23 @@ Install only the backend packages you want to offer as platform service classes.
 
 ### AWS
 
-> You provide AWS endpoint configuration and credentials via a Secret referenced by a namespaced `ProviderConfig`.
+> Both AWS IAM modes require the runtime role ARN in the namespaced
+> `ProviderConfig`. `bootstrap-user` also requires a Secret with the generated
+> base credentials. `assume-role` uses the configured source for the existing
+> trusted identity.
 
 - [00-mrap.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/aws/dependencies/00-mrap.yaml) – Activate AWS S3/IAM Managed Resources.
 - [01-deploymentRuntimeConfigs.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/aws/dependencies/01-deploymentRuntimeConfigs.yaml) – Runtime configs for AWS + Kubernetes providers.
 - [02-providers.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/aws/dependencies/02-providers.yaml) – Install `provider-upjet-aws` and `provider-kubernetes`.
-- [03-providerConfigs.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/aws/dependencies/03-providerConfigs.yaml) – **Apply in your target namespace**; references AWS credentials Secret.
+- [03-providerConfigs.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/aws/dependencies/03-providerConfigs.yaml) – **Configure for the selected IAM mode and apply in each `Storage` namespace**; both modes require the runtime role ARN, while `bootstrap-user` also requires the credentials Secret in that namespace.
 - [04-environmentConfigs.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/aws/dependencies/04-environmentConfigs.yaml) – Backend settings consumed by the composition.
 - [functions.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/aws/dependencies/functions.yaml) – Functions used by compositions.
 - [rbac.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/aws/dependencies/rbac.yaml) – RBAC for `provider-kubernetes`.
 
 ### OTC
 
-> You do **not** deploy OBS. You provide OTC credentials via a Secret referenced by a namespaced `ProviderConfig`.
+> You do **not** deploy OBS. Use the controller credentials created in Step 0
+> for the Secret referenced by `ProviderConfig`.
 
 - [00-mrap.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/otc/dependencies/00-mrap.yaml) – Activate OTC Managed Resources.
 - [01-deploymentRuntimeConfigs.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/otc/dependencies/01-deploymentRuntimeConfigs.yaml) – Runtime configs for OTC + Kubernetes providers.
@@ -149,4 +164,4 @@ This is the same hook used by higher-level workspace APIs to point new `Storage`
 
 ## Step 3 – (Optional) Quick Verification
 
-After the package installs and providers are healthy, create a minimal `Storage` claim in your target namespace and verify readiness and credentials. See the **Usage & Concepts** guide for details (`kubectl get storages -n <ns>`, and inspect the Secret named after the principal).
+After the package installs and providers are healthy, create a minimal `Storage` claim in your target namespace and verify readiness and credentials. For AWS, `Ready` stays `False` until the current credentials are observed and the consumer Secret is ready. See the **Usage & Concepts** guide for details (`kubectl get storages -n <ns>`, and inspect the Secret named after the principal).

@@ -1,0 +1,191 @@
+# Bootstrap Cloud IAM
+
+!!! danger "Review before deployment"
+
+    Provider Storage needs permission to manage buckets, IAM users, policies,
+    and access credentials. A cloud administrator must review the backend's
+    `iam.sh` and any policy files before running the bootstrap.
+
+Run the bootstrap before you deploy the backend's Crossplane providers and
+`ProviderConfig`. The bootstrap identity is for the controller. It is separate
+from the consumer identities and credentials that Provider Storage creates.
+
+!!! warning "Choose the bucket prefix during IAM bootstrap"
+
+    Bucket names are user-facing. The default prefixes are
+    `aws-<account-id>` and `otc-<domain-id>`. Configure any override before
+    bootstrap and reuse it for every `Storage` deployment. AWS enforces this
+    prefix in IAM. The OTC bootstrap assigns OBS Administrator to all existing
+    and future projects. The OTC prefix is a naming convention and does not
+    limit that permission.
+
+## AWS
+
+The AWS bootstrap consists of
+[`iam.sh`](https://github.com/versioneer-tech/provider-storage/blob/main/aws/dependencies/iam.sh)
+and its
+[`policies/`](https://github.com/versioneer-tech/provider-storage/tree/main/aws/dependencies/policies).
+It creates the runtime role used by `provider-aws`. Choose how the provider
+gets the base identity that assumes this role:
+
+| Mode | Base identity |
+| --- | --- |
+| `assume-role` | An existing workload identity, such as IRSA or EKS Pod Identity |
+| `bootstrap-user` | A dedicated IAM user with a static access key |
+
+Both modes require the runtime role ARN in
+`ProviderConfig.spec.assumeRoleChain`. The bootstrap user cannot manage
+storage resources directly. It can only assume the runtime role.
+
+AWS groups resources with IAM paths. The default bootstrap user is
+`/provider-storage/bootstrap/crossplane`. Managed users and policies use the
+`/provider-storage/managed/` path. IAM policy names start with
+`provider-storage`.
+
+The runtime policy lists the IAM actions used to manage users, access keys,
+and policies. It limits IAM changes to the managed paths and S3 access to
+buckets and objects with the configured prefix. The S3 statement uses `s3:*`
+on those resources. Some read and list actions use wider resource scopes.
+The policy denies changes to the bootstrap user. The bootstrap user's policy
+grants only `sts:AssumeRole` for the runtime role.
+
+The default bucket prefix is `aws-<account-id>`. Choose the prefix when running
+the IAM bootstrap. The runtime policy embeds it, so every managed bucket must
+start with the same value. Set `CROSSPLANE_AWS_RESOURCE_PREFIX` during
+bootstrap when one account contains multiple installations, and reuse it for
+deployment.
+
+Use `aws/dependencies/iam.sh --help` for optional names and paths.
+
+### Use an existing workload identity
+
+The trusted principal must already exist and must be available to
+`provider-aws`:
+
+```bash
+export CROSSPLANE_AWS_ACCOUNT_ID=123456789012
+export CROSSPLANE_AWS_AUTH_MODE=assume-role
+export CROSSPLANE_AWS_TRUST_PRINCIPAL_ARN=arn:aws:iam::123456789012:role/crossplane-base
+
+aws/dependencies/iam.sh apply
+```
+
+Give the trusted principal permission to assume the runtime role.
+
+### Use the bootstrap user
+
+Use an absolute credentials-file path outside Git:
+
+```bash
+export CROSSPLANE_AWS_ACCOUNT_ID=123456789012
+export CROSSPLANE_AWS_AUTH_MODE=bootstrap-user
+export CROSSPLANE_AWS_CREDENTIALS_FILE=/secure/provider-storage.credentials
+
+aws/dependencies/iam.sh apply
+```
+
+The script writes the credentials file and prints the runtime role ARN. Store
+the file in a secret manager.
+
+### Configure `provider-aws`
+
+For both modes, put the printed runtime role ARN in
+[`aws/dependencies/03-providerConfigs.yaml`](https://github.com/versioneer-tech/provider-storage/blob/main/aws/dependencies/03-providerConfigs.yaml)
+and apply the `ProviderConfig` in each namespace that contains an AWS
+`Storage`.
+
+For `assume-role`, configure the workload credential source in that manifest.
+For `bootstrap-user`, create the Secret in each `Storage` namespace:
+
+```bash
+namespace=<storage-namespace>
+kubectl create namespace "${namespace}" --dry-run=client -o yaml | kubectl apply -f -
+kubectl create secret generic aws-provider-creds \
+  --namespace "${namespace}" \
+  --from-file=credentials="${CROSSPLANE_AWS_CREDENTIALS_FILE}" \
+  --dry-run=client -o yaml \
+| kubectl apply -f -
+```
+
+### Inspect
+
+Use the same account, mode, prefix, names, paths, and credentials-file value
+for all operations:
+
+```bash
+aws/dependencies/iam.sh status
+```
+
+For a complete Kind test sequence, including Secret creation, provider
+deployment, and an S3 round trip, see the
+[integration test guide](https://github.com/versioneer-tech/provider-storage/blob/main/tests/integration/README.md#aws).
+
+## OTC
+
+The OTC provider uses one programmatic IAM user with a permanent access key.
+The bootstrap adds the user to one group and assigns two permissions to it:
+
+- `Security Administrator` at domain scope, because the controller creates IAM
+  users and permanent credentials for them.
+- The system-defined `OBS Administrator` policy for all existing and future
+  projects.
+
+OTC exposes project and domain role assignment through user groups. This is
+why the bootstrap needs a group although the equivalent AWS setup does not.
+The default bootstrap user and group are both named
+`provider-storage-bootstrap-crossplane`. Composition-created users start with
+`provider-storage-managed-`.
+
+The system-defined OTC permissions cannot be limited to a bucket prefix or an
+individual bucket. `Security Administrator` can change IAM permissions in the
+domain, and `OBS Administrator` covers OBS resources across existing and future
+projects. Use a dedicated domain for Provider Storage. An agency cannot
+replace this controller identity because OTC does not permit
+`Security Administrator` on an agency.
+
+The user that runs the bootstrap must already have `Security Administrator` at
+domain scope. The script re-scopes the active OpenStack token to the target
+domain because OTC IAM APIs require a domain-scoped token. Review
+[`iam.sh`](https://github.com/versioneer-tech/provider-storage/blob/main/otc/dependencies/iam.sh),
+then run:
+
+```bash
+export CROSSPLANE_OTC_DOMAIN_ID=0123456789abcdef0123456789abcdef
+export CROSSPLANE_OTC_PROJECT_ID=abcdef0123456789abcdef0123456789
+export CROSSPLANE_OTC_REGION=eu-nl
+export CROSSPLANE_OTC_CREDENTIALS_FILE=/secure/provider-otc.json
+
+otc/dependencies/iam.sh apply
+```
+
+The regional project ID is the provider project, not the OBS policy assignment
+scope. The script writes the provider JSON with mode `0600` and
+does not print its access key or secret key. Store this file in a secret
+manager.
+
+Run `otc/dependencies/iam.sh status` to check group membership, Security
+Administrator, and the inherited OBS Administrator assignment. The bootstrap
+uses OTC's all-projects IAM endpoint. IAM changes can take 10 to 15 minutes to
+take effect.
+
+The default bucket prefix is `otc-<domain-id>`. Choose any override through
+`CROSSPLANE_OTC_RESOURCE_PREFIX` when running the IAM bootstrap, then reuse it
+for every deployment. The prefix does not restrict OBS Administrator access.
+
+Create the Secret used by `otc/dependencies/03-providerConfigs.yaml`:
+
+```bash
+namespace=<storage-namespace>
+kubectl create namespace "${namespace}" --dry-run=client -o yaml | kubectl apply -f -
+kubectl create secret generic otc-provider-creds \
+  --namespace "${namespace}" \
+  --from-file=credentials="${CROSSPLANE_OTC_CREDENTIALS_FILE}" \
+  --dry-run=client -o yaml \
+| kubectl apply -f -
+```
+
+Use `otc/dependencies/iam.sh rotate-credential` to replace the controller
+AK/SK without recreating its user or policies, then update the provider Secret.
+
+For the complete Kind test sequence, see the
+[OTC integration test guide](https://github.com/versioneer-tech/provider-storage/blob/main/tests/integration/README.md#otc).

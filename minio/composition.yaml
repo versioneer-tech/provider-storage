@@ -128,7 +128,7 @@ spec:
                   bucket = (b.get("bucketName") or "").strip()
                   if not bucket:
                       continue
-                  polname = f"{principal}.{bucket}"
+                  polname = f"provider-storage.{bucket}"
                   key = f"policy-full-{bucket}"
                   raw = json.dumps({
                       "Version": "2012-10-17",
@@ -215,7 +215,7 @@ spec:
                       continue
 
                   raw = _raw_policy(bucket, perm)
-                  polname = f"{grantee}.{bucket}"
+                  polname = f"provider-storage.{grantee}.{bucket}"
                   key = f"policy-{grantee}-{bucket}"
                   rsp.desired.resources[key].resource.update({
                       "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
@@ -305,8 +305,7 @@ spec:
                   for i in range(max_to_keep):
                       out.append(str(now.year - i))
               else:
-                  for i in range(1, max_to_keep + 1):
-                      out.append(str(i))
+                  return [""]
 
               return ["-" + s for s in out]
 
@@ -336,6 +335,7 @@ spec:
               ns = (meta.get("labels", {}) or {}).get("crossplane.io/claim-namespace") or meta.get("namespace") or "default"
 
               principal = (spec.get("principal") or meta.get("name") or "<principal-missing>").strip()
+              provider_identity = (spec.get("providerIdentity") or principal).strip()
               # Peer Storage objects are loaded by a shared label so request resolution can inspect grants.
               response.require_resources(
                   rsp,
@@ -351,7 +351,7 @@ spec:
               for b in (spec.get("buckets") or []):
                   bucket = (b.get("bucketName") or "").strip()
                   if bucket:
-                      policies.append(f"{principal}.{bucket}")
+                      policies.append(f"provider-storage.{bucket}")
 
               for r in (spec.get("bucketAccessRequests") or []):
                   bucket = (r.get("bucketName") or "").strip()
@@ -368,15 +368,17 @@ spec:
                       if granted is not None:
                           break
                   if granted:
-                      policies.append(f"{principal}.{bucket}")
+                      policies.append(f"provider-storage.{principal}.{bucket}")
 
               interval, max_to_keep = _get_rollover(spec)
               now = datetime.now(timezone.utc)
               suffixes = _suffixes(now, interval, max_to_keep)
 
               for suf in suffixes:
-                  user_name = f"{principal}{suf}"
-                  key = f"user-{user_name}"
+                  user_name = f"provider-storage-managed-{provider_identity}{suf}"
+                  resource_name = f"{principal}{suf}"
+                  connection_secret_name = resource_name if suf else f"{principal}-credentials"
+                  key = f"user-{resource_name}"
                   rsp.desired.resources[key].resource.update({
                       "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
                       "kind": "Object",
@@ -398,7 +400,7 @@ spec:
                                   "spec": {
                                       "forProvider": {"userName": user_name, "policies": policies},
                                       "providerConfigRef": {"name": "provider-minio"},
-                                      "writeConnectionSecretToRef": {"name": user_name, "namespace": ns}
+                                      "writeConnectionSecretToRef": {"name": connection_secret_name, "namespace": ns}
                                   }
                               }
                           },
@@ -406,7 +408,8 @@ spec:
                       }
                   })
 
-              current_user_name = f"{principal}{suffixes[0] if suffixes else '-1'}"
+              current_user_name = f"{principal}{suffixes[0] if suffixes else ''}"
+              current_secret_name = current_user_name if suffixes and suffixes[0] else f"{principal}-credentials"
               obs_key = f"observe-secret-{principal}"
               rsp.desired.resources[obs_key].ready = fnv1.READY_TRUE
               rsp.desired.resources[obs_key].resource.update({
@@ -426,7 +429,7 @@ spec:
                               "apiVersion": "v1",
                               "kind": "Secret",
                               "metadata": {
-                                  "name": current_user_name,
+                                  "name": current_secret_name,
                                   "namespace": ns,
                               }
                           }
@@ -479,15 +482,24 @@ spec:
               if not isinstance(data, dict) or not data:
                   return
 
+              access_key = data.get("AWS_ACCESS_KEY_ID")
+              secret_key = data.get("AWS_SECRET_ACCESS_KEY")
+              if not access_key or not secret_key:
+                  return
+              secret_data = {
+                  "AWS_ACCESS_KEY_ID": access_key,
+                  "AWS_SECRET_ACCESS_KEY": secret_key,
+              }
+
               endpoint = (storage_env.get("endpoint") or "").strip()
               region = (storage_env.get("region") or "").strip()
               force_path_style = storage_env.get("force_path_style")
               if endpoint:
-                  data["AWS_ENDPOINT_URL"] = _b64(endpoint)
+                  secret_data["AWS_ENDPOINT_URL"] = _b64(endpoint)
               if region:
-                  data["AWS_REGION"] = _b64(region)
+                  secret_data["AWS_REGION"] = _b64(region)
               if force_path_style not in (None, ""):
-                  data["AWS_S3_FORCE_PATH_STYLE"] = _b64(force_path_style)
+                  secret_data["AWS_S3_FORCE_PATH_STYLE"] = _b64(force_path_style)
 
               key = f"secret-{principal}"
               secret_name = f"{principal}"
@@ -511,7 +523,7 @@ spec:
                                   "namespace": ns,
                               },
                               "type": "Opaque",
-                              "data": data,
+                              "data": secret_data,
                           }
                       },
                       "providerConfigRef": {"name": "provider-kubernetes", "kind": "ProviderConfig"}
@@ -649,7 +661,7 @@ spec:
                   force_path_style = "true"
               else:
                   force_path_style = str(force_path_style)
-              image = "rclone/rclone:1.69"
+              image = "rclone/rclone:1.75.1"
               for package in (env.get("packages") or []):
                   if (package.get("name") or "").strip() != "rclone":
                       continue
@@ -672,6 +684,8 @@ spec:
                       "imagePullPolicy": "IfNotPresent",
                       "command": ["/bin/sh", "/opt/lifecycle/run.sh"],
                       "env": [
+                          {"name": "HOME", "value": "/tmp"},
+                          {"name": "RCLONE_CONFIG", "value": "/dev/null"},
                           {"name": "RCLONE_CONFIG_STORAGE_TYPE", "value": storage_type},
                           {"name": "RCLONE_CONFIG_STORAGE_PROVIDER", "value": storage_provider},
                           {"name": "RCLONE_CONFIG_STORAGE_ENDPOINT", "value": endpoint},
@@ -681,8 +695,14 @@ spec:
                           {"name": "STORAGE_LIFECYCLE_BUCKET", "value": rule["bucket"]},
                           {"name": "STORAGE_LIFECYCLE_TARGET", "value": display_target},
                       ],
+                      "securityContext": {
+                          "allowPrivilegeEscalation": False,
+                          "capabilities": {"drop": ["ALL"]},
+                          "readOnlyRootFilesystem": True,
+                      },
                       "volumeMounts": [
-                          {"name": "lifecycle-scripts", "mountPath": "/opt/lifecycle/run.sh", "subPath": key, "readOnly": True}
+                          {"name": "lifecycle-scripts", "mountPath": "/opt/lifecycle/run.sh", "subPath": key, "readOnly": True},
+                          {"name": "scratch", "mountPath": "/tmp"},
                       ],
                       "resources": {
                           "requests": {"cpu": "50m", "memory": "64Mi"},
@@ -753,6 +773,13 @@ spec:
                                               "spec": {
                                                   "automountServiceAccountToken": False,
                                                   "restartPolicy": "OnFailure",
+                                                  "securityContext": {
+                                                      "runAsNonRoot": True,
+                                                      "runAsUser": 1000,
+                                                      "runAsGroup": 1000,
+                                                      "fsGroup": 1000,
+                                                      "seccompProfile": {"type": "RuntimeDefault"},
+                                                  },
                                                   "containers": containers,
                                                   "volumes": [
                                                       {
@@ -761,7 +788,8 @@ spec:
                                                               "name": config_name,
                                                               "defaultMode": 493,
                                                           }
-                                                      }
+                                                      },
+                                                      {"name": "scratch", "emptyDir": {}},
                                                   ],
                                               }
                                           }

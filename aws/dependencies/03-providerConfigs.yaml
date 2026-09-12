@@ -7,11 +7,26 @@ metadata:
   name: provider-aws
   # don't specify namespace
 spec:
+  # Required for both iam.sh modes. Run iam.sh apply, then uncomment this block
+  # and replace <account-id> with the account that the script verified:
+  # assumeRoleChain:
+  #   - roleARN: arn:aws:iam::<account-id>:role/provider-storage/crossplane
+  #
+  # This credentials block is for bootstrap-user mode. Create aws-provider-creds
+  # from CROSSPLANE_AWS_CREDENTIALS_FILE before you apply this ProviderConfig.
+  # Create the Secret and apply this ProviderConfig in every namespace that
+  # contains an AWS Storage. Replace <storage-namespace> below. If you use
+  # assume-role mode, replace this block with the credential source for the
+  # existing trusted identity. For example:
+  # credentials:
+  #   source: IRSA
+  # Use source: PodIdentity instead when you use EKS Pod Identity. See
+  # docs/how-to-guides/cloud-iam-bootstrap.md#aws.
   credentials:
     source: Secret
     secretRef:
       name: aws-provider-creds
-      namespace: aws
+      namespace: <storage-namespace>
       key: credentials
 ---
 apiVersion: kubernetes.m.crossplane.io/v1alpha1

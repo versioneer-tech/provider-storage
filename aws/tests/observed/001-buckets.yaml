@@ -23,7 +23,10 @@ status:
       apiVersion: v1
       kind: Secret
       metadata:
-        name: s-joe-1
+        name: s-joe-credentials
         namespace: default
       data:
-        KEY: dmFsdWU=
+        attribute.secret: c2VjcmV0LWtleQ==
+        attribute.ses_smtp_password_v4: c210cC1wYXNzd29yZA==
+        password: c2VjcmV0LWtleQ==
+        username: YWNjZXNzLWtleQ==

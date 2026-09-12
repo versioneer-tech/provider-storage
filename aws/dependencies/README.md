@@ -12,9 +12,10 @@ They set up the Crossplane runtime (providers, configs, and permissions) that th
 This Composition expects the following Crossplane components to be installed (versions are examples — pin to the versions you have validated):
 
 - **Providers**
-  - `provider-aws-s3` (e.g., `xpkg.upbound.io/upbound/provider-aws-s3:v2.1.0`)
-  - `provider-aws-iam` (e.g., `xpkg.upbound.io/upbound/provider-aws-iam:v2.1.0`)
-  - `provider-kubernetes` (e.g., `xpkg.upbound.io/crossplane-contrib/provider-kubernetes:v1.0.0`)
+  - `provider-aws-s3` (e.g., `xpkg.upbound.io/upbound/provider-aws-s3:v2.7.2`)
+  - `provider-aws-iam` (e.g., `xpkg.upbound.io/upbound/provider-aws-iam:v2.7.2`)
+  - `provider-family-aws` (e.g., `xpkg.upbound.io/upbound/provider-family-aws:v2.7.2`)
+  - `provider-kubernetes` (e.g., `xpkg.upbound.io/crossplane-contrib/provider-kubernetes:v1.3.1`)
 
 - **Functions**
   - `crossplane-contrib-function-python`  
@@ -24,8 +25,20 @@ This Composition expects the following Crossplane components to be installed (ve
 
 ## AWS notes
 
-S3 buckets are managed via **AWS** using `provider-aws`. You must supply:
-- A reachable AWS endpoint and credentials (referenced by the **`ProviderConfig`**).
+Before deployment, an AWS administrator must review and run [`iam.sh`](iam.sh)
+and its [policy templates](policies) as described in the
+[cloud IAM bootstrap guide](../../docs/how-to-guides/cloud-iam-bootstrap.md#aws).
+
+S3 buckets are managed via **AWS** using `provider-aws`. Both IAM modes require
+the runtime role ARN in the **`ProviderConfig`**. `bootstrap-user` also requires
+the generated credential file to be stored as a Kubernetes Secret;
+`assume-role` uses the configured source for its existing trusted identity.
+The runtime policy limits resource changes to the managed IAM paths and the
+configured S3 bucket prefix. The bootstrap user can only assume that role.
+
+You must also supply:
+
+- A reachable AWS endpoint.
 - Backend defaults such as region in the **`EnvironmentConfig`** named `storage`.
 
 ## Best practices

@@ -13,9 +13,15 @@ nav:
     - Permissions: how-to-guides/permissions.md
     - Backend Differences: how-to-guides/backend_differences.md
     - Installation: how-to-guides/installation.md
+    - Cloud IAM Bootstrap: how-to-guides/cloud-iam-bootstrap.md
     - Local Setup: how-to-guides/local_setup.md
   - Reference guides:
     - API: reference-guides/api.md
+    - Architecture:
+      - Credential Strategy: architecture/credential-strategy.md
+      - ADR-001 AWS, OTC, and MinIO Provisioning: architecture/0001-provision-storage-on-aws-otc-and-minio.md
+      - ADR-002 Static Credential Rotation: architecture/0002-rotate-static-credentials-by-generation.md
+      - ADR-003 Lifecycle Cleanup Jobs: architecture/0003-run-portable-lifecycle-cleanup-jobs.md
 plugins:
   - search
   - mike

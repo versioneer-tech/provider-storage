@@ -19,38 +19,11 @@ spec:
 status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: access-key-s-jane-2025q2, access-key-s-jane-2025q3,
-      access-key-s-jane-2025q4, and 8 more'
+    message: 'Unready resources: access-key-s-jane-2025q3, access-key-s-jane-2025q4,
+      access-key-s-jane-2026q1, and 8 more'
     reason: Creating
     status: "False"
     type: Ready
----
-apiVersion: iam.aws.m.upbound.io/v1beta1
-kind: AccessKey
-metadata:
-  annotations:
-    crossplane.io/composition-resource-name: access-key-s-jane-2025q2
-  labels:
-    crossplane.io/composite: s-jane
-  name: s-jane-2025q2
-  namespace: default
-  ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-jane
-    uid: ""
-spec:
-  forProvider:
-    userRef:
-      name: s-jane-2025q2
-  providerConfigRef:
-    kind: ProviderConfig
-    name: provider-aws
-  writeConnectionSecretToRef:
-    name: s-jane-2025q2
-    namespace: default
 ---
 apiVersion: iam.aws.m.upbound.io/v1beta1
 kind: AccessKey
@@ -77,7 +50,6 @@ spec:
     name: provider-aws
   writeConnectionSecretToRef:
     name: s-jane-2025q3
-    namespace: default
 ---
 apiVersion: iam.aws.m.upbound.io/v1beta1
 kind: AccessKey
@@ -104,7 +76,6 @@ spec:
     name: provider-aws
   writeConnectionSecretToRef:
     name: s-jane-2025q4
-    namespace: default
 ---
 apiVersion: iam.aws.m.upbound.io/v1beta1
 kind: AccessKey
@@ -131,7 +102,6 @@ spec:
     name: provider-aws
   writeConnectionSecretToRef:
     name: s-jane-2026q1
-    namespace: default
 ---
 apiVersion: iam.aws.m.upbound.io/v1beta1
 kind: AccessKey
@@ -158,7 +128,32 @@ spec:
     name: provider-aws
   writeConnectionSecretToRef:
     name: s-jane-2026q2
-    namespace: default
+---
+apiVersion: iam.aws.m.upbound.io/v1beta1
+kind: AccessKey
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: access-key-s-jane-2026q3
+  labels:
+    crossplane.io/composite: s-jane
+  name: s-jane-2026q3
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-jane
+    uid: ""
+spec:
+  forProvider:
+    userRef:
+      name: s-jane-2026q3
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-aws
+  writeConnectionSecretToRef:
+    name: s-jane-2026q3
 ---
 apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
@@ -182,35 +177,13 @@ spec:
       apiVersion: v1
       kind: Secret
       metadata:
-        name: s-jane-2026q2
+        name: s-jane-2026q3
         namespace: default
   managementPolicies:
   - Observe
   providerConfigRef:
     kind: ProviderConfig
     name: provider-kubernetes
----
-apiVersion: iam.aws.m.upbound.io/v1beta1
-kind: User
-metadata:
-  annotations:
-    crossplane.io/composition-resource-name: user-s-jane-2025q2
-  labels:
-    crossplane.io/composite: s-jane
-  name: s-jane-2025q2
-  namespace: default
-  ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-jane
-    uid: ""
-spec:
-  forProvider: {}
-  providerConfigRef:
-    kind: ProviderConfig
-    name: provider-aws
 ---
 apiVersion: iam.aws.m.upbound.io/v1beta1
 kind: User
@@ -229,7 +202,8 @@ metadata:
     name: s-jane
     uid: ""
 spec:
-  forProvider: {}
+  forProvider:
+    path: /provider-storage/managed/
   providerConfigRef:
     kind: ProviderConfig
     name: provider-aws
@@ -251,7 +225,8 @@ metadata:
     name: s-jane
     uid: ""
 spec:
-  forProvider: {}
+  forProvider:
+    path: /provider-storage/managed/
   providerConfigRef:
     kind: ProviderConfig
     name: provider-aws
@@ -273,7 +248,8 @@ metadata:
     name: s-jane
     uid: ""
 spec:
-  forProvider: {}
+  forProvider:
+    path: /provider-storage/managed/
   providerConfigRef:
     kind: ProviderConfig
     name: provider-aws
@@ -295,7 +271,31 @@ metadata:
     name: s-jane
     uid: ""
 spec:
-  forProvider: {}
+  forProvider:
+    path: /provider-storage/managed/
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-aws
+---
+apiVersion: iam.aws.m.upbound.io/v1beta1
+kind: User
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: user-s-jane-2026q3
+  labels:
+    crossplane.io/composite: s-jane
+  name: s-jane-2026q3
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-jane
+    uid: ""
+spec:
+  forProvider:
+    path: /provider-storage/managed/
   providerConfigRef:
     kind: ProviderConfig
     name: provider-aws

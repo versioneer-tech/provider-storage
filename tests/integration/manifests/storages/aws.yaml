@@ -1,0 +1,25 @@
+# Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  name: storage-aws-it
+  namespace: provider-storage-it
+  annotations:
+    storages.pkg.internal/environment: storage-aws
+  labels:
+    storages.pkg.internal/backend: aws
+    storages.pkg.internal/discoverable: "true"
+spec:
+  principal: provider-storage-aws-it
+  providerIdentity: it
+  buckets:
+    - bucketName: __AWS_BUCKET_A__
+      discoverable: true
+    - bucketName: __AWS_BUCKET_B__
+      discoverable: true
+  crossplane:
+    compositionSelector:
+      matchLabels:
+        provider: aws

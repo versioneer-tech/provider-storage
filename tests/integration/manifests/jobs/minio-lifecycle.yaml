@@ -1,0 +1,76 @@
+# Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: __JOB_NAME__
+  namespace: __INTEGRATION_NAMESPACE__
+spec:
+  backoffLimit: 1
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      containers:
+        - name: lifecycle-test
+          image: __RCLONE_IMAGE__
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - secretRef:
+                name: __PRINCIPAL__
+          env:
+            - name: RCLONE_CONFIG
+              value: /dev/null
+            - name: RCLONE_CONFIG_STORAGE_TYPE
+              value: s3
+            - name: RCLONE_CONFIG_STORAGE_PROVIDER
+              value: Minio
+            - name: TEST_PHASE
+              value: __TEST_PHASE__
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -eu
+              export RCLONE_CONFIG_STORAGE_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}"
+              export RCLONE_CONFIG_STORAGE_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}"
+              export RCLONE_CONFIG_STORAGE_ENDPOINT="${AWS_ENDPOINT_URL}"
+              export RCLONE_CONFIG_STORAGE_REGION="${AWS_REGION}"
+              export RCLONE_CONFIG_STORAGE_FORCE_PATH_STYLE="${AWS_S3_FORCE_PATH_STYLE}"
+
+              case "${TEST_PHASE}" in
+                seed)
+                  rclone delete storage:__BUCKET__ --s3-no-check-bucket || true
+                  printf 'remove after 30 seconds\n' >/tmp/remove.txt
+                  printf 'keep this object\n' >/tmp/keep.txt
+                  rclone copyto /tmp/remove.txt \
+                    storage:__BUCKET__/expired/remove.txt \
+                    --s3-no-check-bucket
+                  rclone copyto /tmp/keep.txt \
+                    storage:__BUCKET__/data/keep.txt \
+                    --s3-no-check-bucket
+                  ;;
+                verify)
+                  remaining="$(rclone lsf \
+                    storage:__BUCKET__/expired/ \
+                    --s3-no-check-bucket)"
+                  if [ -n "${remaining}" ]; then
+                    printf 'Lifecycle target still contains: %s\n' "${remaining}" >&2
+                    exit 1
+                  fi
+                  content="$(rclone cat \
+                    storage:__BUCKET__/data/keep.txt \
+                    --s3-no-check-bucket)"
+                  if [ "${content}" != 'keep this object' ]; then
+                    printf 'Lifecycle removed or changed the retained object.\n' >&2
+                    exit 1
+                  fi
+                  rclone delete storage:__BUCKET__ --s3-no-check-bucket
+                  ;;
+                *)
+                  printf 'Unknown TEST_PHASE: %s\n' "${TEST_PHASE}" >&2
+                  exit 1
+                  ;;
+              esac

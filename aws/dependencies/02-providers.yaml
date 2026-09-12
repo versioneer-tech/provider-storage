@@ -6,7 +6,7 @@ kind: Provider
 metadata:
   name: provider-aws-s3
 spec:
-  package: xpkg.upbound.io/upbound/provider-aws-s3:v2.1.0
+  package: xpkg.upbound.io/upbound/provider-aws-s3:v2.7.2
   runtimeConfigRef:
     name: provider-aws-s3
 ---
@@ -15,7 +15,7 @@ kind: Provider
 metadata:
   name: provider-aws-iam
 spec:
-  package: xpkg.upbound.io/upbound/provider-aws-iam:v2.1.0
+  package: xpkg.upbound.io/upbound/provider-aws-iam:v2.7.2
   runtimeConfigRef:
     name: provider-aws-iam
 ---
@@ -24,7 +24,7 @@ kind: Provider
 metadata:
   name: upbound-provider-family-aws
 spec:
-  package: xpkg.upbound.io/upbound/provider-family-aws:v2.1.0
+  package: xpkg.upbound.io/upbound/provider-family-aws:v2.7.2
   runtimeConfigRef:
     name: upbound-provider-family-aws
 ---
@@ -33,6 +33,6 @@ kind: Provider
 metadata:
   name: provider-kubernetes
 spec:
-  package: xpkg.upbound.io/crossplane-contrib/provider-kubernetes:v1.0.0
+  package: xpkg.upbound.io/crossplane-contrib/provider-kubernetes:v1.3.1
   runtimeConfigRef:
     name: provider-kubernetes

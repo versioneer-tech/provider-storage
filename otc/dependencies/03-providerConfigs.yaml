@@ -10,7 +10,7 @@ spec:
     source: Secret
     secretRef:
       name: otc-provider-creds
-      namespace: otc
+      namespace: <storage-namespace>
       key: credentials
 ---
 apiVersion: kubernetes.m.crossplane.io/v1alpha1

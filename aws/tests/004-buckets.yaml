@@ -33,7 +33,7 @@ spec:
 status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: access-key-s-john-20260430, bucket-s-john, observe-secret-s-john,
+    message: 'Unready resources: access-key-s-john-20260911, bucket-s-john, observe-secret-s-john,
       and 4 more'
     reason: Creating
     status: "False"
@@ -43,10 +43,10 @@ apiVersion: iam.aws.m.upbound.io/v1beta1
 kind: AccessKey
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: access-key-s-john-20260430
+    crossplane.io/composition-resource-name: access-key-s-john-20260911
   labels:
     crossplane.io/composite: s-john
-  name: s-john-20260430
+  name: s-john-20260911
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -58,13 +58,12 @@ metadata:
 spec:
   forProvider:
     userRef:
-      name: s-john-20260430
+      name: s-john-20260911
   providerConfigRef:
     kind: ProviderConfig
     name: provider-aws
   writeConnectionSecretToRef:
-    name: s-john-20260430
-    namespace: default
+    name: s-john-20260911
 ---
 apiVersion: s3.aws.m.upbound.io/v1beta1
 kind: Bucket
@@ -111,7 +110,7 @@ spec:
       apiVersion: v1
       kind: Secret
       metadata:
-        name: s-john-20260430
+        name: s-john-20260911
         namespace: default
   managementPolicies:
   - Observe
@@ -126,7 +125,7 @@ metadata:
     crossplane.io/composition-resource-name: policy-s-jane-s-john
   labels:
     crossplane.io/composite: s-john
-  name: s-jane.s-john
+  name: provider-storage.s-jane.s-john
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -137,6 +136,7 @@ metadata:
     uid: ""
 spec:
   forProvider:
+    path: /provider-storage/managed/
     policy: |-
       {
         "Version": "2012-10-17",
@@ -167,7 +167,7 @@ metadata:
     crossplane.io/composition-resource-name: policy-s-john
   labels:
     crossplane.io/composite: s-john
-  name: s-john.s-john
+  name: provider-storage.s-john
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -178,6 +178,7 @@ metadata:
     uid: ""
 spec:
   forProvider:
+    path: /provider-storage/managed/
     policy: |-
       {
         "Version": "2012-10-17",
@@ -202,10 +203,10 @@ apiVersion: iam.aws.m.upbound.io/v1beta1
 kind: UserPolicyAttachment
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: upa-own-s-john-20260430-s-john
+    crossplane.io/composition-resource-name: upa-own-s-john-20260911-s-john
   labels:
     crossplane.io/composite: s-john
-  name: s-john-20260430.s-john.own
+  name: s-john-20260911.s-john.own
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -217,9 +218,9 @@ metadata:
 spec:
   forProvider:
     policyArnRef:
-      name: s-john.s-john
+      name: provider-storage.s-john
     userRef:
-      name: s-john-20260430
+      name: s-john-20260911
   providerConfigRef:
     kind: ProviderConfig
     name: provider-aws
@@ -228,10 +229,10 @@ apiVersion: iam.aws.m.upbound.io/v1beta1
 kind: User
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: user-s-john-20260430
+    crossplane.io/composition-resource-name: user-s-john-20260911
   labels:
     crossplane.io/composite: s-john
-  name: s-john-20260430
+  name: s-john-20260911
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -241,7 +242,8 @@ metadata:
     name: s-john
     uid: ""
 spec:
-  forProvider: {}
+  forProvider:
+    path: /provider-storage/managed/
   providerConfigRef:
     kind: ProviderConfig
     name: provider-aws

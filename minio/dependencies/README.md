@@ -13,8 +13,8 @@ They set up the Crossplane runtime (providers, configs, and permissions) that th
 This Composition expects the following Crossplane components to be installed (versions are examples — pin to the versions you have validated):
 
 - **Providers**
-  - `provider-minio` (e.g., `xpkg.upbound.io/crossplane-contrib/provider-minio:v0.4.4`)
-  - `provider-kubernetes` (e.g., `xpkg.upbound.io/crossplane-contrib/provider-kubernetes:v1.0.0`)
+  - `provider-minio` (e.g., `xpkg.upbound.io/vshn/provider-minio:v0.4.5`)
+  - `provider-kubernetes` (e.g., `xpkg.upbound.io/crossplane-contrib/provider-kubernetes:v1.3.1`)
 
 - **Functions**
   - `crossplane-contrib-function-python`  

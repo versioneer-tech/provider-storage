@@ -1,0 +1,47 @@
+# Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: __JOB_NAME__
+  namespace: __INTEGRATION_NAMESPACE__
+spec:
+  backoffLimit: 1
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      containers:
+        - name: roundtrip
+          image: __RCLONE_IMAGE__
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - secretRef:
+                name: __PRINCIPAL__
+          env:
+            - name: RCLONE_CONFIG
+              value: /dev/null
+            - name: RCLONE_CONFIG_STORAGE_TYPE
+              value: s3
+            - name: RCLONE_CONFIG_STORAGE_PROVIDER
+              value: __RCLONE_PROVIDER__
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -eu
+              export RCLONE_CONFIG_STORAGE_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}"
+              export RCLONE_CONFIG_STORAGE_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}"
+              export RCLONE_CONFIG_STORAGE_ENDPOINT="${AWS_ENDPOINT_URL:-}"
+              export RCLONE_CONFIG_STORAGE_REGION="${AWS_REGION:-}"
+              export RCLONE_CONFIG_STORAGE_FORCE_PATH_STYLE="${AWS_S3_FORCE_PATH_STYLE:-false}"
+
+              object=integration/roundtrip.txt
+              printf 'provider-storage integration roundtrip\n' >/tmp/upload.txt
+              rclone copyto /tmp/upload.txt "storage:__BUCKET__/${object}" --s3-no-check-bucket
+              rclone lsf "storage:__BUCKET__/integration/" --s3-no-check-bucket
+              rclone copyto "storage:__BUCKET__/${object}" /tmp/download.txt --s3-no-check-bucket
+              cmp /tmp/upload.txt /tmp/download.txt
+              rclone deletefile "storage:__BUCKET__/${object}" --s3-no-check-bucket

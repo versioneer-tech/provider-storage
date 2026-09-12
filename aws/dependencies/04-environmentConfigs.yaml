@@ -7,6 +7,9 @@ metadata:
   name: storage
 data:
   storage:
+    iam:
+      policyPath: /provider-storage/managed/
+      userPath: /provider-storage/managed/
     provider: AWS
     region: eu-central-1
     type: s3

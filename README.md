@@ -24,7 +24,12 @@ Other platform building blocks and workloads can consume the generated Kubernete
 
 ✨ For a full introduction, see the [documentation](https://versioneer-tech.github.io/provider-storage/).
 
-For local setup and MinIO end-to-end testing, see the [local setup guide](https://versioneer-tech.github.io/provider-storage/latest/how-to-guides/local_setup/).
+For unit and ephemeral Kind integration tests across the supported backends,
+see the [local setup guide](https://versioneer-tech.github.io/provider-storage/latest/how-to-guides/local_setup/).
+
+Before you deploy a managed cloud backend, an administrator must review its
+`<cloud>/dependencies/iam.sh` script and any policy templates as described in the
+[cloud IAM bootstrap guide](docs/how-to-guides/cloud-iam-bootstrap.md).
 
 ## API Reference
 

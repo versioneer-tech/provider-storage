@@ -10,48 +10,34 @@ on:
       - main
 
 jobs:
-  minio_e2e_tests:
+  unit_and_minio_integration:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     permissions:
       contents: read
-    env:
-      CROSSPLANE_NAMESPACE: crossplane
-      CREATE_KIND_CLUSTER: "false"
-      INSTALL_CONFIGURATION_PACKAGE: "false"
-      KUBECTL_CONTEXT: kind-storage-minio
-      KIND_CLUSTER_NAME: storage-minio
-      VERIFY_OBJECT_ROUNDTRIP: "true"
-      VERIFY_LIFECYCLE: "true"
-      LIFECYCLE_WAIT_SECONDS: "75"
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
 
-      - name: Create kind cluster
+      - name: Install test CLIs
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location \
+            https://raw.githubusercontent.com/crossplane/crossplane/v2.0.2/install.sh \
+            --output /tmp/crossplane-install.sh
+          XP_VERSION=v2.0.2 sh /tmp/crossplane-install.sh
+          sudo install crossplane /usr/local/bin/crossplane
+          go install github.com/homeport/dyff/cmd/dyff@v1.12.0
+          sudo install "$(go env GOPATH)/bin/dyff" /usr/local/bin/dyff
+
+      - name: Run Composition unit tests
+        run: tests/unit.bash
+
+      - name: Create Kind cluster
         uses: helm/kind-action@v1
         with:
-          cluster_name: storage-minio
+          cluster_name: provider-storage-it
+          config: tests/integration/manifests/kind.yaml
 
-      - name: Set up local MinIO stack
-        run: |
-          set -euo pipefail
-          RUN_EXAMPLE_TESTS=false \
-          RUN_LIFECYCLE_TEST=false \
-          bash minio/tests/e2e.bash
-
-      - name: Run example Storage e2e tests
-        run: |
-          set -euo pipefail
-          RUN_SETUP=false \
-          RUN_EXAMPLE_TESTS=true \
-          RUN_LIFECYCLE_TEST=false \
-          bash minio/tests/e2e.bash
-
-      - name: Run lifecycle e2e tests
-        run: |
-          set -euo pipefail
-          RUN_SETUP=false \
-          RUN_EXAMPLE_TESTS=false \
-          RUN_LIFECYCLE_TEST=true \
-          bash minio/tests/e2e.bash
+      - name: Run MinIO integration test
+        run: tests/integration/run.bash minio

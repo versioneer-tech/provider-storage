@@ -6,6 +6,14 @@ Provider Storage is built on [Crossplane v2](https://crossplane.io). It provides
 
 The API stays the same across all supported backends. Buckets, credentials, access requests, access grants, and lifecycle rules are the same concepts for MinIO, AWS S3, and OTC OBS. Only the implementation behind the composition changes.
 
+!!! warning "Bootstrap cloud IAM before deployment"
+
+    Before you deploy cloud provider components, an administrator must follow
+    the backend's initial IAM procedure. Review its
+    `<cloud>/dependencies/iam.sh` script and any policy templates before you run an
+    implemented bootstrap. AWS and OTC have implementations. Read the
+    [cloud IAM bootstrap guide](how-to-guides/cloud-iam-bootstrap.md).
+
 ## Operator Contract
 
 For an operator, a `Storage` claim is the contract for one principal and its object-storage access:

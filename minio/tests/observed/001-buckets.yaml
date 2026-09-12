@@ -23,8 +23,10 @@ status:
       apiVersion: v1
       kind: Secret
       metadata:
-        name: s-joe-1
+        name: s-joe-credentials
         namespace: default
       data:
-        KEY: dmFsdWU=
+        AWS_ACCESS_KEY_ID: YWNjZXNzLWtleQ==
+        AWS_SECRET_ACCESS_KEY: c2VjcmV0LWtleQ==
+        NATIVE_ONLY: bmF0aXZl
         

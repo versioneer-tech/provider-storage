@@ -6,7 +6,7 @@ kind: Provider
 metadata:
   name: provider-otc
 spec:
-  package: xpkg.upbound.io/opentelekomcloud/provider-opentelekomcloud:v0.5.0 
+  package: xpkg.upbound.io/opentelekomcloud/provider-opentelekomcloud:v1.0.0
   runtimeConfigRef:
     name: provider-otc
 ---
@@ -15,6 +15,6 @@ kind: Provider
 metadata:
   name: provider-kubernetes
 spec:
-  package: xpkg.upbound.io/crossplane-contrib/provider-kubernetes:v1.0.0
+  package: xpkg.upbound.io/crossplane-contrib/provider-kubernetes:v1.3.1
   runtimeConfigRef:
     name: provider-kubernetes
