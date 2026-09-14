@@ -98,7 +98,12 @@ preflight_ovh() {
 install_minio() {
   log "Deploying MinIO and its providers"
   kube apply -f "${MANIFEST_DIR}/minio.yaml"
-  kube rollout status deployment/default --namespace minio --timeout=5m
+  if ! kube rollout status deployment/default --namespace minio --timeout=5m; then
+    kube get pods --namespace minio --selector app.kubernetes.io/name=provider-storage-minio-it -o wide || true
+    kube describe pods --namespace minio --selector app.kubernetes.io/name=provider-storage-minio-it || true
+    kube get events --namespace minio --sort-by=.lastTimestamp || true
+    return 1
+  fi
   install_dependencies minio
   kube wait provider.pkg.crossplane.io/provider-minio \
     --for=condition=Healthy --timeout=10m
