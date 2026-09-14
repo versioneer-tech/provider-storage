@@ -3,7 +3,7 @@
 The `Storage` API defines the same buckets, credentials, access requests,
 grants, and lifecycle rules for every backend. Each Composition maps that API
 to its provider's bucket and access resources. The backends are MinIO, AWS S3,
-OTC OBS, and OVHcloud Object Storage.
+OTC OBS, and OVHcloud.
 
 ## Where Access Rules Live
 
@@ -54,7 +54,7 @@ OTC OBS, and OVHcloud Object Storage.
   with allow or deny rules based on the owner's grant. `userIdRef` links the
   policy to the user. This is a separate
   Crossplane resource that sets the user's policy document; the document is
-  not inline in the `User` resource. Regional OVHcloud Object Storage does
+  not inline in the `User` resource. Regional OVHcloud does
   not support bucket policies. See the [OVHcloud access guide](https://docs.ovhcloud.com/en/guides/storage-and-backup/object-storage/s3-identity-and-access-management).
 
 MinIO and OVHcloud both place consumer access on the user. MinIO users list

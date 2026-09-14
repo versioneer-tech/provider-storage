@@ -1,8 +1,8 @@
 # Welcome to Provider Storage
 
-**Provider Storage is a PaaS-style building block for platform operators:** it turns one `Storage` claim into end-user object-storage buckets on MinIO, AWS S3, OTC OBS, or OVHcloud Object Storage. Users get smooth self-service bucket provisioning. Operators keep visibility and control over provider credentials, backend choice, access policy, sharing, lifecycle rules, and credential rotation.
+**Provider Storage is a PaaS-style building block for platform operators:** it turns one `Storage` claim into end-user object-storage buckets on MinIO, AWS S3, OTC OBS, or OVHcloud. Users get smooth self-service bucket provisioning. Operators keep visibility and control over provider credentials, backend choice, access policy, sharing, lifecycle rules, and credential rotation.
 
-Provider Storage is built on [Crossplane v2](https://crossplane.io). It provides a tenant-facing `Storage` API and backend-specific compositions for MinIO, AWS S3, OTC OBS, and OVHcloud Object Storage.
+Provider Storage is built on [Crossplane v2](https://crossplane.io). It provides a tenant-facing `Storage` API and backend-specific compositions for MinIO, AWS S3, OTC OBS, and OVHcloud.
 
 The API stays the same across all backends. Buckets, credentials, access requests, access grants, and lifecycle rules use the same concepts. Only the implementation behind the composition changes.
 
@@ -18,7 +18,7 @@ The API stays the same across all backends. Buckets, credentials, access request
 
 For an operator, a `Storage` claim is the contract for one principal and its object-storage access:
 
-- You install the backend package you want to offer: MinIO, AWS S3, OTC OBS, or OVHcloud Object Storage.
+- You install the backend package you want to offer: MinIO, AWS S3, OTC OBS, or OVHcloud.
 - You configure provider credentials and backend settings in the target namespace.
 - Users or higher-level platform services submit `Storage` claims for buckets, access requests, and access grants.
 - Crossplane creates the backend-specific resources: buckets, users or IAM identities, policies, access keys, and a normalized Kubernetes Secret.
@@ -41,7 +41,7 @@ Other platform building blocks and workloads can consume the generated Secret di
 ## Features
 
 - **Backend support**
-  Provision S3-compatible buckets on MinIO, AWS S3, OTC OBS, and OVHcloud Object Storage.
+  Provision S3-compatible buckets on MinIO, AWS S3, OTC OBS, and OVHcloud.
 - **Clean abstraction**
   Use the same bucket, access, credential, and lifecycle concepts across all backends.
 - **Cross-user sharing**

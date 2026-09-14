@@ -1,6 +1,6 @@
 # Provider Storage – Permission Model
 
-The **permission model** in `provider-storage` gives operators one access model across MinIO, AWS S3, OTC OBS, and OVHcloud Object Storage. Users work with four normalized permission levels instead of raw backend-specific IAM or policy actions. The composition translates that model into the backend implementation.
+The **permission model** in `provider-storage` gives operators one access model across MinIO, AWS S3, OTC OBS, and OVHcloud. Users work with four normalized permission levels instead of raw backend-specific IAM or policy actions. The composition translates that model into the backend implementation.
 
 The OVHcloud Composition maps the same levels to its S3 policy
 model. A live `ReadOnly` peer could read but not write. The `None` policy

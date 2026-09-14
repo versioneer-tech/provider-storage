@@ -1,6 +1,6 @@
 # Storage Provider
 
-**Provider Storage is a PaaS-style building block for platform operators:** it turns one `Storage` claim into end-user object-storage buckets on MinIO, AWS S3, OTC OBS, or OVHcloud Object Storage. Users get smooth self-service bucket provisioning. Operators keep visibility and control over provider credentials, backend choice, access policy, sharing, lifecycle rules, and credential rotation.
+**Provider Storage is a PaaS-style building block for platform operators:** it turns one `Storage` claim into end-user object-storage buckets on MinIO, AWS S3, OTC OBS, or OVHcloud. Users get smooth self-service bucket provisioning. Operators keep visibility and control over provider credentials, backend choice, access policy, sharing, lifecycle rules, and credential rotation.
 
 This package provides the **Storage** Composite Resource Definition (XRD) and ready-to-use Crossplane v2 Compositions for object-storage bucket provisioning.
 
@@ -17,7 +17,7 @@ Provider Storage currently supports:
 - MinIO
 - AWS S3
 - OTC OBS
-- OVHcloud Object Storage
+- OVHcloud
 
 Each `Storage` claim is the contract for one principal, usually a user, service account, team, or workspace. It records the buckets owned by that principal, which buckets are discoverable, which access was requested, which access was granted, and how credentials should rotate.
 
@@ -93,8 +93,7 @@ kubectl get storage -A -o name \
   -p '{"spec":{"crossplane":{"compositionSelector":{"matchLabels":{"provider":"minio"}}}}}'
 ```
 
-For MinIO, AWS, and OVHcloud peer grants, add this label to the bucket owner's
-`Storage` resource so the requester's Composition can find it:
+For approval workflows you also need to add this label to the `Storage` resources:
 
 ```yaml
 metadata:
