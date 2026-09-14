@@ -1,6 +1,6 @@
 # Provider Storage – Installation Guide
 
-The `provider-storage` configuration packages let platform operators offer S3-compatible bucket self-service on **MinIO**, **AWS S3**, and **OTC OBS** using Crossplane.
+The `provider-storage` configuration packages let platform operators offer S3-compatible bucket self-service through Crossplane.
 Buckets, access policies, sharing, lifecycle rules, and credentials are declared through one namespaced `Storage` spec.
 
 ---
@@ -42,8 +42,13 @@ helm install crossplane crossplane-stable/crossplane \
 !!! danger "Required before cloud provider deployment"
 
     Before deployment, a cloud administrator must review the backend's
-    `<cloud>/dependencies/iam.sh` script and any policy templates. AWS and OTC have
-    implementations. Follow the
+    `<cloud>/dependencies/iam.sh` script and any policy templates. A managed
+    cloud backend needs a controller identity scoped to its cloud account,
+    domain, or project. Complete that bootstrap before installing the
+    backend's provider dependencies.
+    The OVHcloud bootstrap needs the official `ovhcloud` CLI, `jq`, and an
+    administrator session. Follow its [bootstrap README](https://github.com/versioneer-tech/provider-storage/blob/main/ovh/dependencies/README.md)
+    and the
     [cloud IAM bootstrap guide](cloud-iam-bootstrap.md).
 
 ---
@@ -103,6 +108,30 @@ Install only the backend packages you want to offer as platform service classes.
 - [functions.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/otc/dependencies/functions.yaml) – Functions used by compositions.
 - [rbac.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/otc/dependencies/rbac.yaml) – RBAC for `provider-kubernetes`.
 
+### OVHcloud
+
+Complete the
+[OVHcloud controller bootstrap](https://github.com/versioneer-tech/provider-storage/blob/main/ovh/dependencies/README.md)
+for the target Public Cloud project first. Its private JSON contains
+`endpoint`, `client_id`, and `client_secret`.
+Create `ovh-provider-creds` with a `credentials` key in every target
+`Storage` namespace. The namespaced ProviderConfig references that Secret;
+the administrator CLI login is separate and must not be used for it.
+If you replace the Secret in a running cluster, restart the OVHcloud provider
+Deployment so it uses the new controller credential.
+
+- [00-mrap.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/ovh/dependencies/00-mrap.yaml) – Activate only the OVHcloud managed resource kinds used by the Composition.
+- [01-deploymentRuntimeConfigs.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/ovh/dependencies/01-deploymentRuntimeConfigs.yaml) – Provider and function runtime settings.
+- [02-providers.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/ovh/dependencies/02-providers.yaml) – Install the OVHcloud provider and `provider-kubernetes`.
+- [03-providerConfigs.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/ovh/dependencies/03-providerConfigs.yaml) – Set the credential Secret namespace, then apply in each `Storage` namespace.
+- [04-environmentConfigs.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/ovh/dependencies/04-environmentConfigs.yaml) – Set `data.storage.serviceName` to the exact project ID. The initial configuration uses Object Storage region `de` and endpoint `https://s3.de.io.cloud.ovh.net`; this is separate from the EU control-plane API region.
+- [functions.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/ovh/dependencies/functions.yaml) – Composition functions.
+- [rbac.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/ovh/dependencies/rbac.yaml) – `provider-kubernetes` permissions.
+
+The [integration test guide](https://github.com/versioneer-tech/provider-storage/blob/main/tests/integration/README.md#ovhcloud)
+shows the explicit-context Secret handoff and two-bucket integration run. Do
+not apply the placeholder project ID in the EnvironmentConfig.
+
 ---
 
 ## Step 2 – Install the Configuration Package (after dependencies)
@@ -140,6 +169,17 @@ metadata:
   name: storage-otc
 spec:
   package: ghcr.io/versioneer-tech/provider-storage/otc:<!version!>
+```
+
+**Example – OVHcloud**
+
+```yaml
+apiVersion: pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: storage-ovh
+spec:
+  package: ghcr.io/versioneer-tech/provider-storage/ovh:<!version!>
 ```
 
 Apply your chosen one with:

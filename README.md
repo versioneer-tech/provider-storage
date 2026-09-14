@@ -1,22 +1,18 @@
 # Storage Provider
 
-**Provider Storage is a PaaS-style building block for platform operators:** it turns one `Storage` claim into end-user object-storage buckets on MinIO, AWS S3, or OTC OBS. Users get smooth self-service bucket provisioning. Operators keep visibility and control over provider credentials, backend choice, access policy, sharing, lifecycle rules, and credential rotation.
+**Provider Storage is a PaaS-style building block for platform operators:** it turns one `Storage` claim into end-user object-storage buckets on the selected backend. Users get smooth self-service bucket provisioning. Operators keep visibility and control over provider credentials, backend choice, access policy, sharing, lifecycle rules, and credential rotation.
 
 This package provides the **Storage** Composite Resource Definition (XRD) and ready-to-use Crossplane v2 Compositions for object-storage bucket provisioning.
 
 ## The Goal
 
-Give platform operators one simple API for bucket self-service. Teams should not need to know the details of MinIO, AWS IAM, OTC OBS policies, or provider-specific credentials just to get a bucket.
+Give platform operators one simple API for bucket self-service. Teams should not need to know backend-specific identity, policy, or credential details just to get a bucket.
 
 As the operator, you install the backend-specific configuration package, configure provider credentials, and decide which object-storage systems are available. A `Storage` claim can then create buckets, issue normalized S3 credentials, and describe access requests or grants.
 
-The API stays the same across all supported backends. Buckets, credentials, access requests, access grants, and lifecycle rules are the same concepts for MinIO, AWS S3, and OTC OBS. Only the implementation behind the composition changes.
+The API stays the same across all backends. Buckets, credentials, access requests, access grants, and lifecycle rules use the same concepts. Only the implementation behind the composition changes.
 
-Provider Storage currently supports:
-
-- MinIO
-- AWS S3
-- OTC OBS
+See the [backend comparison](docs/how-to-guides/backend_differences.md) for the available implementations and their differences.
 
 Each `Storage` claim is the contract for one principal, usually a user, service account, team, or workspace. It records the buckets owned by that principal, which buckets are discoverable, which access was requested, which access was granted, and how credentials should rotate.
 
@@ -46,7 +42,7 @@ kind: Configuration
 metadata:
   name: storage
 spec:
-  package: ghcr.io/versioneer-tech/provider-storage/<minio|aws|otc|...>:<x.x>
+  package: ghcr.io/versioneer-tech/provider-storage/<backend>:<version>
   skipDependencyResolution: true
 ```
 

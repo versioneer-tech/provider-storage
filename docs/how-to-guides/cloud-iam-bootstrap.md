@@ -12,7 +12,7 @@ from the consumer identities and credentials that Provider Storage creates.
 
 !!! warning "Choose the bucket prefix during IAM bootstrap"
 
-    Bucket names are user-facing. The default prefixes are
+    Bucket names are user-facing. For AWS and OTC, the default prefixes are
     `aws-<account-id>` and `otc-<domain-id>`. Configure any override before
     bootstrap and reuse it for every `Storage` deployment. AWS enforces this
     prefix in IAM. The OTC bootstrap assigns OBS Administrator to all existing
@@ -189,3 +189,46 @@ AK/SK without recreating its user or policies, then update the provider Secret.
 
 For the complete Kind test sequence, see the
 [OTC integration test guide](https://github.com/versioneer-tech/provider-storage/blob/main/tests/integration/README.md#otc).
+
+## OVHcloud
+
+The OVHcloud controller identity is an OAuth2 service account with an IAM
+policy for the target `publicCloudProject`. The bootstrap script creates that
+identity and policy. The standard integration run tests the composed
+`Storage` and its buckets through Crossplane.
+
+Review [`iam.sh`](https://github.com/versioneer-tech/provider-storage/blob/main/ovh/dependencies/iam.sh)
+and its [README](https://github.com/versioneer-tech/provider-storage/blob/main/ovh/dependencies/README.md).
+Install the official [`ovhcloud` CLI](https://docs.ovhcloud.com/en/guides/manage-and-operate/cli/getting-started)
+and `jq`. Run `ovhcloud login` to start an administrator session and save
+it in `~/.ovh.conf`, the CLI's default login file. You can also use the
+CLI's supported `OVH_*` variables. Select the same OVH API region for the CLI
+and script. This API region is separate from the Object Storage region.
+
+Set the exact project ID. The private controller JSON defaults to
+`~/.ovh-provider-storage-<project-id>.json`, separate from `~/.ovh.conf`.
+Unset any old `CROSSPLANE_OVH_CREDENTIALS_FILE` value that points to the CLI
+login. Run `status` before and after `apply`, then repeat `apply` to check
+that it is idempotent:
+
+```bash
+export CROSSPLANE_OVH_PROJECT_ID=0123456789abcdef0123456789abcdef
+export CROSSPLANE_OVH_API_REGION=EU
+unset CROSSPLANE_OVH_CREDENTIALS_FILE
+
+ovh/dependencies/iam.sh apply
+```
+
+`status` is read-only. `apply` writes `endpoint`, `client_id`, and
+`client_secret` as JSON with mode `0600`. Both commands print the credential
+file path, but not the secret.
+`verify` reads that file and reports access results without printing the
+credential. The script checks the exact target-project URN in the controller
+IAM policy and verifies that the controller can read the selected project and
+list its users. Send only redacted status and verification results to the team.
+
+The provider credential Secret handoff and one-Storage, two-bucket test are
+documented in the
+[integration test guide](https://github.com/versioneer-tech/provider-storage/blob/main/tests/integration/README.md#ovhcloud).
+Rotation, lifecycle, owner replacement, and cleanup behavior remain in the
+OVHcloud validation plan.

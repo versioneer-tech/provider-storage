@@ -163,7 +163,72 @@ and `-it-b`; the domain ID reduces collisions in OBS's global namespace. The
 provider-native user is `provider-storage-managed-it`; the consumer Secret is
 `provider-storage-it/provider-storage-otc-it`.
 
+## OVHcloud
+
+Use an `ovhcloud` CLI administrator session for the target Public Cloud project
+in the selected API region. Review `ovh/dependencies/iam.sh`, then
+bootstrap the project-scoped controller identity:
+
+```bash
+export CROSSPLANE_OVH_PROJECT_ID=<project-id>
+export CROSSPLANE_OVH_API_REGION=EU
+unset CROSSPLANE_OVH_CREDENTIALS_FILE
+
+ovh/dependencies/iam.sh apply
+ovh/dependencies/iam.sh verify
+```
+
+The API region is separate from the Object Storage region. The bootstrap writes
+controller credentials to `~/.ovh-provider-storage-<project-id>.json` by
+default. The administrator login remains in `~/.ovh.conf`. `verify` checks
+that the controller can read the selected project and list its users.
+
+Create or update the Secret in the dedicated cluster without printing its
+content:
+
+```bash
+kubectl --context kind-provider-storage-it \
+  apply -f tests/integration/manifests/namespaces.yaml
+credential_file="${CROSSPLANE_OVH_CREDENTIALS_FILE:-${HOME}/.ovh-provider-storage-${CROSSPLANE_OVH_PROJECT_ID}.json}"
+kubectl --context kind-provider-storage-it \
+  create secret generic ovh-provider-creds \
+  --namespace provider-storage-it \
+  --from-file="credentials=${credential_file}" \
+  --dry-run=client -o yaml \
+| kubectl --context kind-provider-storage-it apply -f -
+```
+
+If you replaced a Secret that an OVHcloud provider already used, restart the
+provider so it loads the new credentials:
+
+```bash
+kubectl --context kind-provider-storage-it \
+  --namespace crossplane \
+  rollout restart deployment -l runtime=provider-ovh
+kubectl --context kind-provider-storage-it \
+  --namespace crossplane \
+  rollout status deployment -l runtime=provider-ovh --timeout=3m
+```
+
+Deploy and verify OVHcloud:
+
+```bash
+export CROSSPLANE_OVH_PROJECT_ID=<project-id>
+export CROSSPLANE_OVH_STORAGE_REGION=de
+
+tests/integration/run.bash ovh
+```
+
+The project ID supplies the first 12 characters in each bucket name. The test
+buckets are `ovh-<project-prefix>-it-a` and `ovh-<project-prefix>-it-b`, using
+the same `-it-a` and `-it-b` pattern as AWS and OTC. Set
+`CROSSPLANE_OVH_STORAGE_REGION=gra` if the project needs that Object Storage
+region; the region selects the endpoint and does not change the bucket names.
+The Composition manages `User` resources `it-owner` and `it`, plus an S3
+policy for `it` scoped to both buckets. The consumer Secret is
+`provider-storage-it/provider-storage-ovh-it`.
+
 ## CI scope
 
 The pull-request workflow runs the unit suite and the MinIO integration path.
-It does not use AWS or OTC credentials.
+It does not use cloud-provider credentials.

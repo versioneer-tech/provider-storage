@@ -1,6 +1,6 @@
 # Consumer Credential Strategy
 
-Last reviewed: 2026-09-11
+Last reviewed: 2026-09-12
 
 This document defines how bucket consumers receive and replace credentials.
 It is a living architecture strategy. An ADR records one accepted or proposed
@@ -26,14 +26,13 @@ Provider Storage must:
 
 ## Current portable consumer contract
 
-The current AWS, OTC, and MinIO Compositions create a durable S3 access-key
-pair for each credential generation. They publish the current pair in a
-Kubernetes Secret. The Secret has the name from `spec.principal` and is in the
-same namespace as the `Storage` resource.
+The Compositions create an S3 access-key pair for each credential generation.
+They publish the current pair in a Kubernetes Secret named after
+`spec.principal`, in the same namespace as the `Storage` resource.
 
 `spec.providerIdentity` can set a shorter provider-native user name without
-changing the logical principal or consumer Secret name. AWS groups this name
-under its IAM path. MinIO and OTC add the `provider-storage-managed-` prefix.
+changing the logical principal or consumer Secret name. Each backend applies
+its own naming convention to that identity.
 
 Providers can also create generation-specific connection Secrets such as
 `<principal>-20260911`. Without rollover, the internal connection Secret is
@@ -97,6 +96,19 @@ identity as narrowly as the provider permits, typically to the declared buckets
 and grant modes. These credentials are still long-lived and transferable, so
 they remain a security risk.
 
+A workload can fetch the current key pair through a credential helper or a
+protected HTTP endpoint instead of reading the consumer Secret directly.
+Clients that support the AWS credential chain can use a helper configured with
+[`credential_process`](https://docs.aws.amazon.com/sdkref/latest/guide/feature-process-credentials.html)
+or an HTTP endpoint (set
+[`AWS_CONTAINER_CREDENTIALS_FULL_URI`](https://docs.aws.amazon.com/sdkref/latest/guide/feature-container-credentials.html)
+in the workload). A platform service could serve the current credentials from
+the consumer Secret through either interface. This does not require cloud STS
+or a custom STS service because the source remains the existing access-key
+pair. The helper or endpoint must authenticate callers and handle key rollover;
+the retrieved keys remain static cloud credentials. This is a possible workload
+integration, not a feature Provider Storage provides today.
+
 When all consumers can be limited to workloads inside a supported cluster, a
 provider-specific profile can use workload identity federation. Where the
 cloud supports this pattern, its token service issues short-lived credentials
@@ -123,6 +135,6 @@ promises.
 
 | Area | Current state |
 | --- | --- |
-| Portable consumer credentials | Static S3 access-key pairs for AWS, OTC, and MinIO. |
+| Portable consumer credentials | Static S3 access-key pairs in the stable consumer Secret. |
 | Consumer rollover | Generation-based overlap through `spec.credentialsRollover`. |
 | Provider-native consumer identity | Not implemented. |

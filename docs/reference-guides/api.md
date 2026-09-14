@@ -4,7 +4,7 @@ The source of truth for the `Storage` API is the
 [`xrd.yaml`](https://github.com/versioneer-tech/provider-storage/blob/main/xrd.yaml)
 CompositeResourceDefinition.
 
-The API is the platform-facing contract for bucket self-service. Users describe buckets, access requests, grants, lifecycle rules, and credential rollover once. Operators choose whether the implementation is MinIO, AWS S3, or OTC OBS.
+The API is the platform-facing contract for bucket self-service. Users describe buckets, access requests, grants, lifecycle rules, and credential rollover once. Operators select the backend implementation.
 
 ## Storage
 

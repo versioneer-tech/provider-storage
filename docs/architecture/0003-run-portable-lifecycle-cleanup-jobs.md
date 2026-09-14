@@ -12,7 +12,7 @@ Accepted
 
 The `Storage` API supports `Delete` and `Notify` rules. A rule can select
 objects by age, UTC cutoff, and prefix. Native lifecycle features differ
-between AWS S3, OTC OBS, and MinIO. They do not provide the same behavior.
+between backends and do not provide the same behavior.
 
 ## Decision
 

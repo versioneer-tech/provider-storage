@@ -1,0 +1,32 @@
+# Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: apiextensions.crossplane.io/v1beta1
+kind: EnvironmentConfig
+metadata:
+  name: storage
+data:
+  storage:
+    endpoint: https://s3.de.io.cloud.ovh.net
+    force_path_style: "true"
+    provider: Other
+    region: de
+    serviceName: "00000000000000000000000000000000"
+    type: s3
+---
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  name: s-john
+  namespace: default
+  labels:
+    storages.pkg.internal/discoverable: "true"
+spec:
+  principal: s-john
+  buckets:
+    - bucketName: s-john
+  bucketAccessGrants:
+    - bucketName: s-john
+      grantee: s-jane
+      permission: ReadWrite
+      grantedAt: "2025-09-29T10:28:00Z"

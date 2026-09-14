@@ -35,6 +35,10 @@ bucket_names() {
     otc)
       printf '%s-it-a\n%s-it-b\n' "$(otc_resource_prefix)" "$(otc_resource_prefix)"
       ;;
+    ovh)
+      printf 'ovh-%s-it-a\novh-%s-it-b\n' \
+        "$(ovh_project_prefix)" "$(ovh_project_prefix)"
+      ;;
   esac
 }
 
@@ -42,7 +46,7 @@ rclone_provider() {
   case "$1" in
     minio) printf 'Minio\n' ;;
     aws) printf 'AWS\n' ;;
-    otc) printf 'Other\n' ;;
+    otc|ovh) printf 'Other\n' ;;
   esac
 }
 
@@ -101,6 +105,19 @@ verify_backend() {
     exit 1
   fi
 
+  log "Waiting for ${backend} consumer Secret"
+  kube wait "secret/${principal}" \
+    --namespace "${INTEGRATION_NAMESPACE}" \
+    --for=create \
+    --timeout=5m
+  kube wait "secret/${principal}" \
+    --namespace "${INTEGRATION_NAMESPACE}" \
+    --for=jsonpath='{.data.AWS_ACCESS_KEY_ID}' \
+    --timeout=5m
+  kube wait "secret/${principal}" \
+    --namespace "${INTEGRATION_NAMESPACE}" \
+    --for=jsonpath='{.data.AWS_SECRET_ACCESS_KEY}' \
+    --timeout=5m
   verify_consumer_secret "${principal}"
 
   while IFS= read -r bucket; do

@@ -98,6 +98,28 @@ jobs:
             "ghcr.io/${ORG}/${REPO}/otc:${TAG}" \
             --verbose
 
+      - name: Build and publish storage-ovh Configuration Package
+        shell: bash
+        run: |
+          set -euo pipefail
+          ORG="${GITHUB_REPOSITORY_OWNER,,}"
+          REPO="${GITHUB_REPOSITORY#*/}"; REPO="${REPO,,}"
+          TAG="${GITHUB_REF_NAME##*/}"
+
+          cp xrd.yaml ovh/xrd.yaml
+
+          crossplane xpkg build \
+            --package-root=ovh \
+            --ignore 'dependencies/*' \
+            --ignore 'tests/expected/*,tests/observed/*,tests/required/*,tests/probe/*,tests/readiness/*,tests/*' \
+            --package-file ovh/storage-ovh.xpkg \
+            --verbose
+
+          crossplane xpkg push \
+            --package-files=ovh/storage-ovh.xpkg \
+            "ghcr.io/${ORG}/${REPO}/ovh:${TAG}" \
+            --verbose
+
   build_docs:
     runs-on: ubuntu-24.04
     needs: build_and_publish_configuration_packages

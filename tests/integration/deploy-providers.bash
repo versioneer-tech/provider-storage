@@ -85,6 +85,16 @@ preflight_otc() {
   fi
 }
 
+preflight_ovh() {
+  ovh_project_prefix >/dev/null
+  ovh_storage_region >/dev/null
+  if ! kube get secret/ovh-provider-creds --namespace "${INTEGRATION_NAMESPACE}" >/dev/null 2>&1; then
+    printf 'Secret %s/ovh-provider-creds is missing. Create it with the command in tests/integration/README.md.\n' \
+      "${INTEGRATION_NAMESPACE}" >&2
+    exit 1
+  fi
+}
+
 install_minio() {
   log "Deploying MinIO and its providers"
   kube apply -f "${MANIFEST_DIR}/minio.yaml"
@@ -136,6 +146,24 @@ install_otc() {
     OTC_ENDPOINT "${CROSSPLANE_OTC_ENDPOINT}" \
     OTC_REGION "${CROSSPLANE_OTC_REGION}"
   kube apply -f "${REPO_ROOT}/otc/composition.yaml"
+}
+
+install_ovh() {
+  local region
+  region="$(ovh_storage_region)"
+  log "Deploying OVHcloud providers"
+  install_dependencies ovh
+  kube wait provider.pkg.crossplane.io/provider-ovh \
+    --for=condition=Healthy --timeout=10m
+  apply_template \
+    "${MANIFEST_DIR}/provider-configs/ovh.yaml" \
+    INTEGRATION_NAMESPACE "${INTEGRATION_NAMESPACE}"
+  apply_template \
+    "${MANIFEST_DIR}/environment-configs/ovh.yaml" \
+    OVH_ENDPOINT "https://s3.${region}.io.cloud.ovh.net" \
+    OVH_REGION "${region}" \
+    OVH_PROJECT_ID "${CROSSPLANE_OVH_PROJECT_ID}"
+  kube apply -f "${REPO_ROOT}/ovh/composition.yaml"
 }
 
 main() {

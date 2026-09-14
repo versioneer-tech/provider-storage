@@ -1,24 +1,24 @@
 # Welcome to Provider Storage
 
-**Provider Storage is a PaaS-style building block for platform operators:** it turns one `Storage` claim into end-user object-storage buckets on MinIO, AWS S3, or OTC OBS. Users get smooth self-service bucket provisioning. Operators keep visibility and control over provider credentials, backend choice, access policy, sharing, lifecycle rules, and credential rotation.
+**Provider Storage is a PaaS-style building block for platform operators:** it turns one `Storage` claim into end-user object-storage buckets on the selected backend. Users get smooth self-service bucket provisioning. Operators keep visibility and control over provider credentials, backend choice, access policy, sharing, lifecycle rules, and credential rotation.
 
-Provider Storage is built on [Crossplane v2](https://crossplane.io). It provides a tenant-facing `Storage` API and backend-specific compositions for MinIO, AWS S3, and OTC OBS.
+Provider Storage is built on [Crossplane](https://crossplane.io). It provides a tenant-facing `Storage` API and backend-specific Compositions. See the [backend comparison](how-to-guides/backend_differences.md) for the available implementations.
 
-The API stays the same across all supported backends. Buckets, credentials, access requests, access grants, and lifecycle rules are the same concepts for MinIO, AWS S3, and OTC OBS. Only the implementation behind the composition changes.
+The API stays the same across all backends. Buckets, credentials, access requests, access grants, and lifecycle rules use the same concepts. Only the implementation behind the composition changes.
 
 !!! warning "Bootstrap cloud IAM before deployment"
 
     Before you deploy cloud provider components, an administrator must follow
     the backend's initial IAM procedure. Review its
     `<cloud>/dependencies/iam.sh` script and any policy templates before you run an
-    implemented bootstrap. AWS and OTC have implementations. Read the
+    implemented bootstrap. Read the
     [cloud IAM bootstrap guide](how-to-guides/cloud-iam-bootstrap.md).
 
 ## Operator Contract
 
 For an operator, a `Storage` claim is the contract for one principal and its object-storage access:
 
-- You install the backend package you want to offer: MinIO, AWS S3, or OTC OBS.
+- You install the backend package you want to offer.
 - You configure provider credentials and backend settings in the target namespace.
 - Users or higher-level platform services submit `Storage` claims for buckets, access requests, and access grants.
 - Crossplane creates the backend-specific resources: buckets, users or IAM identities, policies, access keys, and a normalized Kubernetes Secret.
@@ -41,9 +41,9 @@ Other platform building blocks and workloads can consume the generated Secret di
 ## Features
 
 - **Backend support**
-  Provision S3-compatible buckets on MinIO, AWS S3, and OTC OBS.
+  Provision S3-compatible buckets on the selected backend.
 - **Clean abstraction**
-  Use the same bucket, access, credential, and lifecycle concepts across MinIO, AWS S3, and OTC OBS.
+  Use the same bucket, access, credential, and lifecycle concepts across all backends.
 - **Cross-user sharing**
   Let owners grant or deny bucket access across users or teams.
 - **Kubernetes-native secrets**
@@ -94,10 +94,9 @@ This creates a bucket named **`wonderland`**, plus the backend-specific resource
 
 For each `Storage` resource, a Secret is created in the same namespace. The Secret is named after `spec.principal` and contains credentials for the selected backend.
 
-- **MinIO, AWS S3, OTC OBS**:
-  - `AWS_ACCESS_KEY_ID`  
-  - `AWS_SECRET_ACCESS_KEY`
-  - `AWS_ENDPOINT_URL`, `AWS_REGION`, and `AWS_S3_FORCE_PATH_STYLE` when supplied by the selected storage environment
+The consumer Secret contains `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
+It also contains `AWS_ENDPOINT_URL`, `AWS_REGION`, and
+`AWS_S3_FORCE_PATH_STYLE` when supplied by the selected storage environment.
 
 Use these secrets in your workloads to connect directly to the provisioned storage with standard S3 tooling, for example:
 

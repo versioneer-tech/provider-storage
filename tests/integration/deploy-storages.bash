@@ -20,6 +20,9 @@ preflight_storage() {
     otc)
       CROSSPLANE_OTC_RESOURCE_PREFIX="$(otc_resource_prefix)"
       ;;
+    ovh)
+      CROSSPLANE_OVH_PROJECT_PREFIX="$(ovh_project_prefix)"
+      ;;
   esac
 }
 
@@ -40,6 +43,11 @@ apply_storage() {
         "${MANIFEST_DIR}/storages/otc.yaml" \
         OTC_BUCKET_A "${CROSSPLANE_OTC_RESOURCE_PREFIX}-it-a" \
         OTC_BUCKET_B "${CROSSPLANE_OTC_RESOURCE_PREFIX}-it-b"
+      ;;
+    ovh)
+      apply_template \
+        "${MANIFEST_DIR}/storages/ovh.yaml" \
+        OVH_PROJECT_PREFIX "${CROSSPLANE_OVH_PROJECT_PREFIX}"
       ;;
   esac
 }

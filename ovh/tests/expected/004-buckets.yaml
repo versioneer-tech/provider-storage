@@ -1,0 +1,180 @@
+# Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+---
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  labels:
+    storages.pkg.internal/discoverable: "true"
+  name: s-john
+spec:
+  bucketAccessGrants:
+  - bucketName: s-john
+    grantedAt: "2025-09-29T10:28:00Z"
+    grantee: s-jane
+    permission: ReadWrite
+  bucketAccessRequests:
+  - bucketName: s-joe
+    reason: Need access
+    requestedAt: "2025-09-29T10:25:00Z"
+  - bucketName: s-jeff
+    reason: Need access
+    requestedAt: "2025-09-29T10:26:00Z"
+  - bucketName: s-jane
+    reason: Need access
+    requestedAt: "2025-09-29T10:27:00Z"
+  buckets:
+  - bucketName: s-john
+    discoverable: true
+  credentialsRollover:
+    interval: daily
+  principal: s-john
+status:
+  conditions:
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    message: 'Unready resources: credentials-s-john-20260912, observe-secret-s-john,
+      owner-s-john, and 2 more'
+    reason: Creating
+    status: "False"
+    type: Ready
+---
+apiVersion: cloud.ovh.m.edixos.io/v1alpha1
+kind: S3Credentials
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: credentials-s-john-20260912
+  labels:
+    crossplane.io/composite: s-john
+  name: s-john-20260912
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-john
+    uid: ""
+spec:
+  forProvider:
+    serviceName: "00000000000000000000000000000000"
+    userIdRef:
+      name: s-john-20260912
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-ovh
+  writeConnectionSecretToRef:
+    name: s-john-20260912-credentials
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: observe-secret-s-john
+  labels:
+    crossplane.io/composite: s-john
+  name: observe-secret-s-john
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-john
+    uid: ""
+spec:
+  forProvider:
+    manifest:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: s-john-20260912-credentials
+        namespace: default
+  managementPolicies:
+  - Observe
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-kubernetes
+---
+apiVersion: cloud.ovh.m.edixos.io/v1alpha1
+kind: User
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: owner-s-john
+  labels:
+    crossplane.io/composite: s-john
+  name: s-john-owner
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-john
+    uid: ""
+spec:
+  forProvider:
+    description: Stable owner for s-john
+    roleNames:
+    - objectstore_operator
+    serviceName: "00000000000000000000000000000000"
+  managementPolicies:
+  - Observe
+  - Create
+  - Update
+  - LateInitialize
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-ovh
+---
+apiVersion: cloud.ovh.m.edixos.io/v1alpha1
+kind: S3Policy
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: policy-s-john-20260912
+  labels:
+    crossplane.io/composite: s-john
+  name: s-john-20260912
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-john
+    uid: ""
+spec:
+  forProvider:
+    policy: '{"Statement":[{"Action":["s3:ListAllMyBuckets"],"Effect":"Deny","Resource":["*"]},{"Action":["s3:GetBucketLocation","s3:ListBucket","s3:ListBucketMultipartUploads"],"Effect":"Allow","Resource":["arn:aws:s3:::s-john"]},{"Action":["s3:AbortMultipartUpload","s3:DeleteObject","s3:GetObject","s3:ListMultipartUploadParts","s3:PutObject"],"Effect":"Allow","Resource":["arn:aws:s3:::s-john/*"]},{"Action":["s3:*"],"Effect":"Deny","Resource":["arn:aws:s3:::s-jane","arn:aws:s3:::s-jane/*"]},{"Action":["s3:*"],"Effect":"Deny","Resource":["arn:aws:s3:::s-jeff","arn:aws:s3:::s-jeff/*"]},{"Action":["s3:*"],"Effect":"Deny","Resource":["arn:aws:s3:::s-joe","arn:aws:s3:::s-joe/*"]}]}'
+    serviceName: "00000000000000000000000000000000"
+    userIdRef:
+      name: s-john-20260912
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-ovh
+---
+apiVersion: cloud.ovh.m.edixos.io/v1alpha1
+kind: User
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: user-s-john-20260912
+  labels:
+    crossplane.io/composite: s-john
+  name: s-john-20260912
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-john
+    uid: ""
+spec:
+  forProvider:
+    description: Credential generation for s-john-20260912
+    roleNames:
+    - objectstore_operator
+    serviceName: "00000000000000000000000000000000"
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-ovh
