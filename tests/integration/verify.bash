@@ -105,6 +105,19 @@ verify_backend() {
     exit 1
   fi
 
+  log "Waiting for ${backend} consumer Secret"
+  kube wait "secret/${principal}" \
+    --namespace "${INTEGRATION_NAMESPACE}" \
+    --for=create \
+    --timeout=5m
+  kube wait "secret/${principal}" \
+    --namespace "${INTEGRATION_NAMESPACE}" \
+    --for=jsonpath='{.data.AWS_ACCESS_KEY_ID}' \
+    --timeout=5m
+  kube wait "secret/${principal}" \
+    --namespace "${INTEGRATION_NAMESPACE}" \
+    --for=jsonpath='{.data.AWS_SECRET_ACCESS_KEY}' \
+    --timeout=5m
   verify_consumer_secret "${principal}"
 
   while IFS= read -r bucket; do
