@@ -1,0 +1,274 @@
+# Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+---
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  annotations:
+    storages.pkg.internal/environment: storage-minio
+  labels:
+    storages.pkg.internal/backend: minio
+    storages.pkg.internal/capability-one: "true"
+    storages.pkg.internal/discoverable: "true"
+  name: s-joe
+  namespace: default
+spec:
+  bucketAccessGrants:
+  - bucketName: xyz-story-fixture-joe
+    grantedAt: "2025-09-29T10:05:00Z"
+    grantee: s-jeff
+    permission: ReadWrite
+  bucketAccessRequests:
+  - bucketName: xyz-story-fixture-jeff-shared
+    reason: Need access
+    requestedAt: "2025-09-29T10:00:00Z"
+  buckets:
+  - bucketName: xyz-story-fixture-joe
+    discoverable: true
+  crossplane:
+    compositionSelector:
+      matchLabels:
+        provider: minio
+  principal: s-joe
+  providerIdentity: xyz-story-fixture-joe
+status:
+  conditions:
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    message: 'Unready resources: policy-s-jeff-xyz-story-fixture-joe'
+    reason: Creating
+    status: "False"
+    type: Ready
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: bucket-xyz-story-fixture-joe
+  labels:
+    crossplane.io/composite: s-joe
+  name: bucket-xyz-story-fixture-joe
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-joe
+    uid: ""
+spec:
+  forProvider:
+    manifest:
+      apiVersion: minio.crossplane.io/v1
+      kind: Bucket
+      metadata:
+        annotations:
+          storages.pkg.internal/discoverable: "true"
+        name: xyz-story-fixture-joe
+      spec:
+        providerConfigRef:
+          name: provider-minio
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-kubernetes
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: observe-secret-s-joe
+  labels:
+    crossplane.io/composite: s-joe
+  name: observe-secret-s-joe
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-joe
+    uid: ""
+spec:
+  forProvider:
+    manifest:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: s-joe-credentials
+        namespace: default
+  managementPolicies:
+  - Observe
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-kubernetes
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: policy-full-xyz-story-fixture-joe
+  labels:
+    crossplane.io/composite: s-joe
+  name: policy-full-xyz-story-fixture-joe
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-joe
+    uid: ""
+spec:
+  forProvider:
+    manifest:
+      apiVersion: minio.crossplane.io/v1
+      kind: Policy
+      metadata:
+        name: provider-storage.xyz-story-fixture-joe
+      spec:
+        forProvider:
+          rawPolicy: |-
+            {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:*"
+                  ],
+                  "Resource": [
+                    "arn:aws:s3:::xyz-story-fixture-joe",
+                    "arn:aws:s3:::xyz-story-fixture-joe/*"
+                  ]
+                }
+              ]
+            }
+        providerConfigRef:
+          name: provider-minio
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-kubernetes
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: policy-s-jeff-xyz-story-fixture-joe
+  labels:
+    crossplane.io/composite: s-joe
+  name: policy-s-jeff-xyz-story-fixture-joe
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-joe
+    uid: ""
+spec:
+  forProvider:
+    manifest:
+      apiVersion: minio.crossplane.io/v1
+      kind: Policy
+      metadata:
+        name: provider-storage.s-jeff.xyz-story-fixture-joe
+      spec:
+        forProvider:
+          rawPolicy: |-
+            {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:GetBucketLocation",
+                    "s3:ListBucket",
+                    "s3:GetObject",
+                    "s3:PutObject",
+                    "s3:DeleteObject"
+                  ],
+                  "Resource": [
+                    "arn:aws:s3:::xyz-story-fixture-joe",
+                    "arn:aws:s3:::xyz-story-fixture-joe/*"
+                  ]
+                }
+              ]
+            }
+        providerConfigRef:
+          name: provider-minio
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-kubernetes
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: secret-s-joe
+  labels:
+    crossplane.io/composite: s-joe
+  name: secret-s-joe
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-joe
+    uid: ""
+spec:
+  forProvider:
+    manifest:
+      apiVersion: v1
+      data:
+        AWS_ACCESS_KEY_ID: RVhBTVBMRUFDQ0VTU0tFWQ==
+        AWS_ENDPOINT_URL: aHR0cDovL2RlZmF1bHQtaGwubWluaW86OTAwMA==
+        AWS_REGION: dXMtZWFzdC0x
+        AWS_S3_FORCE_PATH_STYLE: dHJ1ZQ==
+        AWS_SECRET_ACCESS_KEY: RVhBTVBMRVNFQ1JFVEtFWQ==
+      kind: Secret
+      metadata:
+        name: s-joe
+        namespace: default
+      type: Opaque
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-kubernetes
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: user-s-joe
+  labels:
+    crossplane.io/composite: s-joe
+  name: user-s-joe
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-joe
+    uid: ""
+spec:
+  forProvider:
+    manifest:
+      apiVersion: minio.crossplane.io/v1
+      kind: User
+      metadata:
+        name: provider-storage-managed-xyz-story-fixture-joe
+      spec:
+        forProvider:
+          policies:
+          - provider-storage.xyz-story-fixture-joe
+          - provider-storage.s-joe.xyz-story-fixture-jeff-shared
+          userName: provider-storage-managed-xyz-story-fixture-joe
+        providerConfigRef:
+          name: provider-minio
+        writeConnectionSecretToRef:
+          name: s-joe-credentials
+          namespace: default
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-kubernetes

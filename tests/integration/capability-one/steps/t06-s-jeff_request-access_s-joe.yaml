@@ -1,0 +1,35 @@
+# Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  name: s-jeff
+  namespace: __STORY_NAMESPACE__
+  annotations:
+    storages.pkg.internal/environment: __STORY_ENVIRONMENT__
+  labels:
+    storages.pkg.internal/backend: __BACKEND__
+    storages.pkg.internal/capability-one: "true"
+    storages.pkg.internal/discoverable: "true"
+spec:
+  principal: s-jeff
+  providerIdentity: __IDENTITY_JEFF__
+  buckets:
+    - bucketName: __BUCKET_JEFF__
+      discoverable: false
+    - bucketName: __BUCKET_JEFF_SHARED__
+      discoverable: true
+  bucketAccessRequests:
+    - bucketName: __BUCKET_JOE__
+      reason: Need access
+      requestedAt: "2025-09-29T10:10:00Z"
+  bucketAccessGrants:
+    - bucketName: __BUCKET_JEFF_SHARED__
+      grantee: s-joe
+      permission: ReadOnly
+      grantedAt: "2025-09-29T10:15:00Z"
+  crossplane:
+    compositionSelector:
+      matchLabels:
+        provider: __COMPOSITION_PROVIDER__

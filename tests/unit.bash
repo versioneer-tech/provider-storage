@@ -142,6 +142,33 @@ validate_ovh_secret_readiness() {
   validate_schemas ovh "${missing}"
 }
 
+validate_capability_one() {
+  local backend="$1" scenario actual composition="${REPO_ROOT}/${backend}/composition.yaml"
+  local -a render_args
+
+  if [[ "${backend}" == ovh ]]; then
+    composition="${TMP_DIR}/composition-ovh-capability-one.yaml"
+    yq eval '.metadata.name = "storage-ovh-capability-one" |
+      .metadata.labels.provider = "ovh-capability-one"' \
+      "${REPO_ROOT}/ovh/composition.yaml" >"${composition}"
+  fi
+
+  for scenario in "${REPO_ROOT}/${backend}/tests/capability-one"/t*; do
+    printf 'Validate %s capability 1 transition %s\n' "${backend}" "${scenario##*/}"
+    actual="${TMP_DIR}/${backend}-${scenario##*/}.yaml"
+    render_args=(--required-resources "${scenario}/required.yaml")
+    if [[ -f "${scenario}/observed.yaml" ]]; then
+      render_args+=(--observed-resources "${scenario}/observed.yaml")
+    fi
+    crossplane render \
+      "${scenario}/input.yaml" \
+      "${composition}" \
+      "${REPO_ROOT}/${backend}/dependencies/functions.yaml" \
+      "${render_args[@]}" -x >"${actual}"
+    dyff between "${scenario}/expected.yaml" "${actual}" -s
+  done
+}
+
 validate_otc_iam_bootstrap() {
   local script="${REPO_ROOT}/otc/dependencies/iam.sh"
   local source_only="${TMP_DIR}/otc-iam-source.sh"
@@ -335,11 +362,16 @@ main() {
       validate_otc_iam_bootstrap
     fi
     run_backend "${backend}"
+    if [[ "${backend}" == minio ]]; then
+      validate_capability_one minio
+    fi
     if [[ "${backend}" == "aws" ]]; then
       validate_aws_secret_readiness
     fi
     if [[ "${backend}" == "ovh" ]]; then
       validate_ovh_secret_readiness
+      validate_capability_one ovh
+      bash "${REPO_ROOT}/ovh/tests/provider-identity/test.bash"
     fi
   done
 

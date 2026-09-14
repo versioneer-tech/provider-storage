@@ -12,7 +12,7 @@ on:
 jobs:
   unit_and_minio_integration:
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 60
     permissions:
       contents: read
     steps:
@@ -40,4 +40,4 @@ jobs:
           config: tests/integration/manifests/kind.yaml
 
       - name: Run MinIO integration test
-        run: tests/integration/run.bash minio
+        run: tests/integration/run.bash minio --with-capability-one

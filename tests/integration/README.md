@@ -4,15 +4,21 @@ These tests use an ephemeral Kind cluster named `provider-storage-it`.
 Every command uses the explicit `kind-provider-storage-it` context. The
 scripts do not use another Kubernetes context or create a missing cluster.
 
-The workflow keeps one `Storage` with two buckets for each deployed backend in
-the `provider-storage-it` namespace. Each resource has the
+The basic workflow keeps one `Storage` with two buckets for each deployed
+backend in the `provider-storage-it` namespace. Each resource has the
 `storages.pkg.internal/backend` inventory label and an explicit Crossplane
 composition selector.
 
+The [test strategy](../../docs/test-strategy.md) defines a shared timeline
+for bucket provisioning, Secrets, requests, and grants. MinIO and OVHcloud
+have adapters. The basic MinIO runner below still checks one claim; add
+`--with-capability-one` to run the multi-principal story after it.
+
 ## Prerequisites
 
-Install Docker, Kind, kubectl, Helm, Crossplane CLI, dyff, and jq. Run the unit
-suite before integration. Ask the operator before an agent creates the local
+Install Docker, Kind, kubectl, Helm, Crossplane CLI, dyff, and jq. Install
+`yq` when preparing golden fixtures. Run the unit suite before integration.
+Ask the operator before an agent creates the local
 test cluster. After approval, run:
 
 ```bash
@@ -28,7 +34,7 @@ exist for the next cycle. Remove it when the operator directs you to do so.
 
 ## Unit tests
 
-Render and compare every backend Composition after each repository change:
+Render and compare backend Compositions when changes can affect their output:
 
 ```bash
 tests/unit.bash
@@ -49,6 +55,44 @@ lifecycle cleanup:
 ```bash
 tests/integration/run.bash minio
 ```
+
+Run the shared capability-1 story with MinIO:
+
+```bash
+tests/integration/run.bash minio --with-capability-one
+```
+
+The applied timeline manifests are readable YAML files in
+`tests/integration/capability-one/steps/`. Their names describe each change,
+such as `t05-s-jeff_change-grant-readonly_s-joe.yaml`. The runner substitutes
+the namespace, provider identity, and physical bucket names. Capture
+directories use the same names. The fixture preparation command uses `yq`
+to produce YAML unit inputs and observed resources.
+
+The story creates a unique namespace and bucket prefix marked `xyz-story`.
+It leaves the resources in place for inspection. Use its printed namespace
+to inventory the resources. Then run its printed
+`cleanup-capability-one.bash` command. Cleanup empties only the story prefix,
+checks that each bucket is empty, removes the claims, waits for their
+composed Objects to finish deleting, and finally removes the namespace.
+GitHub Actions runs this story in its disposable MinIO Kind cluster.
+
+After a passing story, prepare candidate unit fixtures from its printed
+sanitized capture directory:
+
+```bash
+tests/integration/prepare-capability-one-fixtures.bash \
+  minio /tmp/xyz-capability-one-<run-id> /tmp/xyz-capability-one-candidates
+```
+
+Review the candidates against the live S3 results and the `Storage` API
+before copying them into `minio/tests/capability-one/`. Each Tn unit case
+uses the claim and peer resources at Tn and observed resources captured
+after Tn−1. Some steps have two named unit cases because an owner change
+also changes the requester's rendered policy. Captures contain synthetic
+credential values; raw Kubernetes
+Secrets must not be copied into Git. Run `tests/unit.bash minio` after a
+reviewed fixture update.
 
 The integration buckets are `minio-default-it-a` and `minio-default-it-b`,
 named after the default MinIO installation used by the test cluster. The
@@ -312,8 +356,31 @@ propagation. A read about 24 seconds after the provider reported the deny
 policy still succeeded, and a fresh retry about a minute later was denied. A
 follow-up cycle without a manual peer reconcile updated the `ReadOnly` and
 `None` policies in about 40 and 50 seconds; S3 denial lagged again. The peer
-test needs an automated script before it joins the repeatable integration path.
-The test object was removed.
+`None` revocation still needs a scripted case. The test object was removed.
+
+Run the shared capability-1 timeline with the existing administrator CLI
+login and the provider credential Secret described above:
+
+```bash
+export CROSSPLANE_OVH_PROJECT_ID=<project-id>
+export CROSSPLANE_OVH_STORAGE_REGION=de
+tests/integration/run.bash ovh --with-capability-one
+```
+
+This opt-in run requires `yq`. It uses the same named YAML claim changes and
+S3 allow and deny checks as MinIO. It creates an isolated Kind namespace and
+a test-only OVHcloud Composition selector, so existing probe claims keep
+their current Composition. It copies the existing
+`provider-storage-it/ovh-provider-creds` Secret into the isolated test namespace
+for its namespaced ProviderConfig. It writes sanitized captures
+to a temporary directory and prints a cleanup command. Review the run's
+bucket names before cleanup: OVHcloud retains buckets when these managed
+resources are removed. Cleanup removes the story object prefix, waits for
+Crossplane resources to disappear, then deletes only this run's buckets and
+retained users with the `ovhcloud` CLI. Keep the administrator login active
+until cleanup succeeds. If the provider deletes a cloud user before its
+S3Credentials resource, cleanup verifies that the user is absent before
+releasing the orphaned Kubernetes finalizer.
 
 ## CI scope
 

@@ -1,0 +1,128 @@
+# Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  name: observe-secret-s-jane
+  namespace: default
+  annotations:
+    crossplane.io/composition-resource-name: observe-secret-s-jane
+status:
+  conditions:
+    - type: Synced
+      status: "True"
+      reason: ReconcileSuccess
+    - type: Ready
+      status: "True"
+      reason: Available
+  atProvider:
+    manifest:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: s-jane-credentials
+        namespace: default
+      data:
+        access_key_id: RVhBTVBMRUFDQ0VTU0tFWQ==
+        attribute.secret_access_key: RVhBTVBMRVNFQ1JFVEtFWQ==
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  name: secret-s-jane
+  namespace: default
+  annotations:
+    crossplane.io/composition-resource-name: secret-s-jane
+status:
+  conditions:
+    - type: Ready
+      status: "True"
+      reason: Available
+    - type: Synced
+      status: "True"
+      reason: ReconcileSuccess
+  atProvider: {}
+---
+apiVersion: cloud.ovh.m.edixos.io/v1alpha1
+kind: User
+metadata:
+  name: xyz-story-fixture-jane
+  namespace: default
+  annotations:
+    crossplane.io/composition-resource-name: user-s-jane
+status:
+  conditions:
+    - type: Ready
+      status: "True"
+      reason: Available
+    - type: Synced
+      status: "True"
+      reason: ReconcileSuccess
+    - type: LastAsyncOperation
+      status: "True"
+      reason: Success
+  atProvider: {}
+---
+apiVersion: cloud.ovh.m.edixos.io/v1alpha1
+kind: User
+metadata:
+  name: xyz-story-fixture-jane-owner
+  namespace: default
+  annotations:
+    crossplane.io/composition-resource-name: owner-s-jane
+status:
+  conditions:
+    - type: Ready
+      status: "True"
+      reason: Available
+    - type: Synced
+      status: "True"
+      reason: ReconcileSuccess
+    - type: LastAsyncOperation
+      status: "True"
+      reason: Success
+  atProvider:
+    id: "12347"
+---
+apiVersion: cloud.ovh.m.edixos.io/v1alpha1
+kind: S3Credentials
+metadata:
+  name: s-jane
+  namespace: default
+  annotations:
+    crossplane.io/composition-resource-name: credentials-s-jane
+status:
+  conditions:
+    - type: Synced
+      status: "True"
+      reason: ReconcileSuccess
+    - type: Ready
+      status: "True"
+      reason: Available
+    - type: LastAsyncOperation
+      status: "True"
+      reason: Success
+  atProvider:
+    accessKeyId: EXAMPLEACCESSKEY
+---
+apiVersion: cloud.ovh.m.edixos.io/v1alpha1
+kind: S3Policy
+metadata:
+  name: s-jane
+  namespace: default
+  annotations:
+    crossplane.io/composition-resource-name: policy-s-jane
+status:
+  conditions:
+    - type: Synced
+      status: "True"
+      reason: ReconcileSuccess
+    - type: Ready
+      status: "True"
+      reason: Available
+    - type: LastAsyncOperation
+      status: "True"
+      reason: Success
+  atProvider: {}

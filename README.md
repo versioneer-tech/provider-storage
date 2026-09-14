@@ -39,6 +39,9 @@ disposable EU project, repeated bootstrap and the direct managed resources
 passed live checks. A composed `Storage` reached Ready; its normalized
 consumer Secret passed an S3 round trip. A composed peer passed ungranted
 denial, `ReadOnly` read with denied write, and eventual `None` revocation.
+The shared [capability-1 timeline](docs/test-strategy.md) also passed live
+against OVHcloud, from bucket creation through requests and changing grants;
+its 15 transition renders are captured as backend-specific unit fixtures.
 The [`Storage` Composition](ovh/composition.yaml) and package are available.
 Rotation, lifecycle, owner replacement, quotas, and orphan cleanup remain in
 validation. Peer policies updated automatically within about a minute, but

@@ -131,7 +131,10 @@ the administrator CLI login is separate and must not be used for it.
 
 The [integration test guide](https://github.com/versioneer-tech/provider-storage/blob/main/tests/integration/README.md#ovhcloud)
 shows the explicit-context Secret handoff and disposable direct-resource
-probes. Do not apply the placeholder project ID in the EnvironmentConfig.
+probes. It also shows the opt-in multi-principal S3 access test. Keep the
+administrator CLI login available for cleanup because the test buckets are
+retained when their managed resources are removed. Do not apply the
+placeholder project ID in the EnvironmentConfig.
 
 ---
 

@@ -1,0 +1,168 @@
+# Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  name: observe-secret-s-jeff
+  namespace: default
+  annotations:
+    crossplane.io/composition-resource-name: observe-secret-s-jeff
+status:
+  conditions:
+    - type: Synced
+      status: "True"
+      reason: ReconcileSuccess
+    - type: Ready
+      status: "True"
+      reason: Available
+  atProvider:
+    manifest:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: s-jeff-credentials
+        namespace: default
+      data:
+        access_key_id: RVhBTVBMRUFDQ0VTU0tFWQ==
+        attribute.secret_access_key: RVhBTVBMRVNFQ1JFVEtFWQ==
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  name: secret-s-jeff
+  namespace: default
+  annotations:
+    crossplane.io/composition-resource-name: secret-s-jeff
+status:
+  conditions:
+    - type: Ready
+      status: "True"
+      reason: Available
+    - type: Synced
+      status: "True"
+      reason: ReconcileSuccess
+  atProvider: {}
+---
+apiVersion: cloud.ovh.m.edixos.io/v1alpha1
+kind: User
+metadata:
+  name: xyz-story-fixture-jeff
+  namespace: default
+  annotations:
+    crossplane.io/composition-resource-name: user-s-jeff
+status:
+  conditions:
+    - type: Ready
+      status: "True"
+      reason: Available
+    - type: Synced
+      status: "True"
+      reason: ReconcileSuccess
+    - type: LastAsyncOperation
+      status: "True"
+      reason: Success
+  atProvider: {}
+---
+apiVersion: cloud.ovh.m.edixos.io/v1alpha1
+kind: User
+metadata:
+  name: xyz-story-fixture-jeff-owner
+  namespace: default
+  annotations:
+    crossplane.io/composition-resource-name: owner-s-jeff
+status:
+  conditions:
+    - type: Ready
+      status: "True"
+      reason: Available
+    - type: Synced
+      status: "True"
+      reason: ReconcileSuccess
+    - type: LastAsyncOperation
+      status: "True"
+      reason: Success
+  atProvider:
+    id: "12346"
+---
+apiVersion: cloud.ovh.m.edixos.io/v1alpha1
+kind: S3Credentials
+metadata:
+  name: s-jeff
+  namespace: default
+  annotations:
+    crossplane.io/composition-resource-name: credentials-s-jeff
+status:
+  conditions:
+    - type: Synced
+      status: "True"
+      reason: ReconcileSuccess
+    - type: Ready
+      status: "True"
+      reason: Available
+    - type: LastAsyncOperation
+      status: "True"
+      reason: Success
+  atProvider:
+    accessKeyId: EXAMPLEACCESSKEY
+---
+apiVersion: cloud.ovh.m.edixos.io/v1alpha1
+kind: S3Policy
+metadata:
+  name: s-jeff
+  namespace: default
+  annotations:
+    crossplane.io/composition-resource-name: policy-s-jeff
+status:
+  conditions:
+    - type: Synced
+      status: "True"
+      reason: ReconcileSuccess
+    - type: Ready
+      status: "True"
+      reason: Available
+    - type: LastAsyncOperation
+      status: "True"
+      reason: Success
+  atProvider: {}
+---
+apiVersion: cloud.ovh.m.edixos.io/v1alpha1
+kind: ProjectStorage
+metadata:
+  name: xyz-story-fixture-jeff
+  namespace: default
+  annotations:
+    crossplane.io/composition-resource-name: bucket-xyz-story-fixture-jeff
+status:
+  conditions:
+    - type: Ready
+      status: "True"
+      reason: Available
+    - type: Synced
+      status: "True"
+      reason: ReconcileSuccess
+    - type: LastAsyncOperation
+      status: "True"
+      reason: Success
+  atProvider: {}
+---
+apiVersion: cloud.ovh.m.edixos.io/v1alpha1
+kind: ProjectStorage
+metadata:
+  name: xyz-story-fixture-jeff-shared
+  namespace: default
+  annotations:
+    crossplane.io/composition-resource-name: bucket-xyz-story-fixture-jeff-shared
+status:
+  conditions:
+    - type: Ready
+      status: "True"
+      reason: Available
+    - type: Synced
+      status: "True"
+      reason: ReconcileSuccess
+    - type: LastAsyncOperation
+      status: "True"
+      reason: Success
+  atProvider: {}

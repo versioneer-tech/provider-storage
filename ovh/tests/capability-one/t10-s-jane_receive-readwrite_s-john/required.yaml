@@ -1,0 +1,142 @@
+# Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+---
+apiVersion: apiextensions.crossplane.io/v1beta1
+kind: EnvironmentConfig
+metadata:
+  name: storage-ovh
+data:
+  storage:
+    endpoint: https://s3.de.io.cloud.ovh.net
+    force_path_style: "true"
+    provider: Other
+    region: de
+    serviceName: "00000000000000000000000000000000"
+    type: s3
+---
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  name: s-jane
+  namespace: default
+  annotations:
+    storages.pkg.internal/environment: storage-ovh
+  labels:
+    storages.pkg.internal/backend: ovh
+    storages.pkg.internal/capability-one: "true"
+    storages.pkg.internal/discoverable: "false"
+spec:
+  bucketAccessGrants: []
+  bucketAccessRequests:
+    - bucketName: xyz-story-fixture-john
+      reason: Need WriteOnly access
+      requestedAt: "2025-09-29T10:20:00Z"
+  buckets: []
+  crossplane:
+    compositionSelector:
+      matchLabels:
+        provider: ovh-capability-one
+  principal: s-jane
+  providerIdentity: xyz-story-fixture-jane
+---
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  name: s-jeff
+  namespace: default
+  annotations:
+    storages.pkg.internal/environment: storage-ovh
+  labels:
+    storages.pkg.internal/backend: ovh
+    storages.pkg.internal/capability-one: "true"
+    storages.pkg.internal/discoverable: "true"
+spec:
+  bucketAccessGrants:
+    - bucketName: xyz-story-fixture-jeff-shared
+      grantedAt: "2025-09-29T10:15:00Z"
+      grantee: s-joe
+      permission: ReadOnly
+  bucketAccessRequests:
+    - bucketName: xyz-story-fixture-joe
+      reason: Need access
+      requestedAt: "2025-09-29T10:10:00Z"
+  buckets:
+    - bucketName: xyz-story-fixture-jeff
+      discoverable: false
+    - bucketName: xyz-story-fixture-jeff-shared
+      discoverable: true
+  crossplane:
+    compositionSelector:
+      matchLabels:
+        provider: ovh-capability-one
+  principal: s-jeff
+  providerIdentity: xyz-story-fixture-jeff
+---
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  name: s-joe
+  namespace: default
+  annotations:
+    storages.pkg.internal/environment: storage-ovh
+  labels:
+    storages.pkg.internal/backend: ovh
+    storages.pkg.internal/capability-one: "true"
+    storages.pkg.internal/discoverable: "true"
+spec:
+  bucketAccessGrants:
+    - bucketName: xyz-story-fixture-joe
+      grantedAt: "2025-09-29T10:05:00Z"
+      grantee: s-jeff
+      permission: ReadWrite
+  bucketAccessRequests:
+    - bucketName: xyz-story-fixture-jeff-shared
+      reason: Need access
+      requestedAt: "2025-09-29T10:00:00Z"
+  buckets:
+    - bucketName: xyz-story-fixture-joe
+      discoverable: true
+  crossplane:
+    compositionSelector:
+      matchLabels:
+        provider: ovh-capability-one
+  principal: s-joe
+  providerIdentity: xyz-story-fixture-joe
+---
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  name: s-john
+  namespace: default
+  annotations:
+    storages.pkg.internal/environment: storage-ovh
+  labels:
+    storages.pkg.internal/backend: ovh
+    storages.pkg.internal/capability-one: "true"
+    storages.pkg.internal/discoverable: "true"
+spec:
+  bucketAccessGrants:
+    - bucketName: xyz-story-fixture-john
+      grantedAt: "2025-09-29T10:28:00Z"
+      grantee: s-jane
+      permission: ReadWrite
+  bucketAccessRequests:
+    - bucketName: xyz-story-fixture-joe
+      reason: Need access
+      requestedAt: "2025-09-29T10:25:00Z"
+    - bucketName: xyz-story-fixture-jeff
+      reason: Need access
+      requestedAt: "2025-09-29T10:26:00Z"
+    - bucketName: xyz-story-fixture-jane
+      reason: Need access
+      requestedAt: "2025-09-29T10:27:00Z"
+  buckets:
+    - bucketName: xyz-story-fixture-john
+      discoverable: true
+  crossplane:
+    compositionSelector:
+      matchLabels:
+        provider: ovh-capability-one
+  principal: s-john
+  providerIdentity: xyz-story-fixture-john

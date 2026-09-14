@@ -8,6 +8,7 @@ repo_name: versioneer-tech/provider-storage
 copyright: "Copyright &copy; 2025, Versioneer"
 nav:
   - Home: index.md
+  - Test Strategy: test-strategy.md
   - How-to guides:
     - Usage & Concepts: how-to-guides/usage_concepts.md
     - Permissions: how-to-guides/permissions.md

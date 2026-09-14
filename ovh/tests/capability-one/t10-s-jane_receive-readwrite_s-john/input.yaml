@@ -1,0 +1,27 @@
+# Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  name: s-jane
+  namespace: default
+  annotations:
+    storages.pkg.internal/environment: storage-ovh
+  labels:
+    storages.pkg.internal/backend: ovh
+    storages.pkg.internal/capability-one: "true"
+    storages.pkg.internal/discoverable: "false"
+spec:
+  bucketAccessGrants: []
+  bucketAccessRequests:
+    - bucketName: xyz-story-fixture-john
+      reason: Need WriteOnly access
+      requestedAt: "2025-09-29T10:20:00Z"
+  buckets: []
+  crossplane:
+    compositionSelector:
+      matchLabels:
+        provider: ovh-capability-one
+  principal: s-jane
+  providerIdentity: xyz-story-fixture-jane

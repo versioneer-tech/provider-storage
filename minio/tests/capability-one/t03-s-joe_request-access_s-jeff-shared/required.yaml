@@ -1,0 +1,70 @@
+# Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+---
+apiVersion: apiextensions.crossplane.io/v1beta1
+kind: EnvironmentConfig
+metadata:
+  name: storage-minio
+data:
+  storage:
+    endpoint: http://default-hl.minio:9000
+    force_path_style: "true"
+    lifecycle:
+      schedule: 17 2 * * *
+    provider: Minio
+    region: us-east-1
+    type: s3
+---
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  name: s-jeff
+  namespace: default
+  annotations:
+    storages.pkg.internal/environment: storage-minio
+  labels:
+    storages.pkg.internal/backend: minio
+    storages.pkg.internal/capability-one: "true"
+    storages.pkg.internal/discoverable: "true"
+spec:
+  bucketAccessGrants: []
+  bucketAccessRequests: []
+  buckets:
+    - bucketName: xyz-story-fixture-jeff
+      discoverable: false
+    - bucketName: xyz-story-fixture-jeff-shared
+      discoverable: true
+  crossplane:
+    compositionSelector:
+      matchLabels:
+        provider: minio
+  principal: s-jeff
+  providerIdentity: xyz-story-fixture-jeff
+---
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  name: s-joe
+  namespace: default
+  annotations:
+    storages.pkg.internal/environment: storage-minio
+  labels:
+    storages.pkg.internal/backend: minio
+    storages.pkg.internal/capability-one: "true"
+    storages.pkg.internal/discoverable: "true"
+spec:
+  bucketAccessGrants: []
+  bucketAccessRequests:
+    - bucketName: xyz-story-fixture-jeff-shared
+      reason: Need access
+      requestedAt: "2025-09-29T10:00:00Z"
+  buckets:
+    - bucketName: xyz-story-fixture-joe
+      discoverable: true
+  crossplane:
+    compositionSelector:
+      matchLabels:
+        provider: minio
+  principal: s-joe
+  providerIdentity: xyz-story-fixture-joe

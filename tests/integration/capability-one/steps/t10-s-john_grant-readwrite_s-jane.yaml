@@ -1,0 +1,39 @@
+# Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  name: s-john
+  namespace: __STORY_NAMESPACE__
+  annotations:
+    storages.pkg.internal/environment: __STORY_ENVIRONMENT__
+  labels:
+    storages.pkg.internal/backend: __BACKEND__
+    storages.pkg.internal/capability-one: "true"
+    storages.pkg.internal/discoverable: "true"
+spec:
+  principal: s-john
+  providerIdentity: __IDENTITY_JOHN__
+  buckets:
+    - bucketName: __BUCKET_JOHN__
+      discoverable: true
+  bucketAccessRequests:
+    - bucketName: __BUCKET_JOE__
+      reason: Need access
+      requestedAt: "2025-09-29T10:25:00Z"
+    - bucketName: __BUCKET_JEFF__
+      reason: Need access
+      requestedAt: "2025-09-29T10:26:00Z"
+    - bucketName: __BUCKET_JANE__
+      reason: Need access
+      requestedAt: "2025-09-29T10:27:00Z"
+  bucketAccessGrants:
+    - bucketName: __BUCKET_JOHN__
+      grantee: s-jane
+      permission: ReadWrite
+      grantedAt: "2025-09-29T10:28:00Z"
+  crossplane:
+    compositionSelector:
+      matchLabels:
+        provider: __COMPOSITION_PROVIDER__

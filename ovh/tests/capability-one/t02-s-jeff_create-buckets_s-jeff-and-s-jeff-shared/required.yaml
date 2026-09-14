@@ -1,0 +1,66 @@
+# Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+---
+apiVersion: apiextensions.crossplane.io/v1beta1
+kind: EnvironmentConfig
+metadata:
+  name: storage-ovh
+data:
+  storage:
+    endpoint: https://s3.de.io.cloud.ovh.net
+    force_path_style: "true"
+    provider: Other
+    region: de
+    serviceName: "00000000000000000000000000000000"
+    type: s3
+---
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  name: s-jeff
+  namespace: default
+  annotations:
+    storages.pkg.internal/environment: storage-ovh
+  labels:
+    storages.pkg.internal/backend: ovh
+    storages.pkg.internal/capability-one: "true"
+    storages.pkg.internal/discoverable: "true"
+spec:
+  bucketAccessGrants: []
+  bucketAccessRequests: []
+  buckets:
+    - bucketName: xyz-story-fixture-jeff
+      discoverable: false
+    - bucketName: xyz-story-fixture-jeff-shared
+      discoverable: true
+  crossplane:
+    compositionSelector:
+      matchLabels:
+        provider: ovh-capability-one
+  principal: s-jeff
+  providerIdentity: xyz-story-fixture-jeff
+---
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  name: s-joe
+  namespace: default
+  annotations:
+    storages.pkg.internal/environment: storage-ovh
+  labels:
+    storages.pkg.internal/backend: ovh
+    storages.pkg.internal/capability-one: "true"
+    storages.pkg.internal/discoverable: "true"
+spec:
+  bucketAccessGrants: []
+  bucketAccessRequests: []
+  buckets:
+    - bucketName: xyz-story-fixture-joe
+      discoverable: true
+  crossplane:
+    compositionSelector:
+      matchLabels:
+        provider: ovh-capability-one
+  principal: s-joe
+  providerIdentity: xyz-story-fixture-joe

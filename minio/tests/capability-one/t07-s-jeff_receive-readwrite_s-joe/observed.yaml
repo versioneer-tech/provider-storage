@@ -1,0 +1,148 @@
+# Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  name: bucket-xyz-story-fixture-jeff
+  namespace: default
+  annotations:
+    crossplane.io/composition-resource-name: bucket-xyz-story-fixture-jeff
+status:
+  conditions:
+    - type: Ready
+      status: "True"
+      reason: Available
+    - type: Synced
+      status: "True"
+      reason: ReconcileSuccess
+  atProvider: {}
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  name: bucket-xyz-story-fixture-jeff-shared
+  namespace: default
+  annotations:
+    crossplane.io/composition-resource-name: bucket-xyz-story-fixture-jeff-shared
+status:
+  conditions:
+    - type: Ready
+      status: "True"
+      reason: Available
+    - type: Synced
+      status: "True"
+      reason: ReconcileSuccess
+  atProvider: {}
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  name: observe-secret-s-jeff
+  namespace: default
+  annotations:
+    crossplane.io/composition-resource-name: observe-secret-s-jeff
+status:
+  conditions:
+    - type: Synced
+      status: "True"
+      reason: ReconcileSuccess
+    - type: Ready
+      status: "True"
+      reason: Available
+  atProvider:
+    manifest:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: s-jeff-credentials
+        namespace: default
+      data:
+        AWS_ACCESS_KEY_ID: RVhBTVBMRUFDQ0VTU0tFWQ==
+        AWS_SECRET_ACCESS_KEY: RVhBTVBMRVNFQ1JFVEtFWQ==
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  name: policy-full-xyz-story-fixture-jeff
+  namespace: default
+  annotations:
+    crossplane.io/composition-resource-name: policy-full-xyz-story-fixture-jeff
+status:
+  conditions:
+    - type: Ready
+      status: "True"
+      reason: Available
+    - type: Synced
+      status: "True"
+      reason: ReconcileSuccess
+  atProvider: {}
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  name: policy-full-xyz-story-fixture-jeff-shared
+  namespace: default
+  annotations:
+    crossplane.io/composition-resource-name: policy-full-xyz-story-fixture-jeff-shared
+status:
+  conditions:
+    - type: Ready
+      status: "True"
+      reason: Available
+    - type: Synced
+      status: "True"
+      reason: ReconcileSuccess
+  atProvider: {}
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  name: policy-s-joe-xyz-story-fixture-jeff-shared
+  namespace: default
+  annotations:
+    crossplane.io/composition-resource-name: policy-s-joe-xyz-story-fixture-jeff-shared
+status:
+  conditions:
+    - type: Ready
+      status: "True"
+      reason: Available
+    - type: Synced
+      status: "True"
+      reason: ReconcileSuccess
+  atProvider: {}
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  name: secret-s-jeff
+  namespace: default
+  annotations:
+    crossplane.io/composition-resource-name: secret-s-jeff
+status:
+  conditions:
+    - type: Ready
+      status: "True"
+      reason: Available
+    - type: Synced
+      status: "True"
+      reason: ReconcileSuccess
+  atProvider: {}
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  name: user-s-jeff
+  namespace: default
+  annotations:
+    crossplane.io/composition-resource-name: user-s-jeff
+status:
+  conditions:
+    - type: Ready
+      status: "True"
+      reason: Available
+    - type: Synced
+      status: "True"
+      reason: ReconcileSuccess
+  atProvider: {}

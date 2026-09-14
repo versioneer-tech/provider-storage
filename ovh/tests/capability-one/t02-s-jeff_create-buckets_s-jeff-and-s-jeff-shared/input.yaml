@@ -1,0 +1,28 @@
+# Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  name: s-jeff
+  namespace: default
+  annotations:
+    storages.pkg.internal/environment: storage-ovh
+  labels:
+    storages.pkg.internal/backend: ovh
+    storages.pkg.internal/capability-one: "true"
+    storages.pkg.internal/discoverable: "true"
+spec:
+  bucketAccessGrants: []
+  bucketAccessRequests: []
+  buckets:
+    - bucketName: xyz-story-fixture-jeff
+      discoverable: false
+    - bucketName: xyz-story-fixture-jeff-shared
+      discoverable: true
+  crossplane:
+    compositionSelector:
+      matchLabels:
+        provider: ovh-capability-one
+  principal: s-jeff
+  providerIdentity: xyz-story-fixture-jeff
