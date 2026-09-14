@@ -32,18 +32,6 @@ Before you deploy a managed cloud backend, an administrator must review its
 `<cloud>/dependencies/iam.sh` script and any policy templates as described in the
 [cloud IAM bootstrap guide](docs/how-to-guides/cloud-iam-bootstrap.md).
 
-The OVHcloud backend uses the same `Storage` API. Its
-[IAM bootstrap guide](ovh/dependencies/README.md) creates a project-scoped
-controller service account with the official `ovhcloud` CLI and `jq`. In a
-disposable EU project, repeated bootstrap and the direct managed resources
-passed live checks. A composed `Storage` reached Ready; its normalized
-consumer Secret passed an S3 round trip. A composed peer passed ungranted
-denial, `ReadOnly` read with denied write, and eventual `None` revocation.
-The [`Storage` Composition](ovh/composition.yaml) and package are available.
-Rotation, lifecycle, owner replacement, quotas, and orphan cleanup remain in
-validation. Peer policies updated automatically within about a minute, but
-S3 enforcement lagged the policy update in the live test.
-
 ## API Reference
 
 The published XRD with all fields is documented here:  

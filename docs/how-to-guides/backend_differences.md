@@ -111,14 +111,14 @@ S3 tests, especially for OTC retained users and OVHcloud ACL fallback.
 
 ## Verification Status
 
-The OVHcloud direct resources passed readiness checks in a disposable DE
-project. A composed `Storage` reached Ready and its five-key consumer Secret
-passed an S3 round trip. A composed peer was denied before a grant, could
-read but not write under `ReadOnly`, and lost read access after `None`
+The OVHcloud integration run created one `Storage` with two buckets in DE.
+The claim reached Ready, and both buckets passed S3 object round trips. A
+composed peer was denied before a grant, could read but not write under
+`ReadOnly`, and lost read access after `None`
 reconciled automatically. The policy updated within about a minute, but a read
 shortly after it synced still succeeded. Other grant levels, credential
 rotation, lifecycle, and teardown still need live tests.
 
-The OVHcloud Composition omits the managed `Delete` action from production
-buckets to avoid deleting user data when a `Storage` claim is removed.
-Disposable direct probes include `Delete` for cleanup.
+The OVHcloud Composition omits the managed `Delete` action from buckets to
+avoid deleting user data when a `Storage` claim is removed. Clean up retained
+test buckets explicitly.

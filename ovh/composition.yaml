@@ -172,7 +172,7 @@ spec:
               peers = request.get_required_resources(req, "peer-storages") or []
               observed = req.observed.resources
               owner_key = f"owner-{principal}"
-              managed(rsp, owner_key, "User", f"{principal}-owner", namespace, {
+              managed(rsp, owner_key, "User", f"{identity}-owner", namespace, {
                   "description": f"Stable owner for {identity}",
                   "roleNames": ["objectstore_operator"],
                   "serviceName": project,
@@ -221,7 +221,7 @@ spec:
               for suffix in suffixes:
                   generation = f"{principal}{suffix}"
                   user_key = f"user-{generation}"
-                  user_name = generation
+                  user_name = f"{identity}{suffix}"
                   managed(rsp, user_key, "User", user_name, namespace, {
                       "description": f"Credential generation for {identity}{suffix}",
                       "roleNames": ["objectstore_operator"],

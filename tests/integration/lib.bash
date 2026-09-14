@@ -48,11 +48,11 @@ require_cluster() {
 selected_backend() {
   local value="${1:-}"
   case "${value}" in
-    minio|aws|otc)
+    minio|aws|otc|ovh)
       printf '%s\n' "${value}"
       ;;
     *)
-      printf 'Usage: %s <minio|aws|otc>\n' "$2" >&2
+      printf 'Usage: %s <minio|aws|otc|ovh>\n' "$2" >&2
       exit 1
       ;;
   esac
@@ -109,6 +109,23 @@ otc_resource_prefix() {
   fi
   validate_resource_prefix CROSSPLANE_OTC_RESOURCE_PREFIX "${value}"
   printf '%s\n' "${value}"
+}
+
+ovh_project_prefix() {
+  local value="${CROSSPLANE_OVH_PROJECT_ID:-}"
+  if [[ ! "${value}" =~ ^[0-9a-f]{32}$ ]]; then
+    printf 'CROSSPLANE_OVH_PROJECT_ID must be a 32-character lowercase hexadecimal ID.\n' >&2
+    exit 1
+  fi
+  printf '%s\n' "${value:0:12}"
+}
+
+ovh_storage_region() {
+  local value="${CROSSPLANE_OVH_STORAGE_REGION:-de}"
+  case "${value}" in
+    de|gra) printf '%s\n' "${value}" ;;
+    *) printf 'CROSSPLANE_OVH_STORAGE_REGION must be de or gra.\n' >&2; exit 1 ;;
+  esac
 }
 
 validate_region() {

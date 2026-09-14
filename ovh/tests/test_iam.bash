@@ -48,13 +48,6 @@ fi
 command_line="$*"
 if [[ $command_line == 'cloud project get '* ]]; then
   id=$4
-  if [[ -n ${OVH_CLIENT_ID:-} && $id == "$TEST_OTHER_ID" ]]; then
-    case $TEST_CROSS_MODE in
-      forbidden) printf '{"message":"403 Forbidden"}\n'; exit 1 ;;
-      not_found) printf '{"message":"404 Not Found"}\n'; exit 1 ;;
-      allowed) printf '{"id":"%s"}\n' "$id"; exit 0 ;;
-    esac
-  fi
   if [[ -z ${OVH_CLIENT_ID:-} && $id == "$TEST_TARGET_ID" &&
         $TEST_PROJECT_MODE == wrong ]]; then
     id=$TEST_OTHER_ID
@@ -144,8 +137,6 @@ new_case() {
   credentials_file="$case_dir/provider.json"
   project_mode=correct
   resource_mode=owned
-  cross_mode=forbidden
-  other_project_id=$other_id
   create_mode=success
   edit_mode=success
   default_mode=false
@@ -161,14 +152,12 @@ run_iam() {
     HOME="$case_dir/admin-home" OVH_ENDPOINT=ovh-eu \
     CROSSPLANE_OVH_PROJECT_ID="$target_id" \
     CROSSPLANE_OVH_API_REGION=EU \
-    CROSSPLANE_OVH_OTHER_PROJECT_ID="$other_project_id" \
     "${credential_environment[@]}" \
     TEST_STATE_DIR="$case_dir/state" TEST_TARGET_ID="$target_id" \
     TEST_OTHER_ID="$other_id" TEST_CLIENT_ID="$client_id" \
     TEST_CLIENT_SECRET="$client_secret" TEST_RESOURCE_URN="$resource_urn" \
     TEST_IDENTITY_URN="$identity_urn" TEST_ADMIN_HOME="$case_dir/admin-home" \
     TEST_PROJECT_MODE="$project_mode" TEST_RESOURCE_MODE="$resource_mode" \
-    TEST_CROSS_MODE="$cross_mode" \
     TEST_CREATE_MODE="$create_mode" TEST_EDIT_MODE="$edit_mode" \
     bash "$script" "$1" >"$case_dir/stdout" 2>"$case_dir/stderr"
 }
@@ -250,7 +239,9 @@ if grep -Fq "$client_secret" "$case_dir/stdout" "$case_dir/stderr" "$case_dir/st
 fi
 jq -e --arg urn "$resource_urn" --arg identity "$identity_urn" '
   .resources == [{urn:$urn}] and .identities == [$identity] and
-  (.permissions.allow | length) == 19 and
+  (.permissions.allow | length) == 21 and
+  ([.permissions.allow[].action] | index("publicCloudProject:apiovh:region/storage/delete") != null) and
+  ([.permissions.allow[].action] | index("publicCloudProject:apiovh:region/storage/object/get") != null) and
   ([.permissions.allow[].action] | all(startswith("publicCloudProject:apiovh:")))
 ' "$case_dir/state/policy.json" >/dev/null || fail 'policy scope or actions are wrong'
 cp "$credentials_file" "$case_dir/first-credentials.json"
@@ -288,11 +279,11 @@ grep -Fq '(needs action update)' "$case_dir/stdout" || fail 'status hid the prev
 expect_failure verify
 edit_mode=failure
 expect_failure apply
-jq -e '(.permissions.allow | length) == 18' "$case_dir/state/policy.json" >/dev/null ||
+jq -e '(.permissions.allow | length) == 20' "$case_dir/state/policy.json" >/dev/null ||
   fail 'failed edit changed policy'
 edit_mode=success
 expect_success apply
-jq -e '(.permissions.allow | length) == 19 and
+jq -e '(.permissions.allow | length) == 21 and
   any(.permissions.allow[].action; . == "publicCloudProject:apiovh:user/openrc/get")' \
   "$case_dir/state/policy.json" >/dev/null || fail 'apply did not add the OpenRC action'
 [[ $(create_count) == 2 ]] || fail 'policy update created another resource'
@@ -309,27 +300,18 @@ mv "$case_dir/state/duplicated-policy.json" "$case_dir/state/policy.json"
 expect_success status
 grep -Fq '(needs action update)' "$case_dir/stdout" || fail 'status hid duplicated actions'
 expect_success apply
-jq -e '(.permissions.allow | length) == 19 and
-  ([.permissions.allow[].action] | unique | length) == 19' \
+jq -e '(.permissions.allow | length) == 21 and
+  ([.permissions.allow[].action] | unique | length) == 21' \
   "$case_dir/state/policy.json" >/dev/null || fail 'apply did not repair duplicate actions'
 [[ $(create_count) == 2 ]] || fail 'duplicate repair created another resource'
 
 new_case
 expect_success apply
 expect_success verify
-[[ $(wc -l <"$case_dir/state/service-calls") -ge 3 ]] || fail 'verify did not use isolated service credentials'
-grep -Fq 'Cross-project project read was denied' "$case_dir/stdout" || fail 'verify did not report denial'
+[[ $(wc -l <"$case_dir/state/service-calls") == 2 ]] || fail 'verify did not use isolated service credentials for target reads'
+grep -Fxq 'Service account read the target project and its users.' "$case_dir/stdout" ||
+  fail 'verify did not report target-project access'
 if grep -Fq "$client_secret" "$case_dir/stdout" "$case_dir/stderr"; then
   fail 'verify exposed the client secret'
 fi
-other_project_id=
-expect_success verify
-grep -Fq 'Optional second-project denial check skipped' "$case_dir/stdout" ||
-  fail 'verify did not report the optional check as skipped'
-other_project_id=$other_id
-cross_mode=not_found
-expect_failure verify
-cross_mode=allowed
-expect_failure verify
-
 printf 'OVHcloud IAM mock tests passed.\n'

@@ -15,7 +15,9 @@ spec:
   principal: xyz-ovh-it-__OVH_PROJECT_PREFIX__
   providerIdentity: it
   buckets:
-    - bucketName: xyz-ovh-__OVH_PROJECT_PREFIX__-__OVH_STORAGE_REGION__-compose
+    - bucketName: ovh-__OVH_PROJECT_PREFIX__-it-a
+      discoverable: true
+    - bucketName: ovh-__OVH_PROJECT_PREFIX__-it-b
       discoverable: true
   crossplane:
     compositionSelector:

@@ -142,6 +142,26 @@ validate_ovh_secret_readiness() {
   validate_schemas ovh "${missing}"
 }
 
+validate_ovh_provider_identity() {
+  local input="${TMP_DIR}/ovh-provider-identity-input.yaml"
+  local rendered="${TMP_DIR}/ovh-provider-identity.yaml"
+
+  printf 'Validate OVHcloud providerIdentity resource names\n'
+  sed '/^  principal: s-joe$/a\  providerIdentity: it' \
+    "${REPO_ROOT}/examples/base/001-buckets.yaml" >"${input}"
+  crossplane render \
+    "${input}" \
+    "${REPO_ROOT}/ovh/composition.yaml" \
+    "${REPO_ROOT}/ovh/dependencies/functions.yaml" \
+    --required-resources "${REPO_ROOT}/ovh/tests/required/environment.yaml" \
+    -x >"${rendered}"
+  grep -Fxq '  name: it-owner' "${rendered}"
+  grep -Fxq '  name: it' "${rendered}"
+  grep -Fxq '      name: it' "${rendered}"
+  ! grep -Fxq '  name: s-joe-owner' "${rendered}"
+  validate_schemas ovh "${rendered}"
+}
+
 validate_otc_iam_bootstrap() {
   local script="${REPO_ROOT}/otc/dependencies/iam.sh"
   local source_only="${TMP_DIR}/otc-iam-source.sh"
@@ -340,6 +360,7 @@ main() {
     fi
     if [[ "${backend}" == "ovh" ]]; then
       validate_ovh_secret_readiness
+      validate_ovh_provider_identity
     fi
   done
 

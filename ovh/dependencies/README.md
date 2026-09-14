@@ -1,6 +1,6 @@
 # OVHcloud Controller IAM Bootstrap
 
-The first OVHcloud step is to create a controller identity for one disposable
+The first OVHcloud step is to create a controller identity for the target
 Public Cloud project. This bootstrap does not deploy the OVHcloud provider or
 run the `Storage` Composition. [ADR-004](../../docs/architecture/0004-add-an-ovhcloud-s3-backend.md)
 records the backend design and the checks still needed.
@@ -24,8 +24,8 @@ user-level `~/.ovh.conf` when the CLI asks for a location. You can also use
 the CLI's [supported `OVH_*` variables or configuration
 file](https://github.com/ovh/ovhcloud-cli/blob/main/doc/authentication.md).
 The session must be able to read the target project, create a service account,
-and create its IAM policy. Use a disposable project. Keep administrator
-credentials outside this repository.
+and create its IAM policy. Keep administrator credentials outside this
+repository.
 
 `iam.sh` uses the CLI's default `~/.ovh.conf` login; no administrator
 credential path is needed. It writes the new controller service account as
@@ -83,8 +83,7 @@ If local publication is interrupted, `apply` can resume from a private
 policy setup. Keep any retained recovery file private; it contains the
 one-time secret.
 
-A live `apply` for a disposable EU Public Cloud project succeeded on
-2026-09-12. Its output had this shape, with the local values replaced here:
+A successful `apply` prints this summary without exposing credentials:
 
 ```text
 OVHcloud Provider Storage controller identity is ready.
@@ -96,56 +95,30 @@ IAM resource: urn:v1:eu:resource:publicCloudProject:<public-cloud-project-id>
 Credentials file: <private-credential-path>
 ```
 
-The user then ran `status`, repeated `apply`, and ran `verify` for this EU
-project. `status` reported that the managed service account and IAM policy
-were present and that the credential file was present with mode `0600`.
-The repeated `apply` returned the same ready summary and credential-file path
-without an error. This checks that the command succeeds when run again; the
-output does not show an independent resource count. The current `verify`
-reports:
+When the policy and credential are ready, `verify` reports:
 
 ```text
 Service account read the target project and its users.
-Optional second-project denial check skipped; no second project is required.
 ```
 
 The script also checks that the controller IAM policy names the exact target
 project URN and reviewed actions. Object Storage Users and S3 credentials live
-inside that project. A second project is not needed for backend setup or S3
-access tests. Keep the JSON file private.
+inside that project. Keep the JSON file private.
 
 The script lists its exact project actions in `status`. The CLI does not
 expose the IAM action-reference endpoint. Review these actions before
 `apply`. The script checks the policy scope and actions on each later run.
-The provider probe must confirm that these actions are sufficient.
-
-The first live User probe created a project user, then the provider received
-403 when it read that user's OpenRC details. The missing action was
-`publicCloudProject:apiovh:user/openrc/get`. The script now includes it. If
-you ran the earlier script, `status` reports `needs action update`. Run
-`apply` again to edit the existing policy; it keeps the same service account,
-policy, and controller credential file. The first live edit added the action,
-but the CLI also duplicated the previous actions. The provider then reported
-the User Ready. The script now recognizes that exact duplicate set and uses
-the CLI editor to replace it with one copy of each action. It rejects other
-policy drift. A live `apply`, `status`, and repeated `apply` passed with the
-repaired policy. The existing controller credential file was reused.
+The policy includes bucket deletion and object reads for managed-resource
+cleanup. The Composition omits the `Delete` management action for buckets, so
+removing a `Storage` claim retains its buckets. If `status` reports
+`needs action update`, run `apply` to repair the managed policy without
+replacing the controller identity or local credential file.
 
 `verify` uses the controller credential file to test access to the selected
 project. The service account is an account identity with a policy scoped to
-that project; it is separate from the project's Object Storage Users. If you
-already have a second disposable project, you can add an optional denied-read
-check before `verify`:
-
-```bash
-export CROSSPLANE_OVH_OTHER_PROJECT_ID=fedcba9876543210fedcba9876543210
-ovh/dependencies/iam.sh verify
-```
-
-The second project must exist and differ from the target project. Do not create
-one just for this check. Share only redacted `status` and `verify` results with
-the development team. Never share administrator tokens, the credential JSON,
-or the OAuth2 secret.
+that project; it is separate from the project's Object Storage Users. Share
+only redacted `status` and `verify` results with the development team. Never
+share administrator tokens, the credential JSON, or the OAuth2 secret.
 
 ## Deploy the provider dependencies
 
@@ -167,22 +140,8 @@ Install the dependency manifests before the `storage-ovh` Configuration:
 4. `03-providerConfigs.yaml` and `04-environmentConfigs.yaml`, in the chosen namespace
 5. `functions.yaml` and `rbac.yaml`
 
-The provider package is pinned to `edixos/provider-ovh:v2.19.1`. Follow the
-[dedicated Kind handoff](../../tests/integration/README.md#ovhcloud) for
-explicit-context commands and disposable direct-resource probes. Those probes
-have reached Ready for a project User with a numeric ID, an S3 credential with
-non-empty `access_key_id` and `attribute.secret_access_key` Secret fields, and
-a DE bucket with the expected numeric owner ID. A direct writer policy passed
-a positive bucket round trip and a denied write to a second bucket. One
-production `Storage` reached Ready, published the exact five-key consumer
-Secret, and passed an S3 round trip. A Composition-managed peer passed
-ungranted denial, a `ReadOnly` download with denied write, and eventual `None`
-revocation. A follow-up cycle updated peer policies automatically within about
-a minute; S3 denial lagged that update. The production Composition omits the
-`Delete` management policy for its bucket to preserve user data;
-the disposable direct bucket probe includes `Delete` for cleanup. A separate
-owner-key Job passed S3 upload, download, comparison, and delete against the
-DE bucket through the regional endpoint. A read shortly after the `None`
-policy was reported still succeeded; a fresh retry about a minute later was
-denied. Credential rotation, owner replacement, lifecycle, quotas, and orphan
-cleanup remain unverified.
+The provider package version is set in `02-providers.yaml`. Follow the
+[integration test guide](../../tests/integration/README.md#ovhcloud) for the
+credential Secret handoff and the standard one-Storage, two-bucket test.
+Credential rotation, owner replacement, lifecycle, quotas, and orphan cleanup
+remain unverified.

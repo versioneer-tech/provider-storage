@@ -11,12 +11,7 @@ The API stays the same across all backends. Buckets, credentials, access request
     Before you deploy cloud provider components, an administrator must follow
     the backend's initial IAM procedure. Review its
     `<cloud>/dependencies/iam.sh` script and any policy templates before you run an
-    implemented bootstrap. AWS, OTC, and OVHcloud have cloud backends. The
-    OVHcloud backend has a project-scoped bootstrap and provider
-    manifests. A disposable live project has passed direct-resource and
-    composed `Storage` checks, including the normalized consumer Secret and
-    a `ReadOnly` peer grant and eventual `None` revocation. Rotation,
-    lifecycle, and orphan cleanup remain unverified. Read the
+    implemented bootstrap. AWS, OTC, and OVHcloud have cloud backends. Read the
     [cloud IAM bootstrap guide](how-to-guides/cloud-iam-bootstrap.md).
 
 ## Operator Contract

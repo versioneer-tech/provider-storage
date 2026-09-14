@@ -21,7 +21,10 @@ storage_name() {
 }
 
 principal_name() {
-  printf 'provider-storage-%s-it\n' "$1"
+  case "$1" in
+    ovh) printf 'xyz-ovh-it-%s\n' "$(ovh_project_prefix)" ;;
+    *) printf 'provider-storage-%s-it\n' "$1" ;;
+  esac
 }
 
 bucket_names() {
@@ -35,6 +38,10 @@ bucket_names() {
     otc)
       printf '%s-it-a\n%s-it-b\n' "$(otc_resource_prefix)" "$(otc_resource_prefix)"
       ;;
+    ovh)
+      printf 'ovh-%s-it-a\novh-%s-it-b\n' \
+        "$(ovh_project_prefix)" "$(ovh_project_prefix)"
+      ;;
   esac
 }
 
@@ -42,7 +49,7 @@ rclone_provider() {
   case "$1" in
     minio) printf 'Minio\n' ;;
     aws) printf 'AWS\n' ;;
-    otc) printf 'Other\n' ;;
+    otc|ovh) printf 'Other\n' ;;
   esac
 }
 

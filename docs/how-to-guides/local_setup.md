@@ -49,13 +49,10 @@ The exact AWS, OTC, and OVHcloud commands, credential formats, and
 multi-backend workflow are in
 [`tests/integration/README.md`](https://github.com/versioneer-tech/provider-storage/blob/main/tests/integration/README.md).
 
-The OVHcloud path runs disposable direct-resource probes and a separate
-`Storage` Composition probe. In a live DE project, the composed `Storage`
-reached Ready, its normalized consumer Secret passed an S3 round trip, and a
-peer passed `ReadOnly` read with denied write and eventual `None` revocation.
-Peer policies updated automatically within about a minute, but S3 enforcement
-lagged. The full OVHcloud integration runner, rotation, lifecycle, and orphan
-cleanup remain in the integration plan.
+Run `tests/integration/run.bash ovh` for OVHcloud, as for AWS and OTC. It
+creates one `Storage` with two buckets and checks S3 access through the
+generated consumer Secret. Rotation, lifecycle, and orphan cleanup remain in
+the integration plan.
 
 List retained test resources by backend:
 

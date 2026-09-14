@@ -192,12 +192,10 @@ For the complete Kind test sequence, see the
 
 ## OVHcloud
 
-OVHcloud bootstrap has passed a live IAM check in a disposable EU Public
-Cloud project. The controller identity is an OAuth2 service account with an
-IAM policy for that one `publicCloudProject`. The script does not deploy a
-provider, create buckets, or test S3 access; later direct-resource probes
-confirmed User, S3 credential, and DE bucket readiness. A separate owner-key
-Job passed an S3 object upload, download, comparison, and delete.
+The OVHcloud controller identity is an OAuth2 service account with an IAM
+policy for the target `publicCloudProject`. The bootstrap script creates that
+identity and policy. The standard integration run tests the composed
+`Storage` and its buckets through Crossplane.
 
 Review [`iam.sh`](https://github.com/versioneer-tech/provider-storage/blob/main/ovh/dependencies/iam.sh)
 and its [README](https://github.com/versioneer-tech/provider-storage/blob/main/ovh/dependencies/README.md).
@@ -230,23 +228,11 @@ ovh/dependencies/iam.sh verify
 file path, but not the secret.
 `verify` reads that file and reports access results without printing the
 credential. The script checks the exact target-project URN in the controller
-IAM policy. A second project is not needed to bootstrap or test this backend.
-If you already have another disposable project, you can set
-`CROSSPLANE_OVH_OTHER_PROJECT_ID` and run `verify` again for an optional denied
-API read. Send only redacted status and verification results to the team.
+IAM policy and verifies that the controller can read the selected project and
+list its users. Send only redacted status and verification results to the team.
 
-For one EU test project, `status` found the managed identity, exact policy,
-and mode-`0600` credential file. A repeated `apply` completed, and `verify`
-confirmed a target-project read. The provider created a User with a numeric
-observed ID, an S3 credential with a non-empty key pair in its connection
-Secret, and a DE bucket with the expected owner ID. A direct owner-key S3 Job
-then passed upload, download, comparison, and delete against that bucket via
-the regional endpoint. A composed `Storage` and its normalized consumer Secret
-also passed an S3 round trip. An optional two-project controller denial check
-was not run.
-
-The provider credential Secret handoff and current direct-resource evidence
-are documented in the
+The provider credential Secret handoff and one-Storage, two-bucket test are
+documented in the
 [integration test guide](https://github.com/versioneer-tech/provider-storage/blob/main/tests/integration/README.md#ovhcloud).
 Rotation, lifecycle, owner replacement, and cleanup behavior remain in the
 OVHcloud validation plan.

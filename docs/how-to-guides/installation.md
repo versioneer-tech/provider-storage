@@ -42,14 +42,10 @@ helm install crossplane crossplane-stable/crossplane \
 !!! danger "Required before cloud provider deployment"
 
     Before deployment, a cloud administrator must review the backend's
-    `<cloud>/dependencies/iam.sh` script and any policy templates. AWS and OTC have
-    deployable cloud backends. OVHcloud's bootstrap and direct
-    provider resources passed live checks in a disposable Public Cloud
-    project. A composed `Storage` and normalized consumer Secret passed an S3
-    object round trip, and a peer passed `ReadOnly` read with denied write and
-    eventual `None` revocation. Peer policy updates occurred automatically,
-    but S3 enforcement lagged. Rotation, lifecycle, and orphan cleanup still
-    need live verification.
+    `<cloud>/dependencies/iam.sh` script and any policy templates. AWS, OTC,
+    and OVHcloud each need a controller identity scoped to the selected cloud
+    account, domain, or project. Complete that bootstrap before installing the
+    backend's provider dependencies.
     The OVHcloud bootstrap needs the official `ovhcloud` CLI, `jq`, and an
     administrator session. Follow its [bootstrap README](https://github.com/versioneer-tech/provider-storage/blob/main/ovh/dependencies/README.md)
     and the
@@ -114,24 +110,27 @@ Install only the backend packages you want to offer as platform service classes.
 
 ### OVHcloud
 
-Use a disposable Public Cloud project for validation. Complete the
+Complete the
 [OVHcloud controller bootstrap](https://github.com/versioneer-tech/provider-storage/blob/main/ovh/dependencies/README.md)
-first. Its private JSON contains `endpoint`, `client_id`, and `client_secret`.
+for the target Public Cloud project first. Its private JSON contains
+`endpoint`, `client_id`, and `client_secret`.
 Create `ovh-provider-creds` with a `credentials` key in every target
 `Storage` namespace. The namespaced ProviderConfig references that Secret;
 the administrator CLI login is separate and must not be used for it.
+If you replace the Secret in a running cluster, restart the OVHcloud provider
+Deployment so it uses the new controller credential.
 
 - [00-mrap.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/ovh/dependencies/00-mrap.yaml) – Activate only the OVHcloud managed resource kinds used by the Composition.
 - [01-deploymentRuntimeConfigs.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/ovh/dependencies/01-deploymentRuntimeConfigs.yaml) – Provider and function runtime settings.
-- [02-providers.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/ovh/dependencies/02-providers.yaml) – Install pinned `edixos/provider-ovh:v2.19.1` and `provider-kubernetes`.
+- [02-providers.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/ovh/dependencies/02-providers.yaml) – Install the OVHcloud provider and `provider-kubernetes`.
 - [03-providerConfigs.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/ovh/dependencies/03-providerConfigs.yaml) – Set the credential Secret namespace, then apply in each `Storage` namespace.
 - [04-environmentConfigs.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/ovh/dependencies/04-environmentConfigs.yaml) – Set `data.storage.serviceName` to the exact project ID. The initial configuration uses Object Storage region `de` and endpoint `https://s3.de.io.cloud.ovh.net`; this is separate from the EU control-plane API region.
 - [functions.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/ovh/dependencies/functions.yaml) – Composition functions.
 - [rbac.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/ovh/dependencies/rbac.yaml) – `provider-kubernetes` permissions.
 
 The [integration test guide](https://github.com/versioneer-tech/provider-storage/blob/main/tests/integration/README.md#ovhcloud)
-shows the explicit-context Secret handoff and disposable direct-resource
-probes. Do not apply the placeholder project ID in the EnvironmentConfig.
+shows the explicit-context Secret handoff and two-bucket integration run. Do
+not apply the placeholder project ID in the EnvironmentConfig.
 
 ---
 

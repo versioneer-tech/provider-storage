@@ -21,7 +21,6 @@ Optional environment:
   CROSSPLANE_OVH_API_REGION        EU, CA, or US (default EU).
   CROSSPLANE_OVH_CREDENTIALS_FILE  Override the controller JSON output path.
                                    Default: ~/.ovh-provider-storage-<project-id>.json
-  CROSSPLANE_OVH_OTHER_PROJECT_ID  Optional second project for a denied-access check.
 
 Install the official ovhcloud CLI and jq. By default, the CLI reads the
 administrator login from ~/.ovh.conf. The script writes a separate controller
@@ -56,11 +55,6 @@ endpoint="ovh-${api_region,,}"
 if [[ -n ${OVH_ENDPOINT:-} && ${OVH_ENDPOINT} != "$endpoint" ]]; then
   die "OVH_ENDPOINT must be $endpoint for this project."
 fi
-other_project_id=${CROSSPLANE_OVH_OTHER_PROJECT_ID:-}
-if [[ -n $other_project_id ]]; then
-  [[ $other_project_id =~ ^[0-9a-f]{32}$ && $other_project_id != "$project_id" ]] || die 'The second project ID must be different and contain exactly 32 lowercase hexadecimal characters.'
-fi
-
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 repository_dir=$(realpath -- "$script_dir/../..")
 if [[ -n ${CROSSPLANE_OVH_CREDENTIALS_FILE:-} ]]; then
@@ -114,8 +108,10 @@ required_actions=(
   publicCloudProject:apiovh:user/s3Credentials/get
   publicCloudProject:apiovh:user/s3Credentials/secret/display
   publicCloudProject:apiovh:region/storage/create
+  publicCloudProject:apiovh:region/storage/delete
   publicCloudProject:apiovh:region/storage/edit
   publicCloudProject:apiovh:region/storage/get
+  publicCloudProject:apiovh:region/storage/object/get
 )
 actions_json=$(printf '%s\n' "${required_actions[@]}" | jq -R . | jq -s .)
 previous_actions_json=$(jq -c 'map(select(. != "publicCloudProject:apiovh:user/openrc/get"))' <<<"$actions_json")
@@ -351,16 +347,5 @@ EOF
     jq -e --arg id "$project_id" '.id == $id' <<<"$service_project" >/dev/null || die 'The service account read a different project.'
     service_json cloud user list --cloud-project "$project_id" >/dev/null || die 'The service account could not list target-project users.'
     printf 'Service account read the target project and its users.\n'
-    if [[ -z $other_project_id ]]; then
-      printf 'Optional second-project denial check skipped; no second project is required.\n'
-      exit 0
-    fi
-    other=$(admin_json cloud project get "$other_project_id")
-    jq -e --arg id "$other_project_id" '.id == $id' <<<"$other" >/dev/null || die 'The administrator could not confirm the second project.'
-    if denied_result=$(service_json cloud project get "$other_project_id"); then
-      die 'The service account can read the second project.'
-    fi
-    jq -e '.message | type == "string" and test("403|forbidden|access denied"; "i")' <<<"$denied_result" >/dev/null || die 'The second-project result was not a clear forbidden-access response.'
-    printf 'Cross-project project read was denied by OVHcloud.\n'
     ;;
 esac
