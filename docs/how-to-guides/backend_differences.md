@@ -2,8 +2,8 @@
 
 The `Storage` API defines the same buckets, credentials, access requests,
 grants, and lifecycle rules for every backend. Each Composition maps that API
-to its provider's bucket and access resources. The backends are MinIO, AWS S3,
-OTC OBS, and OVHcloud.
+to its provider's bucket and access resources. The table below compares the
+available implementations.
 
 ## Where Access Rules Live
 
@@ -78,19 +78,8 @@ owner's grant selects `ReadOnly`, `WriteOnly`, `ReadWrite`, or `None`. The
 | OTC | The request field does not change the generated policy. | The owner's grant adds allow statements for the observed grantee ID to the bucket's `BucketPolicy`, even if the grantee did not record a request. | The bucket policy has no allow statements for that grantee. `None` does not add an explicit deny. |
 | OVHcloud | Each retained requester's `S3Policy` gets an explicit deny for the requested bucket. | The policy replaces that deny with allow statements for the granted actions. | While the request remains, the policy contains an explicit deny for that bucket. |
 
-MinIO, AWS, and OVHcloud load peer `Storage` resources in the same namespace
-to resolve a request against the bucket owner's grant. To be found by this
-lookup, an owner `Storage` must carry this label:
-
-```yaml
-metadata:
-  labels:
-    storages.pkg.internal/discoverable: "true"
-```
-
-The `spec.buckets[].discoverable` field is for visibility to clients; these
-Compositions do not check it when resolving access. After selecting a peer by
-label, they check the peer's bucket and matching grant.
+For the owner-label requirement and the distinction between bucket visibility
+and access, see [Discoverable Buckets](permissions.md#discoverable-buckets).
 
 OTC builds policies from the bucket owner's grants and observed grantee user
 IDs. Its current Composition does not use peer `Storage` resources to resolve

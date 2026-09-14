@@ -216,11 +216,7 @@ export CROSSPLANE_OVH_PROJECT_ID=0123456789abcdef0123456789abcdef
 export CROSSPLANE_OVH_API_REGION=EU
 unset CROSSPLANE_OVH_CREDENTIALS_FILE
 
-ovh/dependencies/iam.sh status
 ovh/dependencies/iam.sh apply
-ovh/dependencies/iam.sh status
-ovh/dependencies/iam.sh apply
-ovh/dependencies/iam.sh verify
 ```
 
 `status` is read-only. `apply` writes `endpoint`, `client_id`, and

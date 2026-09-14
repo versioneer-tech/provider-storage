@@ -30,9 +30,7 @@ change does not change bucket ownership. The consumer receives the same
 credential Secret contract as for the other backends.
 
 Use standard regional Object Storage. Keep the project ID, storage region, and
-S3 endpoint in the backend configuration. The
-[OVHcloud bootstrap guide](../../ovh/dependencies/README.md) gives the setup
-steps.
+S3 endpoint in the backend configuration.
 
 ## Consequences
 

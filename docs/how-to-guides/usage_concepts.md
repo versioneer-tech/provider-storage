@@ -2,7 +2,7 @@
 
 This section explains how to use `provider-storage` after installation. Read it as an operator-facing contract: users request buckets and access through a `Storage` claim, while the platform controls the backend, policies, credentials, lifecycle rules, and credential rotation.
 
-The concepts are the same for MinIO, AWS S3, OTC OBS, and OVHcloud. Buckets, credentials, access requests, access grants, and lifecycle rules use one API. The backend implementation differs, but the user-facing model stays the same.
+Buckets, credentials, access requests, access grants, and lifecycle rules use one API. The backend implementation differs, but the user-facing model stays the same.
 
 The OVHcloud Composition targets the same API. A composed
 `Storage` reached Ready and its consumer Secret passed an S3 round trip. A
@@ -27,15 +27,15 @@ Applications and other platform building blocks can consume this Secret directly
 Credentials can be rolled over on a schedule. A configurable number of older credentials can stay valid during rotation, which avoids disruptions for running workloads.
 
 ### Buckets
-A `Storage` claim defines one or more buckets for a principal. Each bucket is created on the selected backend: MinIO, AWS S3, OTC OBS, or OVHcloud.
+A `Storage` claim defines one or more buckets for a principal. Each bucket is created on the selected backend.
 
 Buckets can be marked **discoverable** so clients can show them to potential
 requesters. The field does not enforce access; the owner's grant and the
-backend policy do. For MinIO, AWS, and OVHcloud, the owner `Storage` also
-needs the discoverable label for peer grant resolution.
+backend policy do. See [Discoverable Buckets](permissions.md#discoverable-buckets)
+for the owner-label requirement in request workflows.
 
 ### Lifecycle Rules
-Buckets can define lifecycle rules under `spec.buckets[].lifecycleRules`. The same lifecycle rule model applies to MinIO, AWS S3, and OTC OBS.
+Buckets can define lifecycle rules under `spec.buckets[].lifecycleRules`. The `Storage` API defines one lifecycle rule model across backends.
 Rules target either the whole bucket (`*`) or a prefix such as `tmp/*`, then either delete matching objects or report them without changing data.
 
 `Delete` removes matching objects when the time condition is met.

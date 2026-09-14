@@ -12,7 +12,7 @@ metadata:
     storages.pkg.internal/backend: ovh
     storages.pkg.internal/discoverable: "true"
 spec:
-  principal: xyz-ovh-it-__OVH_PROJECT_PREFIX__
+  principal: provider-storage-ovh-it
   providerIdentity: it
   buckets:
     - bucketName: ovh-__OVH_PROJECT_PREFIX__-it-a

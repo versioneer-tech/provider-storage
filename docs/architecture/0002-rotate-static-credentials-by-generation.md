@@ -10,7 +10,7 @@ Accepted
 
 ## Context
 
-AWS, OTC, and MinIO give consumers static access keys. An immediate key
+For backends that issue static access keys, an immediate key
 replacement can break a consumer that has not reloaded its Secret. Keeping too
 many old keys increases the security risk.
 

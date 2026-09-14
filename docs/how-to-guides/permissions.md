@@ -1,6 +1,6 @@
 # Provider Storage – Permission Model
 
-The **permission model** in `provider-storage` gives operators one access model across MinIO, AWS S3, OTC OBS, and OVHcloud. Users work with four normalized permission levels instead of raw backend-specific IAM or policy actions. The composition translates that model into the backend implementation.
+The **permission model** in `provider-storage` gives operators one access model across backends. Users work with four normalized permission levels instead of raw backend-specific IAM or policy actions. The Composition translates that model into the backend implementation.
 
 The OVHcloud Composition maps the same levels to its S3 policy
 model. A live `ReadOnly` peer could read but not write. The `None` policy
@@ -26,8 +26,8 @@ what each Composition writes while a request is pending, granted, or denied.
 
 `spec.buckets[].discoverable` records whether a bucket should be shown to
 potential requesters. The Compositions do not use that field to decide
-access. On MinIO, AWS, and OVHcloud, the owner `Storage` must carry this label
-so a requester's Composition can load it:
+access. Compositions that resolve requests from peer `Storage` claims require
+this label on the owner claim:
 
 ```yaml
 metadata:

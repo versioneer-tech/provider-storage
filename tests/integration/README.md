@@ -226,9 +226,9 @@ the same `-it-a` and `-it-b` pattern as AWS and OTC. Set
 region; the region selects the endpoint and does not change the bucket names.
 The Composition manages `User` resources `it-owner` and `it`, plus an S3
 policy for `it` scoped to both buckets. The consumer Secret is
-`provider-storage-it/xyz-ovh-it-<project-prefix>`.
+`provider-storage-it/provider-storage-ovh-it`.
 
 ## CI scope
 
 The pull-request workflow runs the unit suite and the MinIO integration path.
-It does not use AWS, OTC, or OVHcloud credentials.
+It does not use cloud-provider credentials.

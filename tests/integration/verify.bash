@@ -21,10 +21,7 @@ storage_name() {
 }
 
 principal_name() {
-  case "$1" in
-    ovh) printf 'xyz-ovh-it-%s\n' "$(ovh_project_prefix)" ;;
-    *) printf 'provider-storage-%s-it\n' "$1" ;;
-  esac
+  printf 'provider-storage-%s-it\n' "$1"
 }
 
 bucket_names() {

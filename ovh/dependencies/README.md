@@ -62,26 +62,14 @@ Run `status` first. It reads the target project and matching IAM resources but
 does not create or change them. It does not need the credential file.
 
 ```bash
-ovh/dependencies/iam.sh status
 ovh/dependencies/iam.sh apply
-ovh/dependencies/iam.sh status
-ovh/dependencies/iam.sh apply
-ovh/dependencies/iam.sh verify
 ```
 
 `apply` creates the controller service account and a policy for the selected
 `publicCloudProject`. It writes the one-time OAuth2 secret to the credential
 file with mode `0600`. Like the AWS and OTC bootstrap scripts, `apply` prints
 the controller identity, project scope, and credential file path without
-printing the secret. `status` includes the path and whether the file is
-present. The second `apply` checks that the existing resources and local file
-match; it must not create another identity. If the local file
-is lost, OVHcloud cannot return the existing `client_secret`. Stop and plan a
-new identity and credential handoff instead of reusing an unknown secret.
-If local publication is interrupted, `apply` can resume from a private
-`<credential-file>.recovery` file. It removes that file after a successful
-policy setup. Keep any retained recovery file private; it contains the
-one-time secret.
+printing the secret.
 
 A successful `apply` prints this summary without exposing credentials:
 

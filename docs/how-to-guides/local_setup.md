@@ -35,7 +35,7 @@ The integration command deploys Crossplane, MinIO, the required providers,
 and one MinIO `Storage`. It waits for the resource and its credential Secret,
 then verifies an object round trip and lifecycle cleanup.
 
-## Test AWS, OTC, or OVHcloud
+## Test a Cloud Backend
 
 Cloud tests use the same cluster. Before provider deployment:
 
@@ -45,11 +45,10 @@ Cloud tests use the same cluster. Before provider deployment:
    the integration README; and
 3. run the provider and verification scripts for the selected backend.
 
-The exact AWS, OTC, and OVHcloud commands, credential formats, and
-multi-backend workflow are in
+The backend commands, credential formats, and multi-backend workflow are in
 [`tests/integration/README.md`](https://github.com/versioneer-tech/provider-storage/blob/main/tests/integration/README.md).
 
-Run `tests/integration/run.bash ovh` for OVHcloud, as for AWS and OTC. It
+Run `tests/integration/run.bash ovh` for OVHcloud. It
 creates one `Storage` with two buckets and checks S3 access through the
 generated consumer Secret. Rotation, lifecycle, and orphan cleanup remain in
 the integration plan.
@@ -73,4 +72,4 @@ kind delete cluster --name provider-storage-it
 ## Pull-request checks
 
 The pull-request workflow runs all Composition unit tests and the Kind/MinIO
-integration path. It does not load AWS, OTC, or OVHcloud credentials.
+integration path. It does not load cloud-provider credentials.

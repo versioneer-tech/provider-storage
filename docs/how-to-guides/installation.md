@@ -1,6 +1,6 @@
 # Provider Storage – Installation Guide
 
-The `provider-storage` configuration packages let platform operators offer S3-compatible bucket self-service on **MinIO**, **AWS S3**, and **OTC OBS** using Crossplane.
+The `provider-storage` configuration packages let platform operators offer S3-compatible bucket self-service through Crossplane.
 Buckets, access policies, sharing, lifecycle rules, and credentials are declared through one namespaced `Storage` spec.
 
 ---
@@ -42,9 +42,9 @@ helm install crossplane crossplane-stable/crossplane \
 !!! danger "Required before cloud provider deployment"
 
     Before deployment, a cloud administrator must review the backend's
-    `<cloud>/dependencies/iam.sh` script and any policy templates. AWS, OTC,
-    and OVHcloud each need a controller identity scoped to the selected cloud
-    account, domain, or project. Complete that bootstrap before installing the
+    `<cloud>/dependencies/iam.sh` script and any policy templates. A managed
+    cloud backend needs a controller identity scoped to its cloud account,
+    domain, or project. Complete that bootstrap before installing the
     backend's provider dependencies.
     The OVHcloud bootstrap needs the official `ovhcloud` CLI, `jq`, and an
     administrator session. Follow its [bootstrap README](https://github.com/versioneer-tech/provider-storage/blob/main/ovh/dependencies/README.md)
