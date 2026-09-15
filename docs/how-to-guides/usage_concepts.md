@@ -4,12 +4,8 @@ This section explains how to use `provider-storage` after installation. Read it 
 
 Buckets, credentials, access requests, access grants, and lifecycle rules use one API. The backend implementation differs, but the user-facing model stays the same.
 
-The OVHcloud Composition targets the same API. A composed
-`Storage` reached Ready and its consumer Secret passed an S3 round trip. A
-peer passed `ReadOnly` read with denied write and eventual `None` revocation.
-Peer policy updates occurred automatically, but data-plane denial was not
-immediate. Lifecycle, credential rotation, and teardown remain in the
-validation plan.
+See the [backend comparison](backend_differences.md) for provider-specific
+identity, policy, and verification limits.
 
 ---
 
@@ -27,6 +23,7 @@ Applications and other platform building blocks can consume this Secret directly
 Credentials can be rolled over on a schedule. A configurable number of older credentials can stay valid during rotation, which avoids disruptions for running workloads.
 
 ### Buckets
+
 A `Storage` claim defines one or more buckets for a principal. Each bucket is created on the selected backend.
 
 Buckets can be marked **discoverable** so clients can show them to potential
@@ -35,6 +32,7 @@ backend policy do. See [Discoverable Buckets](permissions.md#discoverable-bucket
 for the owner-label requirement in request workflows.
 
 ### Lifecycle Rules
+
 Buckets can define lifecycle rules under `spec.buckets[].lifecycleRules`. The `Storage` API defines one lifecycle rule model across backends.
 Rules target either the whole bucket (`*`) or a prefix such as `tmp/*`, then either delete matching objects or report them without changing data.
 
@@ -45,12 +43,14 @@ Supported `minAge` suffixes are `s` seconds, `m` minutes, `h` hours, `d` days, a
 Rules may alternatively use `at` with an RFC3339 timestamp for a fixed UTC cutoff.
 
 ### Access Requests
+
 A user may **request access** to another user’s bucket.
 This is expressed in the `bucketAccessRequests` section of their `Storage` claim.
 Requests specify the target bucket, a timestamp, and an optional free-text reason.
 The request itself has no permission field; the bucket owner decides the effective permission in the grant.
 
 ### Access Grants
+
 The owner of a bucket can **grant access** to other users via the `bucketAccessGrants` section.
 A grant specifies the bucket, the grantee, and the permission: `ReadOnly`, `ReadWrite`, `WriteOnly`, or `None` to deny access.
 A request only becomes effective once the corresponding grant is present.
@@ -226,7 +226,7 @@ kubectl get storages -n workspace
 
 You should see `READY=True` once reconciliation is complete. Example:
 
-```
+```text
 NAME          SYNCED   READY   COMPOSITION        AGE
 s-jane        True     True    storage-minio      2m
 s-joe         True     True    storage-minio      2m

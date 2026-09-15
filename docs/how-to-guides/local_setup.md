@@ -45,6 +45,10 @@ Cloud tests use the same cluster. Before provider deployment:
    the integration README; and
 3. run the provider and verification scripts for the selected backend.
 
+CloudFerro uses a different order because its IAM bootstrap creates the slot
+ProviderConfigs. Follow the complete command sequence in the
+[integration test guide](https://github.com/versioneer-tech/provider-storage/blob/main/tests/integration/README.md#cloudferro).
+
 The backend commands, credential formats, and multi-backend workflow are in
 [`tests/integration/README.md`](https://github.com/versioneer-tech/provider-storage/blob/main/tests/integration/README.md).
 

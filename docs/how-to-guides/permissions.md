@@ -2,12 +2,6 @@
 
 The **permission model** in `provider-storage` gives operators one access model across backends. Users work with four normalized permission levels instead of raw backend-specific IAM or policy actions. The Composition translates that model into the backend implementation.
 
-The OVHcloud Composition maps the same levels to its S3 policy
-model. A live `ReadOnly` peer could read but not write. The `None` policy
-reconciled automatically and eventually revoked read access, though the first
-read shortly after the deny policy was reported still succeeded. Other grant
-levels and immediate access cutoff remain unverified.
-
 - **ReadWrite** → Full read and write access to bucket contents.  
   Includes: `ListBucket`, `GetObject`, `PutObject`, `DeleteObject`  
 - **ReadOnly** → View-only access.  
@@ -18,7 +12,8 @@ levels and immediate access cutoff remain unverified.
   in whether they remove an allow or write an explicit deny.
 
 The [backend comparison](backend_differences.md#from-request-to-access) shows
-what each Composition writes while a request is pending, granted, or denied.
+how each backend implements a pending, granted, or denied request and records
+current verification limits.
 
 ---
 

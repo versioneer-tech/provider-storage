@@ -28,6 +28,7 @@ See the
 [cloud IAM bootstrap guide](../../docs/how-to-guides/cloud-iam-bootstrap.md#otc).
 
 S3-compatible buckets are managed via **OTC OBS** using `provider-otc`. You must supply:
+
 - OTC credentials referenced by the **`ProviderConfig`**.
 - Backend defaults such as OBS endpoint and region in the **`EnvironmentConfig`** named `storage`.
 

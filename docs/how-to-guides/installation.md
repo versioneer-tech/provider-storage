@@ -7,13 +7,17 @@ Buckets, access policies, sharing, lifecycle rules, and credentials are declared
 
 ## Namespacing Model (Important)
 
-Everything in this guide is **namespaced**:
+`Storage`, provider Secrets, and namespaced ProviderConfigs use the target
+namespace:
 
 - You **apply** `Storage` claims **to a namespace** (e.g., `workspace`).
 - The **provisioned Secret lives in the same namespace** as the `Storage` claim (Secret name = **principal**).
 - Any **namespaced ProviderConfigs** or supporting objects that the compositions depend on **must exist in that same target namespace** (e.g., `workspace`).
 
 > In short: choose your target namespace (e.g., `workspace`), apply the provider configs there, and create your `Storage` claims in that namespace.
+
+`EnvironmentConfig` and `Composition` are cluster-scoped. Backend bootstrap
+procedures can generate these resources when their scope requires it.
 
 ---
 
@@ -44,8 +48,8 @@ helm install crossplane crossplane-stable/crossplane \
     Before deployment, a cloud administrator must review the backend's
     `<cloud>/dependencies/iam.sh` script and any policy templates. A managed
     cloud backend needs a controller identity scoped to its cloud account,
-    domain, or project. Complete that bootstrap before installing the
-    backend's provider dependencies.
+    domain, or project. Complete the steps in the order shown in the backend
+    guide.
     The OVHcloud bootstrap needs the official `ovhcloud` CLI, `jq`, and an
     administrator session. Follow its [bootstrap README](https://github.com/versioneer-tech/provider-storage/blob/main/ovh/dependencies/README.md)
     and the
@@ -132,13 +136,28 @@ The [integration test guide](https://github.com/versioneer-tech/provider-storage
 shows the explicit-context Secret handoff and two-bucket integration run. Do
 not apply the placeholder project ID in the EnvironmentConfig.
 
+### CloudFerro
+
+CloudFerro uses existing numbered OpenStack projects as team slots. Install
+the shared dependencies and the `storage-cloudferro` Configuration before IAM
+bootstrap. The bootstrap then creates the project-scoped resources for each
+selected slot. Follow the exact order in the
+[CloudFerro bootstrap guide](https://github.com/versioneer-tech/provider-storage/blob/main/cloudferro/dependencies/README.md).
+
+- [00-mrap.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/cloudferro/dependencies/00-mrap.yaml) – Activate the required OpenStack resources.
+- [01-deploymentRuntimeConfigs.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/cloudferro/dependencies/01-deploymentRuntimeConfigs.yaml) – Provider and function runtime settings.
+- [02-providers.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/cloudferro/dependencies/02-providers.yaml) – Install the OpenStack and Kubernetes providers.
+- [03-providerConfigs.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/cloudferro/dependencies/03-providerConfigs.yaml) – Apply the shared Kubernetes ProviderConfig in each `Storage` namespace.
+- [functions.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/cloudferro/dependencies/functions.yaml) – Composition functions.
+- [rbac.yaml](https://github.com/versioneer-tech/provider-storage/blob/main/cloudferro/dependencies/rbac.yaml) – `provider-kubernetes` permissions.
+
 ---
 
 ## Step 2 – Install the Configuration Package (after dependencies)
 
 Once the provider dependencies are in place, install the configuration package for your chosen backend. This registers the `Storage` CRD and compositions and allows reconciliation because the providers and configs already exist.
 
-**Example – MinIO**
+### Example: MinIO
 
 ```yaml
 apiVersion: pkg.crossplane.io/v1
@@ -149,7 +168,7 @@ spec:
   package: ghcr.io/versioneer-tech/provider-storage/minio:<!version!>
 ```
 
-**Example – AWS**
+### Example: AWS
 
 ```yaml
 apiVersion: pkg.crossplane.io/v1
@@ -160,7 +179,7 @@ spec:
   package: ghcr.io/versioneer-tech/provider-storage/aws:<!version!>
 ```
 
-**Example – OTC**
+### Example: OTC
 
 ```yaml
 apiVersion: pkg.crossplane.io/v1
@@ -171,7 +190,7 @@ spec:
   package: ghcr.io/versioneer-tech/provider-storage/otc:<!version!>
 ```
 
-**Example – OVHcloud**
+### Example: OVHcloud
 
 ```yaml
 apiVersion: pkg.crossplane.io/v1
@@ -180,6 +199,17 @@ metadata:
   name: storage-ovh
 spec:
   package: ghcr.io/versioneer-tech/provider-storage/ovh:<!version!>
+```
+
+### Example: CloudFerro
+
+```yaml
+apiVersion: pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: storage-cloudferro
+spec:
+  package: ghcr.io/versioneer-tech/provider-storage/cloudferro:<!version!>
 ```
 
 Apply your chosen one with:
@@ -199,6 +229,10 @@ metadata:
 ```
 
 This is the same hook used by higher-level workspace APIs to point new `Storage` resources at a specific provider-storage environment.
+
+For a generated project slot, select its Composition with
+`spec.crossplane.compositionSelector.matchLabels.provider: cloudferro-0001`
+as shown in the [CloudFerro overlay](https://github.com/versioneer-tech/provider-storage/blob/main/examples/overlays/cloudferro/kustomization.yaml).
 
 ---
 

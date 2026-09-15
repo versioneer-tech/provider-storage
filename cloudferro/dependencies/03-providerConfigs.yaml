@@ -1,0 +1,13 @@
+# Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+# cloudferro/dependencies/iam.sh apply generates one project-scoped OpenStack
+# ProviderConfig per slot and one shared controller Secret with a key per slot.
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: ProviderConfig
+metadata:
+  name: provider-kubernetes
+  # Apply in every namespace that contains a CloudFerro Storage.
+spec:
+  credentials:
+    source: InjectedIdentity

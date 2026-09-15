@@ -8,7 +8,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 if (($#)); then
   BACKENDS=("$@")
 else
-  BACKENDS=(minio aws otc ovh)
+  BACKENDS=(minio aws otc ovh cloudferro)
 fi
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "${TMP_DIR}"' EXIT
@@ -162,12 +162,83 @@ validate_ovh_provider_identity() {
   validate_schemas ovh "${rendered}"
 }
 
+validate_cloudferro_composition() {
+  local input="${REPO_ROOT}/cloudferro/tests/fixtures/001-buckets.yaml"
+  local composition="${REPO_ROOT}/cloudferro/composition.yaml"
+  local functions="${REPO_ROOT}/cloudferro/dependencies/functions.yaml"
+  local environment="${REPO_ROOT}/cloudferro/tests/required/environment.yaml"
+  local observed="${REPO_ROOT}/cloudferro/tests/observed"
+  local base="${TMP_DIR}/cloudferro-base.yaml"
+  local credential="${TMP_DIR}/cloudferro-credential.yaml"
+  local denied="${TMP_DIR}/cloudferro-grant-error.out"
+  local second="${TMP_DIR}/cloudferro-second-slot.yaml"
+  local wrong_label="${TMP_DIR}/cloudferro-wrong-label.yaml"
+  local expected_user_id=778899aabbccddeeff00112233445566
+
+  printf 'Validate CloudFerro project slot, resource ordering, and consumer Secret\n'
+  crossplane render "${input}" "${composition}" "${functions}" \
+    --required-resources "${environment}" -x >"${base}"
+  grep -Fq 'kind: ContainerV1' "${base}"
+  grep -Fq 'kind: EC2CredentialV3' "${base}"
+  grep -Fq "userId: ${expected_user_id}" "${base}"
+  ! grep -Fq 'kind: UserV3' "${base}"
+  ! grep -Fq 'kind: RoleAssignmentV3' "${base}"
+  grep -Fq 'kind: CronJob' "${base}"
+  grep -Fq 'kind: ConfigMap' "${base}"
+  grep -Fq 'name: cloudferro-0001' "${base}"
+  grep -Fq 'managementPolicies:' "${base}"
+  ! grep -Fq 'AWS_SECRET_ACCESS_KEY' "${base}"
+  validate_schemas cloudferro "${base}"
+
+  crossplane render "${input}" "${composition}" "${functions}" \
+    --required-resources "${environment}" \
+    --observed-resources "${observed}/credential-ready.yaml" -x >"${credential}"
+  grep -Fq 'AWS_ACCESS_KEY_ID: RVhBTVBMRUFDQ0VTU0tFWQ==' "${credential}"
+  grep -Fq 'AWS_SECRET_ACCESS_KEY: RVhBTVBMRVNFQ1JFVEtFWQ==' "${credential}"
+  grep -Fq 'AWS_REGION: UmVnaW9uT25l' "${credential}"
+  grep -Fq 'RCLONE_CONFIG_STORAGE_REGION' "${credential}"
+  grep -Fq 'value: RegionOne' "${credential}"
+  validate_schemas cloudferro "${credential}"
+
+  sed 's/cloudferro-0001/cloudferro-0002/g' "${composition}" >"${TMP_DIR}/cloudferro-slot-0002-composition.yaml"
+  sed 's/cloudferro-0001/cloudferro-0002/g' "${environment}" >"${TMP_DIR}/cloudferro-slot-0002-environment.yaml"
+  crossplane render "${REPO_ROOT}/cloudferro/tests/fixtures/002-buckets.yaml" \
+    "${TMP_DIR}/cloudferro-slot-0002-composition.yaml" "${functions}" \
+    --required-resources "${TMP_DIR}/cloudferro-slot-0002-environment.yaml" \
+    -x >"${second}"
+  grep -Fq 'name: cloudferro-0002' "${second}"
+  ! grep -Fq 'name: cloudferro-0001' "${second}"
+  validate_schemas cloudferro "${second}"
+
+  if crossplane render "${REPO_ROOT}/examples/base/001-buckets.yaml" \
+    "${composition}" "${functions}" --required-resources "${environment}" \
+    -x >"${denied}" 2>&1; then
+    printf 'CloudFerro accepted an active grant without an S3 policy adapter.\n' >&2
+    return 1
+  fi
+  grep -Fq 'no grant was applied' "${denied}"
+
+  sed 's/storages.pkg.internal\/backend: cloudferro-0001/storages.pkg.internal\/backend: cloudferro-0002/' \
+    "${input}" >"${wrong_label}"
+  if crossplane render "${wrong_label}" "${composition}" "${functions}" \
+    --required-resources "${environment}" -x >"${denied}" 2>&1; then
+    printf 'CloudFerro accepted a backend label that disagrees with its slot selector.\n' >&2
+    return 1
+  fi
+  grep -Fq 'backend label and Composition selector must name the same slot' "${denied}"
+}
+
 validate_otc_iam_bootstrap() {
   local script="${REPO_ROOT}/otc/dependencies/iam.sh"
   local source_only="${TMP_DIR}/otc-iam-source.sh"
   local system_roles="${TMP_DIR}/otc-system-roles.json"
   local missing_global="${TMP_DIR}/otc-missing-global-role.json"
-  local expected_id=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  local global_obs_role_id=0123456789abcdef0123456789abcdef
+  local domain_obs_role_id=abcdef0123456789abcdef0123456789
+  local legacy_obs_role_id=00112233445566778899aabbccddeeff
+  local domain_id=1234567890abcdef1234567890abcdef
+  local group_id=11223344556677889900aabbccddeeff
+  local policy_id=fedcba9876543210fedcba9876543210
 
   printf 'Validate OTC IAM bootstrap\n'
   bash -n "${script}"
@@ -198,10 +269,12 @@ validate_otc_iam_bootstrap() {
   grep -Fq 'rotate-credential) rotate_credential' "${script}"
 
   sed '$d' "${script}" >"${source_only}"
-  jq -n --arg id "${expected_id}" '{roles: [
-    {display_name: "OBS Administrator", type: "AX", domain_id: null, id: $id},
-    {display_name: "OBS Administrator", type: "AX", domain_id: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", id: "cccccccccccccccccccccccccccccccc"},
-    {display_name: "OBS Administrator", type: "XA", domain_id: null, id: "dddddddddddddddddddddddddddddddd"}
+  jq -n --arg global "${global_obs_role_id}" \
+    --arg domain_role "${domain_obs_role_id}" \
+    --arg legacy "${legacy_obs_role_id}" --arg domain "${domain_id}" '{roles: [
+    {display_name: "OBS Administrator", type: "AX", domain_id: null, id: $global},
+    {display_name: "OBS Administrator", type: "AX", domain_id: $domain, id: $domain_role},
+    {display_name: "OBS Administrator", type: "XA", domain_id: null, id: $legacy}
   ]}' >"${system_roles}"
   jq '{roles: [.roles[] | select(.domain_id != null)]}' \
     "${system_roles}" >"${missing_global}"
@@ -214,7 +287,7 @@ validate_otc_iam_bootstrap() {
     }
     IAM_V3_ROOT=https://example.test/v3
     obs_admin_policy_id
-  ' bash "${source_only}" "${system_roles}")" == "${expected_id}" ]]
+  ' bash "${source_only}" "${system_roles}")" == "${global_obs_role_id}" ]]
   if bash -c '
     source "$1"
     fixture="$2"
@@ -228,40 +301,49 @@ validate_otc_iam_bootstrap() {
   bash -c '
     source "$1"
     IAM_V3_ROOT=https://example.test/v3
-    CROSSPLANE_OTC_DOMAIN_ID=ffffffffffffffffffffffffffffffff
+    CROSSPLANE_OTC_DOMAIN_ID=$2
+    group_id=$3
+    policy_id=$4
+    expected_url="${IAM_V3_ROOT}/OS-INHERIT/domains/${CROSSPLANE_OTC_DOMAIN_ID}/groups/${group_id}/roles/${policy_id}/inherited_to_projects"
     iam_request() {
       [[ "$1" == PUT &&
-         "$2" == "https://example.test/v3/OS-INHERIT/domains/ffffffffffffffffffffffffffffffff/groups/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/roles/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/inherited_to_projects" ]] || return 1
+         "$2" == "$expected_url" ]] || return 1
       IAM_STATUS=204
     }
-    ensure_group_inherited_role_assignment aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+    ensure_group_inherited_role_assignment "$group_id" "$policy_id"
     group_inherited_assignment_state() { printf "assigned\\n"; }
-    verify_obs_admin_assignment aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-  ' bash "${source_only}"
+    verify_obs_admin_assignment "$group_id" "$policy_id"
+  ' bash "${source_only}" "${domain_id}" "${group_id}" "${policy_id}"
   bash -c '
     source "$1"
     IAM_V3_ROOT=https://example.test/v3
-    CROSSPLANE_OTC_DOMAIN_ID=ffffffffffffffffffffffffffffffff
-    expected_url=https://example.test/v3/OS-INHERIT/domains/ffffffffffffffffffffffffffffffff/groups/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/roles/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/inherited_to_projects
+    CROSSPLANE_OTC_DOMAIN_ID=$2
+    group_id=$3
+    policy_id=$4
+    expected_url="${IAM_V3_ROOT}/OS-INHERIT/domains/${CROSSPLANE_OTC_DOMAIN_ID}/groups/${group_id}/roles/${policy_id}/inherited_to_projects"
     iam_request() {
       [[ "$1" == HEAD && "$2" == "$expected_url" ]] || return 1
       IAM_STATUS=204
     }
-    [[ "$(group_inherited_assignment_state aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb)" == assigned ]]
-  ' bash "${source_only}"
+    [[ "$(group_inherited_assignment_state "$group_id" "$policy_id")" == assigned ]]
+  ' bash "${source_only}" "${domain_id}" "${group_id}" "${policy_id}"
   if bash -c '
     source "$1"
+    group_id=$2
+    policy_id=$3
     iam_request() { IAM_STATUS=400; }
-    ensure_group_inherited_role_assignment aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-  ' bash "${source_only}" >/dev/null 2>&1; then
+    ensure_group_inherited_role_assignment "$group_id" "$policy_id"
+  ' bash "${source_only}" "${group_id}" "${policy_id}" >/dev/null 2>&1; then
     printf 'OTC IAM bootstrap accepted a rejected all-projects assignment.\n' >&2
     return 1
   fi
   if bash -c '
     source "$1"
+    group_id=$2
+    policy_id=$3
     group_inherited_assignment_state() { printf "not assigned\\n"; }
-    verify_obs_admin_assignment aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-  ' bash "${source_only}" >/dev/null 2>&1; then
+    verify_obs_admin_assignment "$group_id" "$policy_id"
+  ' bash "${source_only}" "${group_id}" "${policy_id}" >/dev/null 2>&1; then
     printf 'OTC IAM bootstrap accepted a missing inherited OBS Administrator assignment.\n' >&2
     return 1
   fi
@@ -295,7 +377,7 @@ run_backend() {
   case "${backend}" in
     minio|aws|otc|ovh) ;;
     *)
-      printf 'Unknown backend: %s (expected minio, aws, otc, or ovh)\n' "${backend}" >&2
+      printf 'Unknown backend: %s (expected minio, aws, otc, ovh, or cloudferro)\n' "${backend}" >&2
       exit 1
       ;;
   esac
@@ -344,6 +426,12 @@ main() {
   printf 'Validate OVHcloud IAM bootstrap\n'
   bash "${REPO_ROOT}/ovh/tests/test_iam.bash"
 
+  printf 'Validate CloudFerro IAM bootstrap\n'
+  bash "${REPO_ROOT}/cloudferro/tests/test_iam.bash"
+
+  printf 'Validate CloudFerro integration Storage selection\n'
+  bash "${REPO_ROOT}/tests/integration/test_cloudferro_selection.bash"
+
   local backend
   for backend in "${BACKENDS[@]}"; do
     if [[ "${backend}" == "aws" ]]; then
@@ -353,6 +441,10 @@ main() {
     if [[ "${backend}" == "otc" ]]; then
       require_command jq
       validate_otc_iam_bootstrap
+    fi
+    if [[ "${backend}" == "cloudferro" ]]; then
+      validate_cloudferro_composition
+      continue
     fi
     run_backend "${backend}"
     if [[ "${backend}" == "aws" ]]; then

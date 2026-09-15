@@ -1,0 +1,61 @@
+# Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: pkg.crossplane.io/v1beta1
+kind: DeploymentRuntimeConfig
+metadata:
+  name: provider-openstack
+spec:
+  deploymentTemplate:
+    metadata:
+      labels:
+        runtime: provider-openstack
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          runtime: provider-openstack
+      template:
+        metadata:
+          labels:
+            runtime: provider-openstack
+        spec:
+          containers:
+          - name: package-runtime
+            resources:
+              requests:
+                cpu: 100m
+                memory: 128Mi
+              limits:
+                cpu: 500m
+                memory: 512Mi
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: DeploymentRuntimeConfig
+metadata:
+  name: provider-kubernetes
+spec:
+  deploymentTemplate:
+    metadata:
+      labels:
+        runtime: provider-kubernetes
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          runtime: provider-kubernetes
+      template:
+        metadata:
+          labels:
+            runtime: provider-kubernetes
+        spec:
+          serviceAccountName: provider-kubernetes
+          containers:
+          - name: package-runtime
+            resources:
+              requests:
+                cpu: 100m
+                memory: 128Mi
+              limits:
+                cpu: 500m
+                memory: 512Mi

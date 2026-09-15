@@ -23,6 +23,11 @@ preflight_storage() {
     ovh)
       CROSSPLANE_OVH_PROJECT_PREFIX="$(ovh_project_prefix)"
       ;;
+    cloudferro)
+      CROSSPLANE_CLOUDFERRO_SLOT="$(cloudferro_slot)"
+      CROSSPLANE_CLOUDFERRO_PROJECT_PREFIX="$(cloudferro_project_prefix)"
+      cloudferro_it2_enabled || :
+      ;;
   esac
 }
 
@@ -48,6 +53,18 @@ apply_storage() {
       apply_template \
         "${MANIFEST_DIR}/storages/ovh.yaml" \
         OVH_PROJECT_PREFIX "${CROSSPLANE_OVH_PROJECT_PREFIX}"
+      ;;
+    cloudferro)
+      apply_template \
+        "${MANIFEST_DIR}/storages/cloudferro.yaml" \
+        CLOUDFERRO_SLOT "${CROSSPLANE_CLOUDFERRO_SLOT}" \
+        CLOUDFERRO_PROJECT_PREFIX "${CROSSPLANE_CLOUDFERRO_PROJECT_PREFIX}"
+      if cloudferro_it2_enabled; then
+        apply_template \
+          "${MANIFEST_DIR}/storages/cloudferro-it2.yaml" \
+          CLOUDFERRO_SLOT "${CROSSPLANE_CLOUDFERRO_SLOT}" \
+          CLOUDFERRO_PROJECT_PREFIX "${CROSSPLANE_CLOUDFERRO_PROJECT_PREFIX}"
+      fi
       ;;
   esac
 }

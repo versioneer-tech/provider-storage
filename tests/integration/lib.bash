@@ -48,11 +48,11 @@ require_cluster() {
 selected_backend() {
   local value="${1:-}"
   case "${value}" in
-    minio|aws|otc|ovh)
+    minio|aws|otc|ovh|cloudferro)
       printf '%s\n' "${value}"
       ;;
     *)
-      printf 'Usage: %s <minio|aws|otc|ovh>\n' "$2" >&2
+      printf 'Usage: %s <minio|aws|otc|ovh|cloudferro>\n' "$2" >&2
       exit 1
       ;;
   esac
@@ -126,6 +126,42 @@ ovh_storage_region() {
     de|gra) printf '%s\n' "${value}" ;;
     *) printf 'CROSSPLANE_OVH_STORAGE_REGION must be de or gra.\n' >&2; exit 1 ;;
   esac
+}
+
+cloudferro_slot() {
+  local value="${CROSSPLANE_CLOUDFERRO_SLOT:-cloudferro-0001}"
+  if [[ ! "${value}" =~ ^cloudferro-[0-9]{4}$ ]]; then
+    printf 'CROSSPLANE_CLOUDFERRO_SLOT must be cloudferro- plus four digits.\n' >&2
+    exit 1
+  fi
+  printf '%s\n' "${value}"
+}
+
+cloudferro_it2_enabled() {
+  case "${CROSSPLANE_CLOUDFERRO_IT2:-false}" in
+    true) return 0 ;;
+    false) return 1 ;;
+    *)
+      printf 'CROSSPLANE_CLOUDFERRO_IT2 must be true or false.\n' >&2
+      exit 1
+      ;;
+  esac
+}
+
+cloudferro_project_prefix() {
+  local slot project
+  slot="$(cloudferro_slot)"
+  if ! project="$(kube get "environmentconfig/storage-${slot}" \
+    -o jsonpath='{.data.storage.serviceName}' 2>/dev/null)"; then
+    printf 'CloudFerro slot %s is missing. Run cloudferro/dependencies/iam.sh apply first.\n' \
+      "${slot}" >&2
+    exit 1
+  fi
+  if [[ ! "${project}" =~ ^[0-9a-f]{32}$ ]]; then
+    printf 'CloudFerro slot %s has no valid project ID.\n' "${slot}" >&2
+    exit 1
+  fi
+  printf '%s\n' "${project:0:12}"
 }
 
 validate_region() {

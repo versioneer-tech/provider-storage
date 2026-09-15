@@ -39,6 +39,10 @@ bucket_names() {
       printf 'ovh-%s-it-a\novh-%s-it-b\n' \
         "$(ovh_project_prefix)" "$(ovh_project_prefix)"
       ;;
+    cloudferro)
+      printf 'cloudferro-%s-it-a\ncloudferro-%s-it-b\n' \
+        "$(cloudferro_project_prefix)" "$(cloudferro_project_prefix)"
+      ;;
   esac
 }
 
@@ -46,7 +50,7 @@ rclone_provider() {
   case "$1" in
     minio) printf 'Minio\n' ;;
     aws) printf 'AWS\n' ;;
-    otc|ovh) printf 'Other\n' ;;
+    otc|ovh|cloudferro) printf 'Other\n' ;;
   esac
 }
 
@@ -87,6 +91,23 @@ verify_consumer_secret() {
   )
 }
 
+verify_bucket_roundtrip() {
+  local job="$1" principal="$2" bucket="$3" provider="$4"
+  kube delete "job/${job}" \
+    --namespace "${INTEGRATION_NAMESPACE}" \
+    --ignore-not-found \
+    --wait=true
+  apply_template \
+    "${MANIFEST_DIR}/jobs/roundtrip.yaml" \
+    INTEGRATION_NAMESPACE "${INTEGRATION_NAMESPACE}" \
+    JOB_NAME "${job}" \
+    PRINCIPAL "${principal}" \
+    BUCKET "${bucket}" \
+    RCLONE_PROVIDER "${provider}" \
+    RCLONE_IMAGE "${RCLONE_IMAGE}"
+  wait_for_job "${job}"
+}
+
 verify_backend() {
   local backend="$1"
   local storage principal bucket provider job
@@ -121,35 +142,23 @@ verify_backend() {
   verify_consumer_secret "${principal}"
 
   while IFS= read -r bucket; do
-    kube delete "job/${job}" \
-      --namespace "${INTEGRATION_NAMESPACE}" \
-      --ignore-not-found \
-      --wait=true
-    apply_template \
-      "${MANIFEST_DIR}/jobs/roundtrip.yaml" \
-      INTEGRATION_NAMESPACE "${INTEGRATION_NAMESPACE}" \
-      JOB_NAME "${job}" \
-      PRINCIPAL "${principal}" \
-      BUCKET "${bucket}" \
-      RCLONE_PROVIDER "${provider}" \
-      RCLONE_IMAGE "${RCLONE_IMAGE}"
-    wait_for_job "${job}"
+    verify_bucket_roundtrip "${job}" "${principal}" "${bucket}" "${provider}"
   done < <(bucket_names "${backend}")
 }
 
-apply_minio_lifecycle_job() {
-  local name="$1"
-  local phase="$2"
+apply_lifecycle_job() {
+  local name="$1" phase="$2" principal="$3" bucket="$4" provider="$5"
   kube delete "job/${name}" \
     --namespace "${INTEGRATION_NAMESPACE}" \
     --ignore-not-found \
     --wait=true
   apply_template \
-    "${MANIFEST_DIR}/jobs/minio-lifecycle.yaml" \
+    "${MANIFEST_DIR}/jobs/lifecycle.yaml" \
     INTEGRATION_NAMESPACE "${INTEGRATION_NAMESPACE}" \
     JOB_NAME "${name}" \
-    PRINCIPAL provider-storage-minio-it \
-    BUCKET minio-default-it-a \
+    PRINCIPAL "${principal}" \
+    BUCKET "${bucket}" \
+    RCLONE_PROVIDER "${provider}" \
     RCLONE_IMAGE "${RCLONE_IMAGE}" \
     TEST_PHASE "${phase}"
   wait_for_job "${name}"
@@ -166,7 +175,8 @@ verify_minio_lifecycle() {
     --namespace "${INTEGRATION_NAMESPACE}" \
     --for=create \
     --timeout=2m
-  apply_minio_lifecycle_job "${seed_job}" seed
+  apply_lifecycle_job "${seed_job}" seed \
+    provider-storage-minio-it minio-default-it-a Minio
   printf 'Waiting %s seconds for the lifecycle minimum age.\n' \
     "${LIFECYCLE_WAIT_SECONDS}"
   sleep "${LIFECYCLE_WAIT_SECONDS}"
@@ -178,15 +188,70 @@ verify_minio_lifecycle() {
     --namespace "${INTEGRATION_NAMESPACE}" \
     --from="cronjob/${cronjob}"
   wait_for_job "${cleanup_job}"
-  apply_minio_lifecycle_job "${verify_job}" verify
+  apply_lifecycle_job "${verify_job}" verify \
+    provider-storage-minio-it minio-default-it-a Minio
+}
+
+verify_cloudferro_lifecycle() {
+  local principal=provider-storage-cloudferro-it
+  local bucket cronjob seed_job cleanup_job verify_job
+  bucket="cloudferro-$(cloudferro_project_prefix)-it-a"
+  cronjob="${principal}-lifecycle"
+  seed_job=storage-cloudferro-it-lifecycle-seed
+  cleanup_job=storage-cloudferro-it-lifecycle-cleanup
+  verify_job=storage-cloudferro-it-lifecycle-verify
+
+  log "Verifying CloudFerro lifecycle cleanup"
+  kube wait "cronjob/${cronjob}" --namespace "${INTEGRATION_NAMESPACE}" \
+    --for=create --timeout=2m
+  apply_lifecycle_job "${seed_job}" seed "${principal}" "${bucket}" Other
+  printf 'Waiting %s seconds for the lifecycle minimum age.\n' \
+    "${LIFECYCLE_WAIT_SECONDS}"
+  sleep "${LIFECYCLE_WAIT_SECONDS}"
+  kube delete "job/${cleanup_job}" --namespace "${INTEGRATION_NAMESPACE}" \
+    --ignore-not-found --wait=true
+  kube create job "${cleanup_job}" --namespace "${INTEGRATION_NAMESPACE}" \
+    --from="cronjob/${cronjob}"
+  wait_for_job "${cleanup_job}"
+  apply_lifecycle_job "${verify_job}" verify "${principal}" "${bucket}" Other
+}
+
+verify_cloudferro_it2() {
+  local bucket principal
+  bucket="cloudferro-$(cloudferro_project_prefix)-it2"
+  principal=provider-storage-cloudferro-it2
+  log "Waiting for optional CloudFerro Storage storage-cloudferro-it2"
+  kube wait storage.pkg.internal/storage-cloudferro-it2 \
+    --namespace "${INTEGRATION_NAMESPACE}" \
+    --for=condition=Ready --timeout=15m
+  kube wait "secret/${principal}" \
+    --namespace "${INTEGRATION_NAMESPACE}" \
+    --for=jsonpath='{.data.AWS_ACCESS_KEY_ID}' --timeout=5m
+  kube wait "secret/${principal}" \
+    --namespace "${INTEGRATION_NAMESPACE}" \
+    --for=jsonpath='{.data.AWS_SECRET_ACCESS_KEY}' --timeout=5m
+  verify_consumer_secret "${principal}"
+  verify_bucket_roundtrip storage-cloudferro-it2-roundtrip \
+    "${principal}" "${bucket}" Other
+  log "Checking project-wide access to ${bucket} with the first consumer"
+  verify_bucket_roundtrip storage-cloudferro-it2-same-project \
+    provider-storage-cloudferro-it "${bucket}" Other
 }
 
 main() {
   require_cluster
   bucket_names "${backend}" >/dev/null
+  if [[ "${backend}" == cloudferro ]]; then
+    cloudferro_it2_enabled || :
+  fi
   verify_backend "${backend}"
   if [[ "${backend}" == minio ]]; then
     verify_minio_lifecycle
+  elif [[ "${backend}" == cloudferro ]]; then
+    if cloudferro_it2_enabled; then
+      verify_cloudferro_it2
+    fi
+    verify_cloudferro_lifecycle
   fi
 
   log "Provider Storage integration state"

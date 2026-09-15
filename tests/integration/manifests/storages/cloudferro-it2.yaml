@@ -1,0 +1,21 @@
+# Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+# This consumer has a different EC2 key in the same project. The optional
+# integration check confirms that both consumers can access this bucket.
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  name: storage-cloudferro-it2
+  namespace: provider-storage-it
+  labels:
+    storages.pkg.internal/backend: __CLOUDFERRO_SLOT__
+spec:
+  principal: provider-storage-cloudferro-it2
+  providerIdentity: it2
+  buckets:
+    - bucketName: cloudferro-__CLOUDFERRO_PROJECT_PREFIX__-it2
+  crossplane:
+    compositionSelector:
+      matchLabels:
+        provider: __CLOUDFERRO_SLOT__

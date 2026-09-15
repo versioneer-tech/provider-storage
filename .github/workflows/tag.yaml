@@ -120,6 +120,28 @@ jobs:
             "ghcr.io/${ORG}/${REPO}/ovh:${TAG}" \
             --verbose
 
+      - name: Build and publish storage-cloudferro Configuration Package
+        shell: bash
+        run: |
+          set -euo pipefail
+          ORG="${GITHUB_REPOSITORY_OWNER,,}"
+          REPO="${GITHUB_REPOSITORY#*/}"; REPO="${REPO,,}"
+          TAG="${GITHUB_REF_NAME##*/}"
+
+          cp xrd.yaml cloudferro/xrd.yaml
+
+          crossplane xpkg build \
+            --package-root=cloudferro \
+            --ignore 'dependencies/*' \
+            --ignore 'tests/*' \
+            --package-file cloudferro/storage-cloudferro.xpkg \
+            --verbose
+
+          crossplane xpkg push \
+            --package-files=cloudferro/storage-cloudferro.xpkg \
+            "ghcr.io/${ORG}/${REPO}/cloudferro:${TAG}" \
+            --verbose
+
   build_docs:
     runs-on: ubuntu-24.04
     needs: build_and_publish_configuration_packages

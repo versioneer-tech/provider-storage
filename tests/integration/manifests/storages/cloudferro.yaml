@@ -1,0 +1,24 @@
+# Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  name: storage-cloudferro-it
+  namespace: provider-storage-it
+  labels:
+    storages.pkg.internal/backend: __CLOUDFERRO_SLOT__
+spec:
+  principal: provider-storage-cloudferro-it
+  providerIdentity: it
+  buckets:
+    - bucketName: cloudferro-__CLOUDFERRO_PROJECT_PREFIX__-it-a
+      lifecycleRules:
+        - target: expired/*
+          mode: Delete
+          minAge: 30s
+    - bucketName: cloudferro-__CLOUDFERRO_PROJECT_PREFIX__-it-b
+  crossplane:
+    compositionSelector:
+      matchLabels:
+        provider: __CLOUDFERRO_SLOT__

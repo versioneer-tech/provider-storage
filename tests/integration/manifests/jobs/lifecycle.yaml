@@ -26,7 +26,7 @@ spec:
             - name: RCLONE_CONFIG_STORAGE_TYPE
               value: s3
             - name: RCLONE_CONFIG_STORAGE_PROVIDER
-              value: Minio
+              value: __RCLONE_PROVIDER__
             - name: TEST_PHASE
               value: __TEST_PHASE__
           command:

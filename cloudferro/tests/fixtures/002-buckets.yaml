@@ -1,0 +1,20 @@
+# Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+# A second team selects its own project slot. The platform must authorize
+# this slot assignment before the Storage is admitted.
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  name: team-b
+  namespace: default
+  labels:
+    storages.pkg.internal/backend: cloudferro-0002
+spec:
+  crossplane:
+    compositionSelector:
+      matchLabels:
+        provider: cloudferro-0002
+  principal: team-b
+  buckets:
+    - bucketName: team-b-data
