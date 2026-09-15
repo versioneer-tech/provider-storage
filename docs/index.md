@@ -107,6 +107,7 @@ aws s3 ls s3://wonderland
 ---
 
 ### More Examples
+
 Check the [examples folder](https://github.com/versioneer-tech/provider-storage/tree/main/examples/base) in the GitHub repository for complete scenarios, including:
 
 - Storage claims with multiple buckets

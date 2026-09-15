@@ -74,6 +74,7 @@ aws s3 ls s3://wonderland
 ### More examples
 
 See the [`examples`](examples/base) for complete scenarios, including:
+
 - Storage claims with multiple buckets
 - Access requests to other buckets (`bucketAccessRequests`)
 - Access grants for own buckets (`bucketAccessGrants`)
@@ -82,6 +83,7 @@ See the [`examples`](examples/base) for complete scenarios, including:
 > Note: When multiple configuration packages are installed (for example, to provision both **MinIO** and **AWS**), the `Storage` claim must be labeled so it is matched with the correct provider.
 
 For example:
+
 ```bash
 kubectl get storage -A -o name \
 | xargs -I{} kubectl patch {} --type='merge' \

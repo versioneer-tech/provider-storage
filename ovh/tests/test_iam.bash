@@ -9,8 +9,8 @@ script="$repo_root/ovh/dependencies/iam.sh"
 test_root=$(mktemp -d)
 trap 'rm -rf -- "$test_root"' EXIT
 
-target_id=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-other_id=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+target_id=0123456789abcdef0123456789abcdef
+other_id=fedcba9876543210fedcba9876543210
 client_id=client-12345678
 client_secret=fake-private-value
 resource_urn="urn:v1:eu:resource:publicCloudProject:$target_id"
@@ -263,7 +263,8 @@ expect_success apply
 cmp -s "$credentials_file" "$case_dir/first-credentials.json" ||
   fail 'recovered credentials changed'
 
-jq '.resources=[{urn:"urn:v1:eu:resource:publicCloudProject:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}]' \
+jq --arg other_urn "urn:v1:eu:resource:publicCloudProject:$other_id" \
+  '.resources=[{urn:$other_urn}]' \
   "$case_dir/state/policy.json" >"$case_dir/state/drift.json"
 mv "$case_dir/state/drift.json" "$case_dir/state/policy.json"
 expect_failure apply

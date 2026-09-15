@@ -5,7 +5,8 @@ Every command uses the explicit `kind-provider-storage-it` context. The
 scripts do not use another Kubernetes context or create a missing cluster.
 
 The workflow keeps one `Storage` with two buckets for each deployed backend in
-the `provider-storage-it` namespace. Each resource has the
+the `provider-storage-it` namespace. CloudFerro can add an optional second
+`Storage` with one bucket to test project-wide access. Each resource has the
 `storages.pkg.internal/backend` inventory label and an explicit Crossplane
 composition selector.
 
@@ -227,6 +228,85 @@ region; the region selects the endpoint and does not change the bucket names.
 The Composition manages `User` resources `it-owner` and `it`, plus an S3
 policy for `it` scoped to both buckets. The consumer Secret is
 `provider-storage-it/provider-storage-ovh-it`.
+
+## CloudFerro
+
+Use an active project- or domain-scoped CREODIAS `v3token` shell login. The
+commands below target only the dedicated `kind-provider-storage-it` context.
+
+### 1. Check the login and install providers
+
+Check the OpenStack login. Then install Crossplane, the XRD, and the shared
+provider dependencies:
+
+```bash
+cloudferro/dependencies/iam.sh check-login
+tests/integration/deploy-providers.bash cloudferro
+```
+
+### 2. Set the bootstrap scope
+
+Replace the domain ID with the slot project domain reported by `check-login`.
+Replace the credentials directory with a private, absolute path outside this
+repository. Its parent directory must exist.
+
+```bash
+export CROSSPLANE_CLOUDFERRO_PROJECT_PATTERN='^.+-([0-9]{4})$'
+export CROSSPLANE_CLOUDFERRO_DOMAIN_ID=0123456789abcdef0123456789abcdef
+export CROSSPLANE_CLOUDFERRO_ADMIN_CLOUD=current
+export CROSSPLANE_CLOUDFERRO_AUTH_URL="$OS_AUTH_URL"
+export CROSSPLANE_CLOUDFERRO_REGION="$OS_REGION_NAME"
+export CROSSPLANE_CLOUDFERRO_S3_REGION=RegionOne
+export CROSSPLANE_CLOUDFERRO_S3_ENDPOINT=https://s3.waw3-2.cloudferro.com
+export CROSSPLANE_CLOUDFERRO_KUBE_CONTEXT=kind-provider-storage-it
+export CROSSPLANE_CLOUDFERRO_NAMESPACE=provider-storage-it
+export CROSSPLANE_CLOUDFERRO_CREDENTIALS_DIR=/secure/cloudferro-controller
+```
+
+### 3. Bootstrap the selected projects
+
+Inspect the selected projects. Continue only if `status` shows the expected
+names and IDs. Then create the shared controller user and publish the slots:
+
+```bash
+cloudferro/dependencies/iam.sh status
+cloudferro/dependencies/iam.sh apply
+cloudferro/dependencies/iam.sh verify
+```
+
+The login needs permission to create a user in the project domain and assign
+the configured member role in each selected project. A project in the list is
+not proof of these permissions. See the
+[bootstrap guide](../../cloudferro/dependencies/README.md) for the role
+override, named OpenStack profiles, cleanup, and non-test installations.
+
+### 4. Run the base test
+
+Select one published slot and run the base test:
+
+```bash
+export CROSSPLANE_CLOUDFERRO_SLOT=cloudferro-0001
+tests/integration/run.bash cloudferro
+```
+
+The base test creates one `Storage` with two buckets. It checks readiness,
+consumer S3 access, and lifecycle cleanup. It also proves that the controller
+can create an EC2 credential for itself and that `ContainerV1` resources work
+through the S3 endpoint.
+
+### 5. Test same-project access
+
+If the project permits a third bucket, run the optional same-project access
+test:
+
+```bash
+CROSSPLANE_CLOUDFERRO_IT2=true tests/integration/run.bash cloudferro
+```
+
+This run creates a second `Storage` in the same slot and uses the first
+consumer's key in the second consumer's bucket. It does not test cross-project
+sharing. If a command fails, share only redacted resource conditions and
+events. Do not share generated credentials or tokens.
 
 ## CI scope
 

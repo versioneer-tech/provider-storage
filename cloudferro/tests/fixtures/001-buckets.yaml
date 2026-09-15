@@ -1,0 +1,24 @@
+# Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+# The operator assigns this project slot to one team. Everyone with S3 access
+# in this slot's OpenStack project can access its buckets.
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  name: team-a
+  namespace: default
+  labels:
+    storages.pkg.internal/backend: cloudferro-0001
+spec:
+  crossplane:
+    compositionSelector:
+      matchLabels:
+        provider: cloudferro-0001
+  principal: team-a
+  buckets:
+    - bucketName: team-a-data
+      lifecycleRules:
+        - target: tmp/*
+          mode: Delete
+          minAge: 1d
