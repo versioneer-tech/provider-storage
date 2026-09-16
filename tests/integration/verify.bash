@@ -17,11 +17,32 @@ if [[ ! "${LIFECYCLE_WAIT_SECONDS}" =~ ^[0-9]+$ ]] ||
 fi
 
 storage_name() {
-  printf 'storage-%s-it\n' "$1"
+  printf 'storage-%s-it%s\n' "$1" "${2:-}"
 }
 
 principal_name() {
-  printf 'provider-storage-%s-it\n' "$1"
+  printf 'provider-storage-%s-it%s\n' "$1" "${2:-}"
+}
+
+second_bucket_name() {
+  case "$1" in
+    minio)
+      printf '%s\n' minio-default-it2-a
+      ;;
+    aws)
+      printf '%s-it2-a\n' "$(aws_resource_prefix)"
+      ;;
+    otc)
+      printf '%s-it2-a\n' "$(otc_resource_prefix)"
+      ;;
+    ovh)
+      printf 'ovh-%s-it2-a\n' "$(ovh_project_prefix)"
+      ;;
+    cloudferro)
+      printf 'cloudferro-%s-it2-a\n' \
+        "$(cloudferro_project_prefix "$(cloudferro_it2_slot)")"
+      ;;
+  esac
 }
 
 bucket_names() {
@@ -108,15 +129,9 @@ verify_bucket_roundtrip() {
   wait_for_job "${job}"
 }
 
-verify_backend() {
-  local backend="$1"
-  local storage principal bucket provider job
-  storage="$(storage_name "${backend}")"
-  principal="$(principal_name "${backend}")"
-  provider="$(rclone_provider "${backend}")"
-  job="${storage}-roundtrip"
-
-  log "Waiting for ${backend} Storage"
+verify_storage_ready() {
+  local storage="$1" principal="$2"
+  log "Waiting for Storage ${storage}"
   if ! kube wait "storage.pkg.internal/${storage}" \
     --namespace "${INTEGRATION_NAMESPACE}" \
     --for=condition=Ready \
@@ -126,7 +141,7 @@ verify_backend() {
     exit 1
   fi
 
-  log "Waiting for ${backend} consumer Secret"
+  log "Waiting for consumer Secret ${principal}"
   kube wait "secret/${principal}" \
     --namespace "${INTEGRATION_NAMESPACE}" \
     --for=create \
@@ -140,10 +155,62 @@ verify_backend() {
     --for=jsonpath='{.data.AWS_SECRET_ACCESS_KEY}' \
     --timeout=5m
   verify_consumer_secret "${principal}"
+}
 
-  while IFS= read -r bucket; do
+apply_readonly_job() {
+  local name="$1" phase="$2" principal="$3" bucket="$4" provider="$5"
+  kube delete "job/${name}" \
+    --namespace "${INTEGRATION_NAMESPACE}" \
+    --ignore-not-found \
+    --wait=true
+  apply_template \
+    "${MANIFEST_DIR}/jobs/readonly.yaml" \
+    INTEGRATION_NAMESPACE "${INTEGRATION_NAMESPACE}" \
+    JOB_NAME "${name}" \
+    PRINCIPAL "${principal}" \
+    BUCKET "${bucket}" \
+    RCLONE_PROVIDER "${provider}" \
+    RCLONE_IMAGE "${RCLONE_IMAGE}" \
+    TEST_PHASE "${phase}"
+  wait_for_job "${name}"
+}
+
+verify_readonly_access() {
+  local backend="$1" owner="$2" grantee="$3" bucket="$4" provider="$5"
+  log "Verifying ${backend} ReadOnly access to ${bucket}"
+  apply_readonly_job "storage-${backend}-readonly-seed" seed \
+    "${owner}" "${bucket}" "${provider}"
+  apply_readonly_job "storage-${backend}-readonly-verify" verify \
+    "${grantee}" "${bucket}" "${provider}"
+  apply_readonly_job "storage-${backend}-readonly-cleanup" cleanup \
+    "${owner}" "${bucket}" "${provider}"
+}
+
+verify_backend() {
+  local backend="$1"
+  local storage principal second_storage second_principal second_bucket
+  local bucket provider job
+  local -a owned_buckets
+  storage="$(storage_name "${backend}")"
+  principal="$(principal_name "${backend}")"
+  second_storage="$(storage_name "${backend}" 2)"
+  second_principal="$(principal_name "${backend}" 2)"
+  second_bucket="$(second_bucket_name "${backend}")"
+  provider="$(rclone_provider "${backend}")"
+  job="${storage}-roundtrip"
+  mapfile -t owned_buckets < <(bucket_names "${backend}")
+
+  verify_storage_ready "${storage}" "${principal}"
+
+  for bucket in "${owned_buckets[@]}"; do
     verify_bucket_roundtrip "${job}" "${principal}" "${bucket}" "${provider}"
-  done < <(bucket_names "${backend}")
+  done
+
+  verify_storage_ready "${second_storage}" "${second_principal}"
+  verify_bucket_roundtrip "${second_storage}-roundtrip" \
+    "${second_principal}" "${second_bucket}" "${provider}"
+  verify_readonly_access "${backend}" "${principal}" "${second_principal}" \
+    "${owned_buckets[1]}" "${provider}"
 }
 
 apply_lifecycle_job() {
@@ -216,41 +283,14 @@ verify_cloudferro_lifecycle() {
   apply_lifecycle_job "${verify_job}" verify "${principal}" "${bucket}" Other
 }
 
-verify_cloudferro_it2() {
-  local bucket principal
-  bucket="cloudferro-$(cloudferro_project_prefix)-it2"
-  principal=provider-storage-cloudferro-it2
-  log "Waiting for optional CloudFerro Storage storage-cloudferro-it2"
-  kube wait storage.pkg.internal/storage-cloudferro-it2 \
-    --namespace "${INTEGRATION_NAMESPACE}" \
-    --for=condition=Ready --timeout=15m
-  kube wait "secret/${principal}" \
-    --namespace "${INTEGRATION_NAMESPACE}" \
-    --for=jsonpath='{.data.AWS_ACCESS_KEY_ID}' --timeout=5m
-  kube wait "secret/${principal}" \
-    --namespace "${INTEGRATION_NAMESPACE}" \
-    --for=jsonpath='{.data.AWS_SECRET_ACCESS_KEY}' --timeout=5m
-  verify_consumer_secret "${principal}"
-  verify_bucket_roundtrip storage-cloudferro-it2-roundtrip \
-    "${principal}" "${bucket}" Other
-  log "Checking project-wide access to ${bucket} with the first consumer"
-  verify_bucket_roundtrip storage-cloudferro-it2-same-project \
-    provider-storage-cloudferro-it "${bucket}" Other
-}
-
 main() {
   require_cluster
   bucket_names "${backend}" >/dev/null
-  if [[ "${backend}" == cloudferro ]]; then
-    cloudferro_it2_enabled || :
-  fi
+  second_bucket_name "${backend}" >/dev/null
   verify_backend "${backend}"
   if [[ "${backend}" == minio ]]; then
     verify_minio_lifecycle
   elif [[ "${backend}" == cloudferro ]]; then
-    if cloudferro_it2_enabled; then
-      verify_cloudferro_it2
-    fi
     verify_cloudferro_lifecycle
   fi
 

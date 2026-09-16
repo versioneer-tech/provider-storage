@@ -19,6 +19,36 @@ spec:
       discoverable: true
     - bucketName: ovh-__OVH_PROJECT_PREFIX__-it-b
       discoverable: true
+  bucketAccessGrants:
+    - bucketName: ovh-__OVH_PROJECT_PREFIX__-it-b
+      grantee: provider-storage-ovh-it2
+      permission: ReadOnly
+      grantedAt: "2026-01-01T00:00:00Z"
+  crossplane:
+    compositionSelector:
+      matchLabels:
+        provider: ovh
+---
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  name: storage-ovh-it2
+  namespace: provider-storage-it
+  annotations:
+    storages.pkg.internal/environment: storage-ovh
+  labels:
+    storages.pkg.internal/backend: ovh
+    storages.pkg.internal/discoverable: "true"
+spec:
+  principal: provider-storage-ovh-it2
+  providerIdentity: it2
+  buckets:
+    - bucketName: ovh-__OVH_PROJECT_PREFIX__-it2-a
+      discoverable: true
+  bucketAccessRequests:
+    - bucketName: ovh-__OVH_PROJECT_PREFIX__-it-b
+      reason: Integration ReadOnly check
+      requestedAt: "2026-01-01T00:00:00Z"
   crossplane:
     compositionSelector:
       matchLabels:

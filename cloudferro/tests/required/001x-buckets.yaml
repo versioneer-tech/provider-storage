@@ -23,6 +23,7 @@ metadata:
   namespace: default
   labels:
     storages.pkg.internal/backend: cloudferro-0002
+    storages.pkg.internal/discoverable: "true"
 spec:
   principal: s-jeff
   buckets:

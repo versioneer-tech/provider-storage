@@ -23,6 +23,36 @@ spec:
           minAge: 30s
     - bucketName: minio-default-it-b
       discoverable: true
+  bucketAccessGrants:
+    - bucketName: minio-default-it-b
+      grantee: provider-storage-minio-it2
+      permission: ReadOnly
+      grantedAt: "2026-01-01T00:00:00Z"
+  crossplane:
+    compositionSelector:
+      matchLabels:
+        provider: minio
+---
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  name: storage-minio-it2
+  namespace: provider-storage-it
+  annotations:
+    storages.pkg.internal/environment: storage-minio
+  labels:
+    storages.pkg.internal/backend: minio
+    storages.pkg.internal/discoverable: "true"
+spec:
+  principal: provider-storage-minio-it2
+  providerIdentity: it2
+  buckets:
+    - bucketName: minio-default-it2-a
+      discoverable: true
+  bucketAccessRequests:
+    - bucketName: minio-default-it-b
+      reason: Integration ReadOnly check
+      requestedAt: "2026-01-01T00:00:00Z"
   crossplane:
     compositionSelector:
       matchLabels:

@@ -128,29 +128,34 @@ ovh_storage_region() {
   esac
 }
 
-cloudferro_slot() {
-  local value="${CROSSPLANE_CLOUDFERRO_SLOT:-cloudferro-0001}"
+validate_cloudferro_slot() {
+  local name="$1" value="$2"
   if [[ ! "${value}" =~ ^cloudferro-[0-9]{4}$ ]]; then
-    printf 'CROSSPLANE_CLOUDFERRO_SLOT must be cloudferro- plus four digits.\n' >&2
+    printf '%s must be cloudferro- plus four digits.\n' "${name}" >&2
     exit 1
   fi
+}
+
+cloudferro_slot() {
+  local value="${CROSSPLANE_CLOUDFERRO_SLOT:-cloudferro-0001}"
+  validate_cloudferro_slot CROSSPLANE_CLOUDFERRO_SLOT "${value}"
   printf '%s\n' "${value}"
 }
 
-cloudferro_it2_enabled() {
-  case "${CROSSPLANE_CLOUDFERRO_IT2:-false}" in
-    true) return 0 ;;
-    false) return 1 ;;
-    *)
-      printf 'CROSSPLANE_CLOUDFERRO_IT2 must be true or false.\n' >&2
-      exit 1
-      ;;
-  esac
+cloudferro_it2_slot() {
+  local value="${CROSSPLANE_CLOUDFERRO_IT2_SLOT:-cloudferro-0002}"
+  validate_cloudferro_slot CROSSPLANE_CLOUDFERRO_IT2_SLOT "${value}"
+  printf '%s\n' "${value}"
 }
 
-cloudferro_project_prefix() {
+cloudferro_project_id() {
   local slot project
-  slot="$(cloudferro_slot)"
+  if (($#)); then
+    slot="$1"
+    validate_cloudferro_slot CloudFerro-slot "${slot}"
+  else
+    slot="$(cloudferro_slot)"
+  fi
   if ! project="$(kube get "environmentconfig/storage-${slot}" \
     -o jsonpath='{.data.storage.serviceName}' 2>/dev/null)"; then
     printf 'CloudFerro slot %s is missing. Run cloudferro/dependencies/iam.sh apply first.\n' \
@@ -161,6 +166,12 @@ cloudferro_project_prefix() {
     printf 'CloudFerro slot %s has no valid project ID.\n' "${slot}" >&2
     exit 1
   fi
+  printf '%s\n' "${project}"
+}
+
+cloudferro_project_prefix() {
+  local project
+  project="$(cloudferro_project_id "$@")"
   printf '%s\n' "${project:0:12}"
 }
 

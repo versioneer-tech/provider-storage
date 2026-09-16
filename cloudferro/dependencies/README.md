@@ -118,7 +118,7 @@ keys, and cluster slot resources. It does not prove that the controller can
 mint an EC2 credential for itself; the first live Storage test must do that.
 If Object Storage listing fails, check portal region and wallet
 activation before retrying. See the [integration guide](../../tests/integration/README.md#cloudferro)
-for the two-bucket test and optional second consumer.
+for the two-Storage cross-project test.
 
 All ProviderConfigs from one run live in the selected namespace. Restrict
 which team can select each slot through trusted admission or separate
@@ -129,9 +129,9 @@ access to `cloudferro-provider-creds` limited to the provider and trusted
 operators; it carries project-admin access to every selected project. The
 Composition uses not only the OpenStack provider for containers and EC2
 credentials, but also the AWS S3 provider with the slot's CloudFerro endpoint
-for cross-project bucket policies. An active grant resolves the grantee
-Storage by name and reads its numbered slot EnvironmentConfig to get the
-grantee project ID.
+for cross-project bucket policies. An active grant resolves one discoverable
+Storage by its grantee principal and reads that Storage's numbered slot
+EnvironmentConfig to get the grantee project ID.
 
 ## Remove managed access
 

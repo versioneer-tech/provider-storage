@@ -4,9 +4,10 @@ These tests use an ephemeral Kind cluster named `provider-storage-it`.
 Every command uses the explicit `kind-provider-storage-it` context. The
 scripts do not use another Kubernetes context or create a missing cluster.
 
-The workflow keeps one `Storage` with two buckets for each deployed backend in
-the `provider-storage-it` namespace. CloudFerro can add an optional second
-`Storage` with one bucket to test project-wide access. Each resource has the
+The workflow creates two `Storage` resources for each backend in the
+`provider-storage-it` namespace. The first owns buckets ending in `-it-a` and
+`-it-b`. The second owns a bucket ending in `-it2-a` and has ReadOnly access
+to the first Storage's `-it-b` bucket. Each resource has the
 `storages.pkg.internal/backend` inventory label and an explicit Crossplane
 composition selector.
 
@@ -44,17 +45,17 @@ tests/unit.bash minio aws
 ## MinIO
 
 MinIO needs no external cloud bootstrap. This command deploys Crossplane,
-MinIO, its providers, one selected `Storage`, an object round trip, and
-lifecycle cleanup:
+MinIO, its providers, both test Storages, object round trips, the ReadOnly
+grant check, and lifecycle cleanup:
 
 ```bash
 tests/integration/run.bash minio
 ```
 
-The integration buckets are `minio-default-it-a` and `minio-default-it-b`,
-named after the default MinIO installation used by the test cluster. The
-provider-native user is `provider-storage-managed-it`; the consumer Secret is
-`provider-storage-it/provider-storage-minio-it`.
+The integration buckets are `minio-default-it-a`, `minio-default-it-b`, and
+`minio-default-it2-a`, named after the default MinIO installation used by the
+test cluster. The second Storage has ReadOnly access to
+`minio-default-it-b`.
 
 ## AWS
 
@@ -107,11 +108,10 @@ printed by `iam.sh` only if you used a custom role name or path.
 The account ID derives the `aws-<account-id>` bucket prefix. The bootstrap
 embeds this prefix in the runtime IAM policy, so choose any
 `CROSSPLANE_AWS_RESOURCE_PREFIX` override before bootstrap and reuse it for
-Storage deployment and verification. The default test buckets end
-in `-it-a` and `-it-b`. AWS creates user `it` under
-`/provider-storage/managed/`. Its managed policies start with
-`provider-storage`. The consumer Secret is
-`provider-storage-it/provider-storage-aws-it`.
+Storage deployment and verification. The default test buckets end in
+`-it-a`, `-it-b`, and `-it2-a`. AWS creates users `it` and `it2` under
+`/provider-storage/managed/`. The `it2` user has ReadOnly access to the
+`-it-b` bucket. Managed policy names start with `provider-storage`.
 
 ## OTC
 
@@ -159,10 +159,11 @@ tests/integration/run.bash otc
 
 The domain ID derives the `otc-<domain-id>` bucket prefix. Choose any
 `CROSSPLANE_OTC_RESOURCE_PREFIX` override during IAM bootstrap and reuse it for
-Storage deployment and verification. The default test buckets end in `-it-a`
-and `-it-b`; the domain ID reduces collisions in OBS's global namespace. The
-provider-native user is `provider-storage-managed-it`; the consumer Secret is
-`provider-storage-it/provider-storage-otc-it`.
+Storage deployment and verification. The default test buckets end in `-it-a`,
+`-it-b`, and `-it2-a`; the domain ID reduces collisions in OBS's global
+namespace. The provider-native users are `provider-storage-managed-it` and
+`provider-storage-managed-it2`. The second user has ReadOnly access to the
+`-it-b` bucket.
 
 ## OVHcloud
 
@@ -221,13 +222,12 @@ tests/integration/run.bash ovh
 ```
 
 The project ID supplies the first 12 characters in each bucket name. The test
-buckets are `ovh-<project-prefix>-it-a` and `ovh-<project-prefix>-it-b`, using
-the same `-it-a` and `-it-b` pattern as AWS and OTC. Set
+buckets end in `-it-a`, `-it-b`, and `-it2-a`. The second Storage has
+ReadOnly access to the first Storage's `-it-b` bucket. Set
 `CROSSPLANE_OVH_STORAGE_REGION=gra` if the project needs that Object Storage
 region; the region selects the endpoint and does not change the bucket names.
-The Composition manages `User` resources `it-owner` and `it`, plus an S3
-policy for `it` scoped to both buckets. The consumer Secret is
-`provider-storage-it/provider-storage-ovh-it`.
+The Composition creates stable owner users and separate credential users for
+`it` and `it2`.
 
 ## CloudFerro
 
@@ -280,32 +280,22 @@ not proof of these permissions. See the
 [bootstrap guide](../../cloudferro/dependencies/README.md) for the role
 override, named OpenStack profiles, cleanup, and non-test installations.
 
-### 4. Run the base test
+### 4. Run the integration test
 
-Select one published slot and run the base test:
+Select two published slots from different projects and run the test:
 
 ```bash
 export CROSSPLANE_CLOUDFERRO_SLOT=cloudferro-0001
+export CROSSPLANE_CLOUDFERRO_IT2_SLOT=cloudferro-0002
 tests/integration/run.bash cloudferro
 ```
 
-The base test creates one `Storage` with two buckets. It checks readiness,
-consumer S3 access, and lifecycle cleanup. It also proves that the controller
-can create an EC2 credential for itself and that `ContainerV1` resources work
-through the S3 endpoint.
-
-### 5. Test same-project access
-
-If the project permits a third bucket, run the optional same-project access
-test:
-
-```bash
-CROSSPLANE_CLOUDFERRO_IT2=true tests/integration/run.bash cloudferro
-```
-
-This run creates a second `Storage` in the same slot and uses the first
-consumer's key in the second consumer's bucket. It does not test cross-project
-sharing. If a command fails, share only redacted resource conditions and
+The test creates one Storage with two buckets in the first project and one
+Storage with one bucket in the second project. It verifies each Storage's own
+bucket access, ReadOnly cross-project access to the first Storage's `-it-b`
+bucket, and lifecycle cleanup. It also proves that the controller can create
+EC2 credentials and that the AWS S3 provider can manage a CloudFerro bucket
+policy. If a command fails, share only redacted resource conditions and
 events. Do not share generated credentials or tokens.
 
 ## CI scope

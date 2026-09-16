@@ -19,6 +19,36 @@ spec:
       discoverable: true
     - bucketName: __AWS_BUCKET_B__
       discoverable: true
+  bucketAccessGrants:
+    - bucketName: __AWS_BUCKET_B__
+      grantee: provider-storage-aws-it2
+      permission: ReadOnly
+      grantedAt: "2026-01-01T00:00:00Z"
+  crossplane:
+    compositionSelector:
+      matchLabels:
+        provider: aws
+---
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  name: storage-aws-it2
+  namespace: provider-storage-it
+  annotations:
+    storages.pkg.internal/environment: storage-aws
+  labels:
+    storages.pkg.internal/backend: aws
+    storages.pkg.internal/discoverable: "true"
+spec:
+  principal: provider-storage-aws-it2
+  providerIdentity: it2
+  buckets:
+    - bucketName: __AWS_BUCKET_IT2_A__
+      discoverable: true
+  bucketAccessRequests:
+    - bucketName: __AWS_BUCKET_B__
+      reason: Integration ReadOnly check
+      requestedAt: "2026-01-01T00:00:00Z"
   crossplane:
     compositionSelector:
       matchLabels:

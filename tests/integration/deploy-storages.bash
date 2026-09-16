@@ -25,8 +25,13 @@ preflight_storage() {
       ;;
     cloudferro)
       CROSSPLANE_CLOUDFERRO_SLOT="$(cloudferro_slot)"
+      CROSSPLANE_CLOUDFERRO_IT2_SLOT="$(cloudferro_it2_slot)"
       CROSSPLANE_CLOUDFERRO_PROJECT_PREFIX="$(cloudferro_project_prefix)"
-      cloudferro_it2_enabled || :
+      CROSSPLANE_CLOUDFERRO_IT2_PROJECT_PREFIX="$(cloudferro_project_prefix "${CROSSPLANE_CLOUDFERRO_IT2_SLOT}")"
+      if [[ "${CROSSPLANE_CLOUDFERRO_SLOT}" == "${CROSSPLANE_CLOUDFERRO_IT2_SLOT}" ]]; then
+        printf 'CloudFerro integration Storages must use different project slots.\n' >&2
+        exit 1
+      fi
       ;;
   esac
 }
@@ -41,13 +46,15 @@ apply_storage() {
       apply_template \
         "${MANIFEST_DIR}/storages/aws.yaml" \
         AWS_BUCKET_A "${CROSSPLANE_AWS_RESOURCE_PREFIX}-it-a" \
-        AWS_BUCKET_B "${CROSSPLANE_AWS_RESOURCE_PREFIX}-it-b"
+        AWS_BUCKET_B "${CROSSPLANE_AWS_RESOURCE_PREFIX}-it-b" \
+        AWS_BUCKET_IT2_A "${CROSSPLANE_AWS_RESOURCE_PREFIX}-it2-a"
       ;;
     otc)
       apply_template \
         "${MANIFEST_DIR}/storages/otc.yaml" \
         OTC_BUCKET_A "${CROSSPLANE_OTC_RESOURCE_PREFIX}-it-a" \
-        OTC_BUCKET_B "${CROSSPLANE_OTC_RESOURCE_PREFIX}-it-b"
+        OTC_BUCKET_B "${CROSSPLANE_OTC_RESOURCE_PREFIX}-it-b" \
+        OTC_BUCKET_IT2_A "${CROSSPLANE_OTC_RESOURCE_PREFIX}-it2-a"
       ;;
     ovh)
       apply_template \
@@ -58,13 +65,9 @@ apply_storage() {
       apply_template \
         "${MANIFEST_DIR}/storages/cloudferro.yaml" \
         CLOUDFERRO_SLOT "${CROSSPLANE_CLOUDFERRO_SLOT}" \
-        CLOUDFERRO_PROJECT_PREFIX "${CROSSPLANE_CLOUDFERRO_PROJECT_PREFIX}"
-      if cloudferro_it2_enabled; then
-        apply_template \
-          "${MANIFEST_DIR}/storages/cloudferro-it2.yaml" \
-          CLOUDFERRO_SLOT "${CROSSPLANE_CLOUDFERRO_SLOT}" \
-          CLOUDFERRO_PROJECT_PREFIX "${CROSSPLANE_CLOUDFERRO_PROJECT_PREFIX}"
-      fi
+        CLOUDFERRO_PROJECT_PREFIX "${CROSSPLANE_CLOUDFERRO_PROJECT_PREFIX}" \
+        CLOUDFERRO_IT2_SLOT "${CROSSPLANE_CLOUDFERRO_IT2_SLOT}" \
+        CLOUDFERRO_IT2_PROJECT_PREFIX "${CROSSPLANE_CLOUDFERRO_IT2_PROJECT_PREFIX}"
       ;;
   esac
 }

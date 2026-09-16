@@ -102,7 +102,8 @@ grant must not add a cross-project allow. A same-project grant cannot promise
 user-level `ReadOnly`, `WriteOnly`, or `None` access. The Composition uses the
 AWS S3 provider with a CloudFerro endpoint to manage `BucketPolicy` resources
 because `ContainerV1` does not expose bucket policies. It resolves the
-grantee's project ID from the grantee Storage's numbered slot.
+grantee's project ID from the discoverable Storage with the matching principal
+and its numbered slot.
 
 ## Consequences
 

@@ -8,6 +8,7 @@ metadata:
   namespace: provider-storage-it
   labels:
     storages.pkg.internal/backend: __CLOUDFERRO_SLOT__
+    storages.pkg.internal/discoverable: "true"
 spec:
   principal: provider-storage-cloudferro-it
   providerIdentity: it
@@ -18,7 +19,34 @@ spec:
           mode: Delete
           minAge: 30s
     - bucketName: cloudferro-__CLOUDFERRO_PROJECT_PREFIX__-it-b
+  bucketAccessGrants:
+    - bucketName: cloudferro-__CLOUDFERRO_PROJECT_PREFIX__-it-b
+      grantee: provider-storage-cloudferro-it2
+      permission: ReadOnly
+      grantedAt: "2026-01-01T00:00:00Z"
   crossplane:
     compositionSelector:
       matchLabels:
         provider: __CLOUDFERRO_SLOT__
+---
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  name: storage-cloudferro-it2
+  namespace: provider-storage-it
+  labels:
+    storages.pkg.internal/backend: __CLOUDFERRO_IT2_SLOT__
+    storages.pkg.internal/discoverable: "true"
+spec:
+  principal: provider-storage-cloudferro-it2
+  providerIdentity: it2
+  buckets:
+    - bucketName: cloudferro-__CLOUDFERRO_IT2_PROJECT_PREFIX__-it2-a
+  bucketAccessRequests:
+    - bucketName: cloudferro-__CLOUDFERRO_PROJECT_PREFIX__-it-b
+      reason: Integration ReadOnly check
+      requestedAt: "2026-01-01T00:00:00Z"
+  crossplane:
+    compositionSelector:
+      matchLabels:
+        provider: __CLOUDFERRO_IT2_SLOT__

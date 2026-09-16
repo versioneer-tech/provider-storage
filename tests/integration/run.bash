@@ -9,9 +9,6 @@ INTEGRATION_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${INTEGRATION_DIR}/lib.bash"
 
 backend="$(selected_backend "${1:-}" "$0")"
-if [[ "${backend}" == cloudferro ]]; then
-  cloudferro_it2_enabled || :
-fi
 
 "${INTEGRATION_DIR}/deploy-providers.bash" "${backend}"
 "${INTEGRATION_DIR}/deploy-storages.bash" "${backend}"

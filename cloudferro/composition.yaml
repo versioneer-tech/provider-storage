@@ -378,27 +378,31 @@ spec:
               if not principal or not active:
                   return
 
+              response.require_resources(
+                  rsp,
+                  name="cloudferro-grantee-storages",
+                  api_version="pkg.internal/v1beta1",
+                  kind="Storage",
+                  namespace=namespace,
+                  match_labels={"storages.pkg.internal/discoverable": "true"},
+              )
+              peer_storages = request.get_required_resources(req, "cloudferro-grantee-storages") or []
+              if not peer_storages:
+                  return
+
               projects = {}
               for index, grantee in enumerate(sorted({(grant.get("grantee") or "").strip() for grant in active})):
-                  peer_key = f"cloudferro-grantee-{index}"
-                  response.require_resources(
-                      rsp,
-                      name=peer_key,
-                      api_version="pkg.internal/v1beta1",
-                      kind="Storage",
-                      namespace=namespace,
-                      match_name=grantee,
-                  )
-                  peer = request.get_required_resource(req, peer_key)
-                  if not peer:
+                  matches = [peer for peer in peer_storages
+                             if ((peer.get("spec") or {}).get("principal") or "").strip() == grantee]
+                  if not matches:
                       return
-                  peer_spec = peer.get("spec") or {}
-                  if (peer_spec.get("principal") or "").strip() != grantee:
-                      response.fatal(rsp, f"CloudFerro grantee Storage {grantee} has a different principal.")
+                  if len(matches) != 1:
+                      response.fatal(rsp, f"CloudFerro grantee principal {grantee} must identify one discoverable Storage.")
                       return
+                  peer = matches[0]
                   slot = ((peer.get("metadata") or {}).get("labels") or {}).get("storages.pkg.internal/backend", "").strip()
                   if not slot.startswith("cloudferro-") or len(slot) != len("cloudferro-0001") or not slot[-4:].isdigit():
-                      response.fatal(rsp, f"CloudFerro grantee Storage {grantee} has no valid project slot label.")
+                      response.fatal(rsp, f"CloudFerro grantee principal {grantee} has no valid project slot label.")
                       return
                   env_key = f"cloudferro-grantee-environment-{index}"
                   response.require_resources(
@@ -413,7 +417,7 @@ spec:
                       return
                   project_id = ((((environment.get("data") or {}).get("storage") or {}).get("serviceName")) or "").strip()
                   if len(project_id) != 32 or any(char not in "0123456789abcdefABCDEF" for char in project_id):
-                      response.fatal(rsp, f"CloudFerro grantee Storage {grantee} has an invalid project ID.")
+                      response.fatal(rsp, f"CloudFerro grantee principal {grantee} has an invalid project ID.")
                       return
                   projects[grantee] = project_id
 

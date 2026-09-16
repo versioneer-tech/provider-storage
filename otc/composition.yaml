@@ -170,6 +170,7 @@ spec:
         script: |
           from datetime import datetime, timedelta, timezone
 
+          from crossplane.function import request, response
           from crossplane.function.proto.v1 import run_function_pb2 as fnv1
           from google.protobuf import json_format
 
@@ -270,6 +271,35 @@ spec:
                   if gr and gr not in grantees:
                       grantees.append(gr)
 
+              grantee_users = {}
+              if grantees:
+                  response.require_resources(
+                      rsp,
+                      name="grantee-storages",
+                      api_version="pkg.internal/v1beta1",
+                      kind="Storage",
+                      namespace=ns,
+                      match_labels={"storages.pkg.internal/discoverable": "true"},
+                  )
+                  peers = request.get_required_resources(req, "grantee-storages") or []
+                  if not peers:
+                      grantee_users.update({gr: gr for gr in grantees})
+                  else:
+                      for gr in grantees:
+                          matches = [peer for peer in peers
+                                     if ((peer.get("spec") or {}).get("principal") or "").strip() == gr]
+                          if not matches:
+                              return
+                          if len(matches) != 1:
+                              response.fatal(rsp, f"OTC grantee principal {gr} must identify one discoverable Storage.")
+                              return
+                          peer_spec = matches[0].get("spec") or {}
+                          peer_identity = (peer_spec.get("providerIdentity") or gr).strip()
+                          peer_interval, peer_max_to_keep = _get_rollover(peer_spec)
+                          peer_suffixes = _suffixes(now, peer_interval, peer_max_to_keep)
+                          peer_suffix = peer_suffixes[0] if peer_suffixes else ""
+                          grantee_users[gr] = f"provider-storage-managed-{peer_identity}{peer_suffix}"
+
               for gr in grantees:
                   key = f"observe-user-{gr}"
                   rsp.desired.resources[key].resource.update({
@@ -286,7 +316,7 @@ spec:
                               "manifest": {
                                   "apiVersion": "identity.opentelekomcloud.crossplane.io/v1alpha1",
                                   "kind": "UserV3",
-                                  "metadata": {"name": gr}
+                                  "metadata": {"name": grantee_users[gr]}
                               }
                           },
                           "providerConfigRef": {"name": "provider-kubernetes", "kind": "ProviderConfig"}

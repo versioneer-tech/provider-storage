@@ -434,6 +434,9 @@ main() {
   printf 'Validate CloudFerro integration Storage selection\n'
   bash "${REPO_ROOT}/tests/integration/test_cloudferro_selection.bash"
 
+  printf 'Validate aligned integration Storage manifests\n'
+  bash "${REPO_ROOT}/tests/integration/test_storage_manifests.bash"
+
   local backend
   for backend in "${BACKENDS[@]}"; do
     if [[ "${backend}" == "aws" ]]; then

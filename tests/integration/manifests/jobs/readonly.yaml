@@ -1,0 +1,83 @@
+# Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: __JOB_NAME__
+  namespace: __INTEGRATION_NAMESPACE__
+spec:
+  backoffLimit: 1
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      containers:
+        - name: readonly-test
+          image: __RCLONE_IMAGE__
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - secretRef:
+                name: __PRINCIPAL__
+          env:
+            - name: RCLONE_CONFIG
+              value: /dev/null
+            - name: RCLONE_CONFIG_STORAGE_TYPE
+              value: s3
+            - name: RCLONE_CONFIG_STORAGE_PROVIDER
+              value: __RCLONE_PROVIDER__
+            - name: TEST_PHASE
+              value: __TEST_PHASE__
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -eu
+              export RCLONE_CONFIG_STORAGE_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}"
+              export RCLONE_CONFIG_STORAGE_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}"
+              export RCLONE_CONFIG_STORAGE_ENDPOINT="${AWS_ENDPOINT_URL:-}"
+              export RCLONE_CONFIG_STORAGE_REGION="${AWS_REGION:-}"
+              export RCLONE_CONFIG_STORAGE_FORCE_PATH_STYLE="${AWS_S3_FORCE_PATH_STYLE:-false}"
+
+              object=integration/readonly.txt
+              probe=integration/readonly-write-probe.txt
+              case "${TEST_PHASE}" in
+                seed)
+                  rclone deletefile "storage:__BUCKET__/${object}" --s3-no-check-bucket >/dev/null 2>&1 || true
+                  rclone deletefile "storage:__BUCKET__/${probe}" --s3-no-check-bucket >/dev/null 2>&1 || true
+                  printf 'provider-storage readonly integration\n' >/tmp/readonly.txt
+                  rclone copyto /tmp/readonly.txt "storage:__BUCKET__/${object}" --s3-no-check-bucket
+                  ;;
+                verify)
+                  attempt=0
+                  content=
+                  while [ "${attempt}" -lt 12 ]; do
+                    content="$(rclone cat "storage:__BUCKET__/${object}" --s3-no-check-bucket 2>/dev/null || true)"
+                    [ "${content}" = 'provider-storage readonly integration' ] && break
+                    attempt=$((attempt + 1))
+                    sleep 5
+                  done
+                  if [ "${content}" != 'provider-storage readonly integration' ]; then
+                    printf 'ReadOnly grantee could not read the owner object.\n' >&2
+                    exit 1
+                  fi
+                  printf 'write must fail\n' >/tmp/readonly.txt
+                  if rclone copyto /tmp/readonly.txt "storage:__BUCKET__/${probe}" --s3-no-check-bucket >/dev/null 2>&1; then
+                    printf 'ReadOnly grantee wrote an object.\n' >&2
+                    exit 1
+                  fi
+                  if rclone deletefile "storage:__BUCKET__/${object}" --s3-no-check-bucket >/dev/null 2>&1; then
+                    printf 'ReadOnly grantee deleted the owner object.\n' >&2
+                    exit 1
+                  fi
+                  ;;
+                cleanup)
+                  rclone deletefile "storage:__BUCKET__/${object}" --s3-no-check-bucket
+                  rclone deletefile "storage:__BUCKET__/${probe}" --s3-no-check-bucket >/dev/null 2>&1 || true
+                  ;;
+                *)
+                  printf 'Unknown TEST_PHASE: %s\n' "${TEST_PHASE}" >&2
+                  exit 1
+                  ;;
+              esac

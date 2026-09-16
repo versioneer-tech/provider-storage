@@ -19,6 +19,36 @@ spec:
       discoverable: true
     - bucketName: __OTC_BUCKET_B__
       discoverable: true
+  bucketAccessGrants:
+    - bucketName: __OTC_BUCKET_B__
+      grantee: provider-storage-otc-it2
+      permission: ReadOnly
+      grantedAt: "2026-01-01T00:00:00Z"
+  crossplane:
+    compositionSelector:
+      matchLabels:
+        provider: otc
+---
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  name: storage-otc-it2
+  namespace: provider-storage-it
+  annotations:
+    storages.pkg.internal/environment: storage-otc
+  labels:
+    storages.pkg.internal/backend: otc
+    storages.pkg.internal/discoverable: "true"
+spec:
+  principal: provider-storage-otc-it2
+  providerIdentity: it2
+  buckets:
+    - bucketName: __OTC_BUCKET_IT2_A__
+      discoverable: true
+  bucketAccessRequests:
+    - bucketName: __OTC_BUCKET_B__
+      reason: Integration ReadOnly check
+      requestedAt: "2026-01-01T00:00:00Z"
   crossplane:
     compositionSelector:
       matchLabels:
