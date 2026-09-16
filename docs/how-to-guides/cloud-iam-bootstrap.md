@@ -6,9 +6,11 @@
     and access credentials. A cloud administrator must review the backend's
     `iam.sh` and any policy files before running the bootstrap.
 
-Run the bootstrap before you deploy the backend's Crossplane providers and
-`ProviderConfig`. The bootstrap identity is for the controller. It is separate
-from the consumer identities and credentials that Provider Storage creates.
+For AWS, OTC, and OVHcloud, run the bootstrap before deploying the backend's
+Crossplane providers and `ProviderConfig`. CloudFerro installs providers first
+because its bootstrap creates the slot ProviderConfigs in the cluster. The
+bootstrap identity is for the controller. It is separate from the consumer
+identities and credentials that Provider Storage creates.
 
 !!! warning "Choose the bucket prefix during IAM bootstrap"
 
@@ -232,3 +234,32 @@ documented in the
 [integration test guide](https://github.com/versioneer-tech/provider-storage/blob/main/tests/integration/README.md#ovhcloud).
 Rotation, lifecycle, owner replacement, and cleanup behavior remain in the
 OVHcloud validation plan.
+
+## CloudFerro
+
+CloudFerro's S3 authorization boundary is the OpenStack project. A user in a
+project can reach that project's containers; bucket policies share with a
+different project's `root` ARN and do not restrict individual users. See the
+[CloudFerro bucket-sharing guide](https://docs.cloudferro.com/en/latest/s3/Bucket-sharing-using-s3-bucket-policy-on-CloudFerro-Cloud.html).
+
+Install the provider dependencies and `storage-cloudferro` Configuration
+before bootstrap. Then follow the
+[CloudFerro bootstrap guide](https://github.com/versioneer-tech/provider-storage/blob/main/cloudferro/dependencies/README.md).
+It gives the required login check, variables, and `status`, `apply`, and
+`verify` commands.
+
+The bootstrap selects enabled, existing projects with an anchored numbered
+name pattern. It creates one controller user, assigns it to each selected
+project, and publishes one project-scoped ProviderConfig per slot. Separate
+keys in one shared Secret hold the project scopes. The script does not create
+projects. Portal activation and wallet setup remain separate.
+
+After all `Storage` resources using a selected slot are removed, `iam.sh delete`
+cleans that slot's shared Secret key, controller role assignments, and managed
+cluster resources. It uses the same project-name pattern and leaves the shared
+controller user, local identity file, and pre-existing projects intact.
+
+The first live Composition run must prove that the controller can create an
+EC2 credential for itself in the selected project. A cross-project test must
+also verify the AWS S3 `BucketPolicy` adapter with owner and grantee Storages
+in different numbered slots.

@@ -4,9 +4,10 @@
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
-  name: storage-ovh
+  name: storage-cloudferro-0001
   labels:
-    provider: ovh
+    provider: cloudferro-0001
+    app.kubernetes.io/managed-by: provider-storage-cloudferro-iam
 spec:
   compositeTypeRef:
     apiVersion: pkg.internal/v1beta1
@@ -32,39 +33,31 @@ spec:
           def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
               xr = to_dict(req.observed.composite.resource)
               metadata = xr.get("metadata") or {}
-              annotations = metadata.get("annotations") or {}
-              labels = metadata.get("labels") or {}
-              env_name = (
-                  annotations.get("storages.pkg.internal/environment")
-                  or labels.get("storages.pkg.internal/environment")
-                  or "storage"
-              ).strip() or "storage"
               response.require_resources(
                   rsp,
                   name="storage-environment",
                   api_version="apiextensions.crossplane.io/v1beta1",
                   kind="EnvironmentConfig",
-                  match_name=env_name,
+                  match_name="storage-cloudferro-0001",
               )
               environment = request.get_required_resource(req, "storage-environment") or {}
               rsp.context.MergeFrom(resource.dict_to_struct({ENVIRONMENT_KEY: environment.get("data") or {}}))
 
-    - step: create-direct-resources
+    - step: create-project-resources
       functionRef:
         name: crossplane-contrib-function-python
       input:
         apiVersion: python.fn.crossplane.io/v1beta1
         kind: Script
         script: |
-          import json
           from datetime import datetime, timedelta, timezone
 
-          from crossplane.function import request, response
+          from crossplane.function import response
           from crossplane.function.proto.v1 import run_function_pb2 as fnv1
           from google.protobuf import json_format
 
           ENVIRONMENT_KEY = "apiextensions.crossplane.io/environment"
-          API_VERSION = "cloud.ovh.m.edixos.io/v1alpha1"
+          SLOT = "cloudferro-0001"
 
           def to_dict(value):
               return {} if value is None else (value if isinstance(value, dict) else json_format.MessageToDict(value, preserving_proto_field_name=True))
@@ -92,9 +85,9 @@ spec:
                   return [""]
               return ["-" + date for date in dates]
 
-          def managed(rsp, key, kind, name, namespace, for_provider, **spec_fields):
+          def managed(rsp, key, api_version, kind, name, namespace, for_provider, **fields):
               rsp.desired.resources[key].resource.update({
-                  "apiVersion": API_VERSION,
+                  "apiVersion": api_version,
                   "kind": kind,
                   "metadata": {
                       "name": name,
@@ -103,48 +96,10 @@ spec:
                   },
                   "spec": {
                       "forProvider": for_provider,
-                      "providerConfigRef": {"name": "provider-ovh", "kind": "ProviderConfig"},
-                      **spec_fields,
+                      "providerConfigRef": {"name": SLOT, "kind": "ProviderConfig"},
+                      **fields,
                   },
               })
-
-          def policy_statements(bucket, permission, effect):
-              bucket_arn = f"arn:aws:s3:::{bucket}"
-              object_arn = f"{bucket_arn}/*"
-              if effect == "Deny":
-                  return [{"Effect": "Deny", "Action": ["s3:*"], "Resource": [bucket_arn, object_arn]}]
-              bucket_actions = ["s3:GetBucketLocation", "s3:ListBucket", "s3:ListBucketMultipartUploads"]
-              object_actions = ["s3:ListMultipartUploadParts"]
-              if permission in ("ReadOnly", "ReadWrite"):
-                  object_actions.append("s3:GetObject")
-              if permission in ("WriteOnly", "ReadWrite"):
-                  object_actions.extend(["s3:PutObject", "s3:DeleteObject", "s3:AbortMultipartUpload"])
-              return [
-                  {"Effect": "Allow", "Action": sorted(bucket_actions), "Resource": [bucket_arn]},
-                  {"Effect": "Allow", "Action": sorted(object_actions), "Resource": [object_arn]},
-              ]
-
-          def grant_from_peer(peer, bucket, grantee):
-              peer_spec = peer.get("spec") or {}
-              if not any((item.get("bucketName") or "").strip() == bucket for item in (peer_spec.get("buckets") or [])):
-                  return None
-              for grant in (peer_spec.get("bucketAccessGrants") or []):
-                  if (grant.get("bucketName") or "").strip() == bucket and (grant.get("grantee") or "").strip() == grantee:
-                      return (grant.get("permission") or "None").strip()
-              return "None"
-
-          def owner_id(observed, key):
-              item = observed.get(key)
-              if item is None or not getattr(item, "resource", None):
-                  return None
-              data = to_dict(item.resource)
-              ready = any(condition.get("type") == "Ready" and condition.get("status") == "True"
-                          for condition in ((data.get("status") or {}).get("conditions") or []))
-              value = (((data.get("status") or {}).get("atProvider") or {}).get("id"))
-              if not ready or not isinstance(value, str) or not value.isdecimal():
-                  return None
-              number = int(value)
-              return number if 0 < number <= 9007199254740991 else None
 
           def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
               xr = to_dict(req.observed.composite.resource)
@@ -152,112 +107,36 @@ spec:
               spec = xr.get("spec") or {}
               namespace = (metadata.get("labels") or {}).get("crossplane.io/claim-namespace") or metadata.get("namespace") or "default"
               principal = (spec.get("principal") or metadata.get("name") or "").strip()
-              identity = (spec.get("providerIdentity") or principal).strip()
-              context = to_dict(req.context)
-              storage_env = ((context.get(ENVIRONMENT_KEY) or {}).get("storage") or {})
-              project = (storage_env.get("serviceName") or "").strip()
-              s3_region = (storage_env.get("region") or "").strip().lower()
-              if not principal or not project or not s3_region:
+              env = (to_dict(req.context).get(ENVIRONMENT_KEY) or {}).get("storage") or {}
+              project_id = (env.get("serviceName") or "").strip()
+              controller_user_id = (env.get("controllerUserId") or "").strip()
+              region = (env.get("region") or "").strip()
+              s3_region = (env.get("s3Region") or "").strip()
+              if (not principal or not project_id or len(project_id) != 32 or
+                      not controller_user_id or len(controller_user_id) != 32 or
+                      not region or not s3_region):
+                  response.fatal(rsp, "CloudFerro slot environment is incomplete.")
                   return
-              region_name = s3_region.upper()
+              declared_slot = (metadata.get("labels") or {}).get("storages.pkg.internal/backend")
+              selected_slot = (((spec.get("crossplane") or {}).get("compositionSelector") or {}).get("matchLabels") or {}).get("provider")
+              if declared_slot != SLOT or selected_slot != SLOT:
+                  response.fatal(rsp, "CloudFerro Storage backend label and Composition selector must name the same slot.")
+                  return
 
-              response.require_resources(
-                  rsp,
-                  name="peer-storages",
-                  api_version="pkg.internal/v1beta1",
-                  kind="Storage",
-                  namespace=namespace,
-                  match_labels={"storages.pkg.internal/discoverable": "true"},
-              )
-              peers = request.get_required_resources(req, "peer-storages") or []
-              observed = req.observed.resources
-              owner_key = f"owner-{principal}"
-              managed(rsp, owner_key, "User", f"{identity}-owner", namespace, {
-                  "description": f"Stable owner for {identity}",
-                  "roleNames": ["objectstore_operator"],
-                  "serviceName": project,
-              }, managementPolicies=["Observe", "Create", "Update", "LateInitialize"])
-
-              numeric_owner = owner_id(observed, owner_key)
-              own_buckets = sorted({(item.get("bucketName") or "").strip()
-                                    for item in (spec.get("buckets") or []) if (item.get("bucketName") or "").strip()})
+              own_buckets = sorted({(b.get("bucketName") or "").strip() for b in (spec.get("buckets") or []) if (b.get("bucketName") or "").strip()})
               for bucket in own_buckets:
-                  if numeric_owner is None:
-                      continue
-                  key = f"bucket-{bucket}"
-                  managed(rsp, key, "ProjectStorage", bucket, namespace, {
-                      "serviceName": project,
+                  managed(rsp, f"bucket-{bucket}", "objectstorage.openstack.m.crossplane.io/v1alpha1", "ContainerV1", bucket, namespace, {
                       "name": bucket,
-                      "regionName": region_name,
-                      "ownerId": numeric_owner,
-                      "hideObjects": True,
+                      "region": region,
+                      "forceDestroy": False,
                   })
 
-              requested = sorted({(item.get("bucketName") or "").strip()
-                                  for item in (spec.get("bucketAccessRequests") or [])
-                                  if (item.get("bucketName") or "").strip()})
-              statements = [{"Effect": "Deny", "Action": ["s3:ListAllMyBuckets"], "Resource": ["*"]}]
-              for bucket in own_buckets:
-                  statements.extend(policy_statements(bucket, "ReadWrite", "Allow"))
-              for bucket in requested:
-                  if bucket in own_buckets:
-                      continue
-                  matches = []
-                  for peer in peers:
-                      peer_meta = peer.get("metadata") or {}
-                      if (peer_meta.get("namespace") or namespace) != namespace or peer_meta.get("name") == metadata.get("name"):
-                          continue
-                      grant = grant_from_peer(peer, bucket, principal)
-                      if grant is not None:
-                          matches.append(grant)
-                  permission = matches[0] if len(matches) == 1 else "None"
-                  if permission in ("ReadOnly", "WriteOnly", "ReadWrite"):
-                      statements.extend(policy_statements(bucket, permission, "Allow"))
-                  else:
-                      statements.extend(policy_statements(bucket, "None", "Deny"))
-              policy = json.dumps({"Statement": statements}, separators=(",", ":"), sort_keys=True)
-
-              suffixes = rollover_suffixes(spec)
-              for suffix in suffixes:
+              for suffix in rollover_suffixes(spec):
                   generation = f"{principal}{suffix}"
-                  user_key = f"user-{generation}"
-                  user_name = f"{identity}{suffix}"
-                  managed(rsp, user_key, "User", user_name, namespace, {
-                      "description": f"Credential generation for {identity}{suffix}",
-                      "roleNames": ["objectstore_operator"],
-                      "serviceName": project,
-                  })
-                  user_ref = {"userIdRef": {"name": user_name}}
-                  managed(rsp, f"credentials-{generation}", "S3Credentials", generation, namespace, {
-                      "serviceName": project,
-                      **user_ref,
+                  managed(rsp, f"credentials-{generation}", "identity.openstack.m.crossplane.io/v1alpha1", "EC2CredentialV3", generation, namespace, {
+                      "projectId": project_id,
+                      "userId": controller_user_id,
                   }, writeConnectionSecretToRef={"name": f"{generation}-credentials"})
-                  managed(rsp, f"policy-{generation}", "S3Policy", generation, namespace, {
-                      "serviceName": project,
-                      "policy": policy,
-                      **user_ref,
-                  })
-
-              current = f"{principal}{suffixes[0]}"
-              observer_key = f"observe-secret-{principal}"
-              rsp.desired.resources[observer_key].ready = fnv1.READY_FALSE
-              rsp.desired.resources[observer_key].resource.update({
-                  "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
-                  "kind": "Object",
-                  "metadata": {
-                      "name": observer_key,
-                      "namespace": namespace,
-                      "annotations": {"crossplane.io/composition-resource-name": observer_key},
-                  },
-                  "spec": {
-                      "managementPolicies": ["Observe"],
-                      "forProvider": {"manifest": {
-                          "apiVersion": "v1", "kind": "Secret",
-                          "metadata": {"name": f"{current}-credentials", "namespace": namespace},
-                      }},
-                      "providerConfigRef": {"name": "provider-kubernetes", "kind": "ProviderConfig"},
-                  },
-              })
 
     - step: publish-current-secret
       functionRef:
@@ -267,8 +146,9 @@ spec:
         kind: Script
         script: |
           import base64
-          from datetime import datetime, timedelta, timezone
+          from datetime import datetime, timezone
 
+          from crossplane.function import request, response
           from crossplane.function.proto.v1 import run_function_pb2 as fnv1
           from google.protobuf import json_format
 
@@ -311,55 +191,299 @@ spec:
               namespace = (metadata.get("labels") or {}).get("crossplane.io/claim-namespace") or metadata.get("namespace") or "default"
               principal = (spec.get("principal") or metadata.get("name") or "").strip()
               generation = f"{principal}{current_suffix(spec)}"
-              context = to_dict(req.context)
-              storage_env = ((context.get(ENVIRONMENT_KEY) or {}).get("storage") or {})
-              endpoint = (storage_env.get("endpoint") or "").strip()
-              region = (storage_env.get("region") or "").strip()
-              force_path_style = storage_env.get("force_path_style")
-              observer_key = f"observe-secret-{principal}"
-              rsp.desired.resources[observer_key].ready = fnv1.READY_FALSE
-              if not principal or not endpoint or not region or force_path_style in (None, ""):
+              env = (to_dict(req.context).get(ENVIRONMENT_KEY) or {}).get("storage") or {}
+              endpoint = (env.get("endpoint") or "").strip()
+              region = (env.get("s3Region") or "").strip()
+              if not principal or not endpoint or not region:
                   return
-              observed = req.observed.resources
-              credential = observed.get(f"credentials-{generation}")
-              secret = observed.get(observer_key)
+              secret_key = f"credential-secret-{principal}"
+              response.require_resources(
+                  rsp,
+                  name=secret_key,
+                  api_version="v1",
+                  kind="Secret",
+                  namespace=namespace,
+                  match_name=f"{generation}-credentials",
+              )
+              credential = req.observed.resources.get(f"credentials-{generation}")
+              secret = request.get_required_resource(req, secret_key)
               if credential is None or secret is None:
                   return
               credential_data = to_dict(credential.resource)
-              access_key = (((credential_data.get("status") or {}).get("atProvider") or {}).get("accessKeyId"))
-              secret_data = ((((to_dict(secret.resource).get("status") or {}).get("atProvider") or {}).get("manifest") or {}).get("data") or {})
-              if not isinstance(access_key, str) or not access_key or not isinstance(secret_data, dict):
+              access = (((credential_data.get("status") or {}).get("atProvider") or {}).get("access"))
+              secret_data = secret.get("data") or {}
+              if not isinstance(access, str) or not access or not isinstance(secret_data, dict):
                   return
-              source_access = decoded(secret_data.get("access_key_id"))
-              source_secret = decoded(secret_data.get("attribute.secret_access_key"))
-              if source_access != access_key or not source_secret:
+              source_secret = decoded(secret_data.get("attribute.secret") or secret_data.get("secret"))
+              if not source_secret:
                   return
               data = {
-                  "AWS_ACCESS_KEY_ID": encoded(access_key),
+                  "AWS_ACCESS_KEY_ID": encoded(access),
                   "AWS_SECRET_ACCESS_KEY": encoded(source_secret),
                   "AWS_ENDPOINT_URL": encoded(endpoint),
                   "AWS_REGION": encoded(region),
-                  "AWS_S3_FORCE_PATH_STYLE": encoded(str(force_path_style).lower()),
+                  "AWS_S3_FORCE_PATH_STYLE": encoded("true"),
               }
               key = f"secret-{principal}"
               rsp.desired.resources[key].resource.update({
                   "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
                   "kind": "Object",
-                  "metadata": {
-                      "name": key,
-                      "namespace": namespace,
-                      "annotations": {"crossplane.io/composition-resource-name": key},
-                  },
+                  "metadata": {"name": key, "namespace": namespace,
+                               "annotations": {"crossplane.io/composition-resource-name": key}},
                   "spec": {
-                      "forProvider": {"manifest": {
-                          "apiVersion": "v1", "kind": "Secret",
-                          "metadata": {"name": principal, "namespace": namespace},
-                          "type": "Opaque", "data": data,
-                      }},
+                      "forProvider": {"manifest": {"apiVersion": "v1", "kind": "Secret",
+                                                  "metadata": {"name": principal, "namespace": namespace},
+                                                  "type": "Opaque", "data": data}},
                       "providerConfigRef": {"name": "provider-kubernetes", "kind": "ProviderConfig"},
                   },
               })
-              rsp.desired.resources[observer_key].ready = fnv1.READY_TRUE
+              provider_secret = f"{principal}-cloudferro-aws"
+              credentials = "\n".join([
+                  "[default]",
+                  f"aws_access_key_id={access}",
+                  f"aws_secret_access_key={source_secret}",
+                  "",
+              ])
+              secret_key = f"aws-provider-secret-{principal}"
+              rsp.desired.resources[secret_key].resource.update({
+                  "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
+                  "kind": "Object",
+                  "metadata": {"name": secret_key, "namespace": namespace,
+                               "annotations": {"crossplane.io/composition-resource-name": secret_key}},
+                  "spec": {
+                      "forProvider": {"manifest": {"apiVersion": "v1", "kind": "Secret",
+                                                    "metadata": {"name": provider_secret, "namespace": namespace},
+                                                    "type": "Opaque",
+                                                    "data": {"credentials": encoded(credentials)}}},
+                      "providerConfigRef": {"name": "provider-kubernetes", "kind": "ProviderConfig"},
+                  },
+              })
+              provider_key = f"aws-provider-config-{principal}"
+              provider_name = f"cloudferro-s3-{principal}"
+              rsp.desired.resources[provider_key].resource.update({
+                  "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
+                  "kind": "Object",
+                  "metadata": {"name": provider_name, "namespace": namespace,
+                               "annotations": {"crossplane.io/composition-resource-name": provider_key}},
+                  "spec": {
+                      "forProvider": {"manifest": {
+                          "apiVersion": "aws.m.upbound.io/v1beta1",
+                          "kind": "ProviderConfig",
+                          "metadata": {"name": provider_name, "namespace": namespace},
+                          "spec": {
+                              "credentials": {"source": "Secret", "secretRef": {
+                                  "name": provider_secret, "namespace": namespace, "key": "credentials"}},
+                              "endpoint": {
+                                  "url": {"type": "Static", "static": endpoint},
+                                  "services": ["s3"],
+                                  "source": "Custom",
+                                  "hostnameImmutable": True,
+                                  "signingName": "s3",
+                                  "signingRegion": region,
+                              },
+                              "s3_use_path_style": True,
+                              "skip_credentials_validation": True,
+                              "skip_metadata_api_check": True,
+                              "skip_region_validation": True,
+                              "skip_requesting_account_id": True,
+                          },
+                      }},
+                      "readiness": {"policy": "SuccessfulCreate"},
+                      "providerConfigRef": {"name": "provider-kubernetes", "kind": "ProviderConfig"},
+                  },
+              })
+              usage_key = f"usage-aws-provider-{principal}"
+              rsp.desired.resources[usage_key].ready = fnv1.READY_TRUE
+              rsp.desired.resources[usage_key].resource.update({
+                  "apiVersion": "protection.crossplane.io/v1beta1",
+                  "kind": "Usage",
+                  "metadata": {"name": usage_key, "namespace": namespace,
+                               "annotations": {"crossplane.io/composition-resource-name": usage_key}},
+                  "spec": {
+                      "replayDeletion": True,
+                      "of": {
+                          "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
+                          "kind": "Object",
+                          "resourceRef": {"name": secret_key},
+                      },
+                      "by": {
+                          "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
+                          "kind": "Object",
+                          "resourceRef": {"name": provider_name},
+                      },
+                  },
+              })
+
+    - step: create-bucket-policies
+      functionRef:
+        name: crossplane-contrib-function-python
+      input:
+        apiVersion: python.fn.crossplane.io/v1beta1
+        kind: Script
+        script: |
+          import json
+          from datetime import datetime, timezone
+
+          from crossplane.function import request, response
+          from crossplane.function.proto.v1 import run_function_pb2 as fnv1
+          from google.protobuf import json_format
+
+          def to_dict(value):
+              return {} if value is None else (value if isinstance(value, dict) else json_format.MessageToDict(value, preserving_proto_field_name=True))
+
+          def current_suffix(spec):
+              interval = ((spec.get("credentialsRollover") or {}).get("interval") or "none").strip().lower()
+              now = datetime.now(timezone.utc)
+              if interval == "daily":
+                  return "-" + now.strftime("%Y%m%d")
+              if interval == "weekly":
+                  week = now.isocalendar()
+                  return f"-{week.year}w{week.week:02d}"
+              if interval == "monthly":
+                  return "-" + now.strftime("%Y%m")
+              if interval == "quarterly":
+                  return f"-{now.year}q{(now.month - 1) // 3 + 1}"
+              if interval == "yearly":
+                  return "-" + str(now.year)
+              return ""
+
+          def statements(bucket, project_id, permission):
+              principal = {"AWS": f"arn:aws:iam::{project_id}:root"}
+              bucket_actions = ["s3:GetBucketLocation", "s3:ListBucket", "s3:ListBucketMultipartUploads"]
+              object_actions = ["s3:ListMultipartUploadParts"]
+              if permission in ("ReadOnly", "ReadWrite"):
+                  object_actions.append("s3:GetObject")
+              if permission in ("WriteOnly", "ReadWrite"):
+                  object_actions.extend(["s3:AbortMultipartUpload", "s3:DeleteObject", "s3:PutObject"])
+              return [
+                  {"Effect": "Allow", "Principal": principal, "Action": sorted(bucket_actions),
+                   "Resource": f"arn:aws:s3:::{bucket}"},
+                  {"Effect": "Allow", "Principal": principal, "Action": sorted(object_actions),
+                   "Resource": f"arn:aws:s3:::{bucket}/*"},
+              ]
+
+          def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
+              xr = to_dict(req.observed.composite.resource)
+              metadata = xr.get("metadata") or {}
+              spec = xr.get("spec") or {}
+              namespace = (metadata.get("labels") or {}).get("crossplane.io/claim-namespace") or metadata.get("namespace") or "default"
+              principal = (spec.get("principal") or metadata.get("name") or "").strip()
+              generation = f"{principal}{current_suffix(spec)}"
+              own_buckets = {(item.get("bucketName") or "").strip()
+                             for item in (spec.get("buckets") or []) if (item.get("bucketName") or "").strip()}
+              active = [grant for grant in (spec.get("bucketAccessGrants") or [])
+                        if (grant.get("bucketName") or "").strip() in own_buckets and
+                        (grant.get("grantee") or "").strip() and
+                        (grant.get("permission") or "None") in ("ReadOnly", "WriteOnly", "ReadWrite")]
+              if not principal or not active:
+                  return
+
+              projects = {}
+              for index, grantee in enumerate(sorted({(grant.get("grantee") or "").strip() for grant in active})):
+                  peer_key = f"cloudferro-grantee-{index}"
+                  response.require_resources(
+                      rsp,
+                      name=peer_key,
+                      api_version="pkg.internal/v1beta1",
+                      kind="Storage",
+                      namespace=namespace,
+                      match_name=grantee,
+                  )
+                  peer = request.get_required_resource(req, peer_key)
+                  if not peer:
+                      return
+                  peer_spec = peer.get("spec") or {}
+                  if (peer_spec.get("principal") or "").strip() != grantee:
+                      response.fatal(rsp, f"CloudFerro grantee Storage {grantee} has a different principal.")
+                      return
+                  slot = ((peer.get("metadata") or {}).get("labels") or {}).get("storages.pkg.internal/backend", "").strip()
+                  if not slot.startswith("cloudferro-") or len(slot) != len("cloudferro-0001") or not slot[-4:].isdigit():
+                      response.fatal(rsp, f"CloudFerro grantee Storage {grantee} has no valid project slot label.")
+                      return
+                  env_key = f"cloudferro-grantee-environment-{index}"
+                  response.require_resources(
+                      rsp,
+                      name=env_key,
+                      api_version="apiextensions.crossplane.io/v1beta1",
+                      kind="EnvironmentConfig",
+                      match_name=f"storage-{slot}",
+                  )
+                  environment = request.get_required_resource(req, env_key)
+                  if not environment:
+                      return
+                  project_id = ((((environment.get("data") or {}).get("storage") or {}).get("serviceName")) or "").strip()
+                  if len(project_id) != 32 or any(char not in "0123456789abcdefABCDEF" for char in project_id):
+                      response.fatal(rsp, f"CloudFerro grantee Storage {grantee} has an invalid project ID.")
+                      return
+                  projects[grantee] = project_id
+
+              by_bucket = {}
+              for grant in active:
+                  bucket = (grant.get("bucketName") or "").strip()
+                  grantee = (grant.get("grantee") or "").strip()
+                  permission = (grant.get("permission") or "None").strip()
+                  by_bucket.setdefault(bucket, []).extend(statements(bucket, projects[grantee], permission))
+
+              for bucket, bucket_statements in sorted(by_bucket.items()):
+                  key = f"bucketpolicy-{bucket}"
+                  policy = {"Version": "2012-10-17", "Statement": bucket_statements}
+                  rsp.desired.resources[key].resource.update({
+                      "apiVersion": "s3.aws.m.upbound.io/v1beta1",
+                      "kind": "BucketPolicy",
+                      "metadata": {"name": key, "namespace": namespace,
+                                   "annotations": {"crossplane.io/composition-resource-name": key}},
+                      "spec": {
+                          "forProvider": {
+                              "bucket": bucket,
+                              "region": "us-east-1",
+                              "policy": json.dumps(policy, separators=(",", ":"), sort_keys=True),
+                          },
+                          "providerConfigRef": {"name": f"cloudferro-s3-{principal}", "kind": "ProviderConfig"},
+                      },
+                  })
+                  usage_key = f"usage-{key}"
+                  rsp.desired.resources[usage_key].ready = fnv1.READY_TRUE
+                  rsp.desired.resources[usage_key].resource.update({
+                      "apiVersion": "protection.crossplane.io/v1beta1",
+                      "kind": "Usage",
+                      "metadata": {"name": usage_key, "namespace": namespace,
+                                   "annotations": {"crossplane.io/composition-resource-name": usage_key}},
+                      "spec": {
+                          "replayDeletion": True,
+                          "of": {
+                              "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
+                              "kind": "Object",
+                              "resourceRef": {"name": f"cloudferro-s3-{principal}"},
+                          },
+                          "by": {
+                              "apiVersion": "s3.aws.m.upbound.io/v1beta1",
+                              "kind": "BucketPolicy",
+                              "resourceRef": {"name": key},
+                          },
+                      },
+                  })
+                  credential_usage_key = f"usage-credential-{key}"
+                  rsp.desired.resources[credential_usage_key].ready = fnv1.READY_TRUE
+                  rsp.desired.resources[credential_usage_key].resource.update({
+                      "apiVersion": "protection.crossplane.io/v1beta1",
+                      "kind": "Usage",
+                      "metadata": {"name": credential_usage_key, "namespace": namespace,
+                                   "annotations": {"crossplane.io/composition-resource-name": credential_usage_key}},
+                      "spec": {
+                          "replayDeletion": True,
+                          "of": {
+                              "apiVersion": "identity.openstack.m.crossplane.io/v1alpha1",
+                              "kind": "EC2CredentialV3",
+                              "resourceRef": {"name": generation},
+                          },
+                          "by": {
+                              "apiVersion": "s3.aws.m.upbound.io/v1beta1",
+                              "kind": "BucketPolicy",
+                              "resourceRef": {"name": key},
+                          },
+                      },
+                  })
+
     - step: manage-lifecycle-rules
       functionRef:
         name: crossplane-contrib-function-python
@@ -482,10 +606,10 @@ spec:
 
               storage_type = (storage_env.get("type") or "").strip() or "s3"
               storage_provider = (storage_env.get("provider") or "").strip() or "Other"
-              storage_region = (storage_env.get("region") or spec.get("region") or "de").strip()
+              storage_region = (storage_env.get("s3Region") or "").strip()
               endpoint = (storage_env.get("endpoint") or "").strip()
-              if not endpoint and storage_region:
-                  endpoint = f"https://s3.{storage_region}.io.cloud.ovh.net"
+              if not endpoint or not storage_region:
+                  return
               lifecycle = (storage_env.get("lifecycle") or {})
               schedule = (lifecycle.get("schedule") or "").strip() or "17 2 * * *"
               force_path_style = storage_env.get("force_path_style")

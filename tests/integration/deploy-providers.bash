@@ -95,6 +95,10 @@ preflight_ovh() {
   fi
 }
 
+preflight_cloudferro() {
+  cloudferro_slot >/dev/null
+}
+
 install_minio() {
   log "Deploying MinIO and its providers"
   kube apply -f "${MANIFEST_DIR}/minio.yaml"
@@ -164,6 +168,16 @@ install_ovh() {
     OVH_REGION "${region}" \
     OVH_PROJECT_ID "${CROSSPLANE_OVH_PROJECT_ID}"
   kube apply -f "${REPO_ROOT}/ovh/composition.yaml"
+}
+
+install_cloudferro() {
+  log "Deploying shared CloudFerro providers"
+  install_dependencies cloudferro
+  kube wait provider.pkg.crossplane.io/provider-openstack \
+    --for=condition=Healthy --timeout=10m
+  kube apply --namespace "${INTEGRATION_NAMESPACE}" \
+    -f "${REPO_ROOT}/cloudferro/dependencies/03-providerConfigs.yaml"
+  log "Run cloudferro/dependencies/iam.sh apply to publish numbered project slots"
 }
 
 main() {

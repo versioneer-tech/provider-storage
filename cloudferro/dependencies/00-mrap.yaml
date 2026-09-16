@@ -1,0 +1,27 @@
+# Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: ManagedResourceActivationPolicy
+metadata:
+  name: provider-openstack-cloudferro
+spec:
+  activate:
+    - containerv1s.objectstorage.openstack.m.crossplane.io
+    - ec2credentialv3s.identity.openstack.m.crossplane.io
+---
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: ManagedResourceActivationPolicy
+metadata:
+  name: provider-kubernetes
+spec:
+  activate:
+    - objects.kubernetes.m.crossplane.io
+---
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: ManagedResourceActivationPolicy
+metadata:
+  name: provider-aws-s3-cloudferro
+spec:
+  activate:
+    - bucketpolicies.s3.aws.m.upbound.io

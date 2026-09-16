@@ -1,0 +1,75 @@
+# Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: workspace
+# Put each Storage in one pre-existing project slot. Remove cross-project
+# grants and keep the sample within two buckets per project.
+resources:
+  - ../../base
+patches:
+  - target:
+      group: pkg.internal
+      version: v1beta1
+      kind: Storage
+    patch: |
+      - op: add
+        path: /spec/crossplane
+        value:
+          compositionSelector:
+            matchLabels:
+              provider: cloudferro-0001
+      - op: remove
+        path: /spec/bucketAccessRequests
+  - target:
+      group: pkg.internal
+      version: v1beta1
+      kind: Storage
+      name: s-jane
+    patch: |
+      - op: add
+        path: /metadata/labels
+        value:
+          storages.pkg.internal/backend: cloudferro-0001
+  - target:
+      group: pkg.internal
+      version: v1beta1
+      kind: Storage
+      name: s-joe
+    patch: |
+      - op: add
+        path: /metadata/labels/storages.pkg.internal~1backend
+        value: cloudferro-0001
+      - op: remove
+        path: /spec/bucketAccessGrants
+  - target:
+      group: pkg.internal
+      version: v1beta1
+      kind: Storage
+      name: s-jeff
+    patch: |
+      - op: add
+        path: /metadata/labels/storages.pkg.internal~1backend
+        value: cloudferro-0002
+      - op: replace
+        path: /spec/crossplane/compositionSelector/matchLabels/provider
+        value: cloudferro-0002
+      - op: remove
+        path: /spec/bucketAccessGrants
+      - op: remove
+        path: /spec/buckets/1
+  - target:
+      group: pkg.internal
+      version: v1beta1
+      kind: Storage
+      name: s-john
+    patch: |
+      - op: add
+        path: /metadata/labels/storages.pkg.internal~1backend
+        value: cloudferro-0002
+      - op: replace
+        path: /spec/crossplane/compositionSelector/matchLabels/provider
+        value: cloudferro-0002
+      - op: remove
+        path: /spec/bucketAccessGrants

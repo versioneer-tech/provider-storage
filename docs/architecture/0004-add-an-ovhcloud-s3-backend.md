@@ -38,6 +38,7 @@ The controller service account is distinct from the OpenStack users it
 creates. The service account's IAM policy controls what Crossplane can manage
 in the project; each user's S3 policy controls access to buckets and objects.
 
-Removing a `Storage` claim retains its buckets to avoid deleting user data.
-Operators must clean up retained buckets explicitly. S3 policy changes can
-take time to affect access, so revocation is not immediate.
+Removing a bucket from `spec.buckets`, or removing its `Storage` claim,
+requests bucket deletion. OVHcloud rejects deletion while the bucket contains
+data. S3 policy changes can take time to affect access, so revocation is not
+immediate.
