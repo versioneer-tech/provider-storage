@@ -1,20 +1,41 @@
 # Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
 # SPDX-License-Identifier: Apache-2.0
 
-# A second team selects its own project slot. The platform must authorize
-# this slot assignment before the Storage is admitted.
+# Jeff creates two buckets in project slot cloudferro-0002 and grants Joe's
+# project ReadOnly access to the shared bucket.
 apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
-  name: team-b
-  namespace: default
+  name: s-jeff
   labels:
     storages.pkg.internal/backend: cloudferro-0002
+    storages.pkg.internal/discoverable: "true"
 spec:
   crossplane:
     compositionSelector:
       matchLabels:
         provider: cloudferro-0002
-  principal: team-b
+  principal: s-jeff
+  credentialsRollover:
+    interval: weekly
+    maxToKeep: 2
   buckets:
-    - bucketName: team-b-data
+    - bucketName: s-jeff
+    - bucketName: s-jeff-shared
+      discoverable: true
+      lifecycleRules:
+        - target: tmp/*
+          mode: Delete
+          minAge: 12h
+        - target: scratch/*
+          mode: Notify
+          minAge: 1w
+  bucketAccessRequests:
+    - bucketName: s-joe
+      reason: Need access
+      requestedAt: "2025-09-29T10:10:00Z"
+  bucketAccessGrants:
+    - bucketName: s-jeff-shared
+      grantee: s-joe
+      permission: ReadOnly
+      grantedAt: "2025-09-29T10:15:00Z"

@@ -1,0 +1,25 @@
+# Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+# Jane creates no buckets in project slot cloudferro-0003 and records an
+# access request that has no cloud-side effect without an active grant.
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  name: s-jane
+  labels:
+    storages.pkg.internal/backend: cloudferro-0003
+spec:
+  crossplane:
+    compositionSelector:
+      matchLabels:
+        provider: cloudferro-0003
+  principal: s-jane
+  credentialsRollover:
+    interval: quarterly
+    maxToKeep: 5
+  buckets: []
+  bucketAccessRequests:
+    - bucketName: s-john
+      reason: Need WriteOnly access
+      requestedAt: "2025-09-29T10:20:00Z"

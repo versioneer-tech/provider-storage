@@ -17,3 +17,11 @@ metadata:
 spec:
   activate:
     - objects.kubernetes.m.crossplane.io
+---
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: ManagedResourceActivationPolicy
+metadata:
+  name: provider-aws-s3-cloudferro
+spec:
+  activate:
+    - bucketpolicies.s3.aws.m.upbound.io

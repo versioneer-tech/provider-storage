@@ -95,14 +95,14 @@ credential is a separate S3 keypair, not a separate Keystone principal. It can
 be rotated and revoked independently, but it inherits the project's access.
 The Composition does not create a consumer OpenStack user or role assignment.
 
-It will use S3 bucket policies only when a bucket owner grants access to a
+It uses S3 bucket policies only when a bucket owner grants access to a
 **different** project. Such a grant names the grantee project's `root` ARN and
 limits the actions and bucket or object resources. A pending request or `None`
 grant must not add a cross-project allow. A same-project grant cannot promise
-user-level `ReadOnly`, `WriteOnly`, or `None` access. An S3-capable adapter must
-manage bucket policies because `ContainerV1` does not expose them.
-Until that adapter is implemented and live-tested, the Composition rejects
-an active grant instead of reporting success without changing access.
+user-level `ReadOnly`, `WriteOnly`, or `None` access. The Composition uses the
+AWS S3 provider with a CloudFerro endpoint to manage `BucketPolicy` resources
+because `ContainerV1` does not expose bucket policies. It resolves the
+grantee's project ID from the grantee Storage's numbered slot.
 
 ## Consequences
 
@@ -123,10 +123,12 @@ an active grant instead of reporting success without changing access.
   `Storage` resources, and removes only the selected Secret keys, controller
   role assignments, and managed cluster resources. It does not delete the
   shared controller user, projects, buckets, or consumer resources.
-- Removing a `Storage` retains its buckets under the current deletion policy.
-  A slot must not be reassigned to another team until retained buckets,
-  credentials, role assignments, and cross-project grants are removed and
-  their absence is verified.
+- Removing a bucket from `spec.buckets`, or removing its `Storage`, requests
+  bucket deletion under the default Crossplane management policy. The
+  Composition does not force deletion of objects in a non-empty bucket. A slot
+  must not be reassigned to another team until buckets, credentials, role
+  assignments, and cross-project grants are removed and their absence is
+  verified.
 
 ## Implementation checks
 

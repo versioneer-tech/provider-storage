@@ -260,6 +260,6 @@ cluster resources. It uses the same project-name pattern and leaves the shared
 controller user, local identity file, and pre-existing projects intact.
 
 The first live Composition run must prove that the controller can create an
-EC2 credential for itself in the selected project. Active cross-project
-grants are rejected until a Ceph S3 bucket-policy adapter is implemented and
-verified.
+EC2 credential for itself in the selected project. A cross-project test must
+also verify the AWS S3 `BucketPolicy` adapter with owner and grantee Storages
+in different numbered slots.

@@ -166,7 +166,7 @@ validate_cloudferro_composition() {
   local input="${REPO_ROOT}/cloudferro/tests/fixtures/001-buckets.yaml"
   local composition="${REPO_ROOT}/cloudferro/composition.yaml"
   local functions="${REPO_ROOT}/cloudferro/dependencies/functions.yaml"
-  local environment="${REPO_ROOT}/cloudferro/tests/required/environment.yaml"
+  local required="${REPO_ROOT}/cloudferro/tests/required/001x-buckets.yaml"
   local observed="${REPO_ROOT}/cloudferro/tests/observed"
   local base="${TMP_DIR}/cloudferro-base.yaml"
   local credential="${TMP_DIR}/cloudferro-credential.yaml"
@@ -177,51 +177,53 @@ validate_cloudferro_composition() {
 
   printf 'Validate CloudFerro project slot, resource ordering, and consumer Secret\n'
   crossplane render "${input}" "${composition}" "${functions}" \
-    --required-resources "${environment}" -x >"${base}"
+    --required-resources "${required}" -x >"${base}"
   grep -Fq 'kind: ContainerV1' "${base}"
   grep -Fq 'kind: EC2CredentialV3' "${base}"
   grep -Fq "userId: ${expected_user_id}" "${base}"
   ! grep -Fq 'kind: UserV3' "${base}"
   ! grep -Fq 'kind: RoleAssignmentV3' "${base}"
-  grep -Fq 'kind: CronJob' "${base}"
-  grep -Fq 'kind: ConfigMap' "${base}"
+  ! grep -Fq 'kind: CronJob' "${base}"
+  ! grep -Fq 'kind: ConfigMap' "${base}"
   grep -Fq 'name: cloudferro-0001' "${base}"
-  grep -Fq 'managementPolicies:' "${base}"
+  grep -Fq 'kind: BucketPolicy' "${base}"
+  grep -Fq 'arn:aws:iam::fedcba9876543210fedcba9876543210:root' "${base}"
+  ! grep -Fq 'managementPolicies:' "${base}"
   ! grep -Fq 'AWS_SECRET_ACCESS_KEY' "${base}"
   validate_schemas cloudferro "${base}"
 
   crossplane render "${input}" "${composition}" "${functions}" \
-    --required-resources "${environment}" \
+    --required-resources "${required}" \
     --observed-resources "${observed}/credential-ready.yaml" -x >"${credential}"
   grep -Fq 'AWS_ACCESS_KEY_ID: RVhBTVBMRUFDQ0VTU0tFWQ==' "${credential}"
   grep -Fq 'AWS_SECRET_ACCESS_KEY: RVhBTVBMRVNFQ1JFVEtFWQ==' "${credential}"
   grep -Fq 'AWS_REGION: UmVnaW9uT25l' "${credential}"
-  grep -Fq 'RCLONE_CONFIG_STORAGE_REGION' "${credential}"
-  grep -Fq 'value: RegionOne' "${credential}"
+  grep -Fq 'kind: ProviderConfig' "${credential}"
+  grep -Fq 'name: cloudferro-s3-s-joe' "${credential}"
+  grep -Fq 'name: aws-provider-secret-s-joe' "${credential}"
+  grep -Fq 'name: usage-aws-provider-s-joe' "${credential}"
+  grep -Fq 'name: usage-bucketpolicy-s-joe' "${credential}"
+  grep -Fq 'name: usage-credential-bucketpolicy-s-joe' "${credential}"
   validate_schemas cloudferro "${credential}"
 
   sed 's/cloudferro-0001/cloudferro-0002/g' "${composition}" >"${TMP_DIR}/cloudferro-slot-0002-composition.yaml"
-  sed 's/cloudferro-0001/cloudferro-0002/g' "${environment}" >"${TMP_DIR}/cloudferro-slot-0002-environment.yaml"
   crossplane render "${REPO_ROOT}/cloudferro/tests/fixtures/002-buckets.yaml" \
     "${TMP_DIR}/cloudferro-slot-0002-composition.yaml" "${functions}" \
-    --required-resources "${TMP_DIR}/cloudferro-slot-0002-environment.yaml" \
+    --required-resources "${REPO_ROOT}/cloudferro/tests/required/002x-buckets.yaml" \
     -x >"${second}"
   grep -Fq 'name: cloudferro-0002' "${second}"
   ! grep -Fq 'name: cloudferro-0001' "${second}"
+  grep -Fq 'kind: CronJob' "${second}"
+  grep -Fq 'kind: ConfigMap' "${second}"
+  grep -Fq 'RCLONE_CONFIG_STORAGE_REGION' "${second}"
+  grep -Fq 'value: RegionOne' "${second}"
+  grep -Fq 'arn:aws:iam::0123456789abcdef0123456789abcdef:root' "${second}"
   validate_schemas cloudferro "${second}"
-
-  if crossplane render "${REPO_ROOT}/examples/base/001-buckets.yaml" \
-    "${composition}" "${functions}" --required-resources "${environment}" \
-    -x >"${denied}" 2>&1; then
-    printf 'CloudFerro accepted an active grant without an S3 policy adapter.\n' >&2
-    return 1
-  fi
-  grep -Fq 'no grant was applied' "${denied}"
 
   sed 's/storages.pkg.internal\/backend: cloudferro-0001/storages.pkg.internal\/backend: cloudferro-0002/' \
     "${input}" >"${wrong_label}"
   if crossplane render "${wrong_label}" "${composition}" "${functions}" \
-    --required-resources "${environment}" -x >"${denied}" 2>&1; then
+    --required-resources "${required}" -x >"${denied}" 2>&1; then
     printf 'CloudFerro accepted a backend label that disagrees with its slot selector.\n' >&2
     return 1
   fi

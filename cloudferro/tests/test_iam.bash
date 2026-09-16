@@ -19,6 +19,9 @@ slot_two_project_id=fedcba9876543210fedcba9876543210
 unmatched_project_id=00112233445566778899aabbccddeeff
 domain_id=1234567890abcdef1234567890abcdef
 controller_user_id=abcdef0123456789abcdef0123456789
+created_controller_user_id=778899aabbccddeeff00112233445566
+member_role_id=8899aabbccddeeff0011223344556677
+other_role_id=99aabbccddeeff001122334455667788
 login_project_id=11223344556677889900aabbccddeeff
 other_user_id=ffeeddccbbaa00998877665544332211
 wrong_project_id=deadbeef00112233445566778899aabb
@@ -38,6 +41,9 @@ slot_one_project_id = os.environ["TEST_SLOT_ONE_PROJECT_ID"]
 slot_two_project_id = os.environ["TEST_SLOT_TWO_PROJECT_ID"]
 domain_id = os.environ["TEST_DOMAIN_ID"]
 controller_user_id = os.environ["TEST_CONTROLLER_USER_ID"]
+created_controller_user_id = os.environ["TEST_CREATED_CONTROLLER_USER_ID"]
+member_role_id = os.environ["TEST_MEMBER_ROLE_ID"]
+other_role_id = os.environ["TEST_OTHER_ROLE_ID"]
 login_project_id = os.environ["TEST_LOGIN_PROJECT_ID"]
 arguments = sys.argv[1:]
 command = pathlib.Path(sys.argv[0]).name
@@ -115,7 +121,7 @@ if command == "openstack":
             users = load("users.json", {})
             if any(item["name"] == name for item in users.values()):
                 sys.exit(30)
-            user_id = "a" * 32
+            user_id = created_controller_user_id
             item = {"id": user_id, "name": name, "domain_id": domain_id,
                     "default_project_id": None,
                     "description": arguments[arguments.index("--description") + 1],
@@ -137,7 +143,7 @@ if command == "openstack":
         elif "role" in words and "show" in words:
             if os.environ.get("TEST_DENY_ROLE_LOOKUP"):
                 sys.exit(27)
-            emit({"id": ("d" if "member" in words else "e") * 32})
+            emit({"id": member_role_id if "member" in words else other_role_id})
         elif "role" in words and "assignment" in words and "list" in words:
             role = arguments[arguments.index("--role") + 1]
             project = arguments[arguments.index("--project") + 1]
@@ -253,6 +259,9 @@ run_iam() {
   TEST_SLOT_TWO_PROJECT_ID="$slot_two_project_id" \
   TEST_DOMAIN_ID="$domain_id" \
   TEST_CONTROLLER_USER_ID="$controller_user_id" \
+  TEST_CREATED_CONTROLLER_USER_ID="$created_controller_user_id" \
+  TEST_MEMBER_ROLE_ID="$member_role_id" \
+  TEST_OTHER_ROLE_ID="$other_role_id" \
   TEST_LOGIN_PROJECT_ID="$login_project_id" \
   TEST_WRONG_PROJECT_ID="$wrong_project_id" \
   CROSSPLANE_CLOUDFERRO_PROJECT_PATTERN="${TEST_PROJECT_PATTERN-}" \
@@ -284,6 +293,9 @@ run_current_iam() {
   TEST_SLOT_TWO_PROJECT_ID="$slot_two_project_id" \
   TEST_DOMAIN_ID="$domain_id" \
   TEST_CONTROLLER_USER_ID="$controller_user_id" \
+  TEST_CREATED_CONTROLLER_USER_ID="$created_controller_user_id" \
+  TEST_MEMBER_ROLE_ID="$member_role_id" \
+  TEST_OTHER_ROLE_ID="$other_role_id" \
   TEST_LOGIN_PROJECT_ID="$login_project_id" \
   TEST_WRONG_PROJECT_ID="$wrong_project_id" \
   TEST_TOKEN_SCOPE="$token_scope" \
@@ -340,7 +352,7 @@ done
 new_case
 run_iam apply >"$case_dir/apply.out"
 grep -Fq 'controller verified, cluster slot published' "$case_dir/apply.out"
-grep -Fq "role add --user aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa --project $slot_one_project_id member" "$case_dir/state/calls"
+grep -Fq "role add --user $created_controller_user_id --project $slot_one_project_id member" "$case_dir/state/calls"
 ! grep -Eq 'role add .* admin$' "$case_dir/state/calls"
 ! grep -Fq 'role show' "$case_dir/state/calls"
 ! grep -Fq 'role assignment list' "$case_dir/state/calls"
@@ -349,21 +361,23 @@ grep -Fq "role add --user aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa --project $slot_one_p
 jq -e '[.[] | .default_project_id] == [null]' "$case_dir/state/users.json" >/dev/null
 jq -e '.password | type == "string" and length > 0' "$case_dir/private/controller.identity.json" >/dev/null
 ! grep -Fq 'fake-private-secret' "$case_dir/apply.out"
-jq -e --arg project "$slot_one_project_id" '."providerconfig/cloudferro-0001".spec.credentials.secretRef.name == "cloudferro-provider-creds" and
+jq -e --arg project "$slot_one_project_id" --arg controller "$created_controller_user_id" '."providerconfig/cloudferro-0001".spec.credentials.secretRef.name == "cloudferro-provider-creds" and
        ."providerconfig/cloudferro-0001".spec.credentials.secretRef.key == "cloudferro-0001" and
        ."providerconfig/cloudferro-0001".metadata.annotations["storages.pkg.internal/project-name"] == "team-a-0001" and
        ."providerconfig/cloudferro-0001".metadata.annotations["storages.pkg.internal/project-id"] == $project and
-       ."providerconfig/cloudferro-0001".metadata.annotations["storages.pkg.internal/controller-user-id"] == "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" and
+       ."providerconfig/cloudferro-0001".metadata.annotations["storages.pkg.internal/controller-user-id"] == $controller and
        ."environmentconfig/storage-cloudferro-0001".data.storage.serviceName == $project and
-       ."environmentconfig/storage-cloudferro-0001".data.storage.controllerUserId == "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" and
+       ."environmentconfig/storage-cloudferro-0001".data.storage.controllerUserId == $controller and
        ."environmentconfig/storage-cloudferro-0001".data.storage.region == "WAW3-2" and
        ."environmentconfig/storage-cloudferro-0001".data.storage.s3Region == "RegionOne" and
        ."composition/storage-cloudferro-0001".metadata.labels["app.kubernetes.io/managed-by"] == "provider-storage-cloudferro-iam"' \
   "$case_dir/state/resources.json" >/dev/null
-jq -e --arg project "$slot_one_project_id" '
+jq -e --arg project "$slot_one_project_id" --arg controller "$created_controller_user_id" '
   ."secret/cloudferro-provider-creds".data["cloudferro-0001"] |
   @base64d | fromjson | .tenant_id == $project and
-  .user_id == "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" and
+  .default_domain == "" and
+  (has("user_domain_id") | not) and
+  .user_id == $controller and
   (.password | type == "string" and length > 0)
 ' "$case_dir/state/resources.json" >/dev/null
 run_iam apply >"$case_dir/reapply.out"
@@ -385,7 +399,7 @@ run_iam delete >"$case_dir/redelete.out"
 
 new_case
 TEST_PROJECT_ROLE=_member_ run_iam apply >"$case_dir/role-override.out"
-grep -Fq "role add --user aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa --project $slot_one_project_id _member_" "$case_dir/state/calls"
+grep -Fq "role add --user $created_controller_user_id --project $slot_one_project_id _member_" "$case_dir/state/calls"
 
 for failure in forbidden missing unauthorized unknown; do
   new_case
@@ -421,7 +435,9 @@ jq -e --arg project "$slot_two_project_id" '."providerconfig/cloudferro-0001" an
   "$case_dir/state/resources.json" >/dev/null
 jq -e --arg first "$slot_one_project_id" --arg second "$slot_two_project_id" '
   (."secret/cloudferro-provider-creds".data["cloudferro-0001"] | @base64d | fromjson | .tenant_id) == $first and
-  (."secret/cloudferro-provider-creds".data["cloudferro-0002"] | @base64d | fromjson | .tenant_id) == $second
+  (."secret/cloudferro-provider-creds".data["cloudferro-0002"] | @base64d | fromjson | .tenant_id) == $second and
+  (."secret/cloudferro-provider-creds".data["cloudferro-0001"] | @base64d | fromjson | .default_domain) == "" and
+  (."secret/cloudferro-provider-creds".data["cloudferro-0002"] | @base64d | fromjson | .default_domain) == ""
 ' "$case_dir/state/resources.json" >/dev/null
 [[ $(grep -c 'user create' "$case_dir/state/calls") == 1 ]]
 ! grep -Fq "project show $unmatched_project_id" "$case_dir/state/calls"
@@ -448,7 +464,7 @@ grep -Fq 'is disabled or has no enabled state' "$case_dir/foreign.out"
 
 new_case
 jq -n --arg first "$slot_one_project_id" --arg second "$slot_two_project_id" \
-  --arg domain "$domain_id" --arg foreign 00112233445566778899aabbccddeeff \
+  --arg domain "$domain_id" --arg foreign "$unmatched_project_id" \
   '[{id:$first,name:"team-a-0001",domain_id:$domain,enabled:true},
     {id:$second,name:"team-b-0002",domain_id:$foreign,enabled:true}]' \
   >"$case_dir/state/projects.json"

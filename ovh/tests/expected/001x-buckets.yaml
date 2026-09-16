@@ -53,10 +53,6 @@ spec:
     ownerId: 12345
     regionName: DE
     serviceName: "00000000000000000000000000000000"
-  managementPolicies:
-  - Observe
-  - Create
-  - LateInitialize
   providerConfigRef:
     kind: ProviderConfig
     name: provider-ovh

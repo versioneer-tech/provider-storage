@@ -1,24 +1,30 @@
 # Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
 # SPDX-License-Identifier: Apache-2.0
 
-# The operator assigns this project slot to one team. Everyone with S3 access
-# in this slot's OpenStack project can access its buckets.
+# Joe creates one discoverable bucket in project slot cloudferro-0001 and
+# grants Jeff's project ReadWrite access.
 apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
-  name: team-a
-  namespace: default
+  name: s-joe
   labels:
     storages.pkg.internal/backend: cloudferro-0001
+    storages.pkg.internal/discoverable: "true"
 spec:
   crossplane:
     compositionSelector:
       matchLabels:
         provider: cloudferro-0001
-  principal: team-a
+  principal: s-joe
   buckets:
-    - bucketName: team-a-data
-      lifecycleRules:
-        - target: tmp/*
-          mode: Delete
-          minAge: 1d
+    - bucketName: s-joe
+      discoverable: true
+  bucketAccessRequests:
+    - bucketName: s-jeff-shared
+      reason: Need access
+      requestedAt: "2025-09-29T10:00:00Z"
+  bucketAccessGrants:
+    - bucketName: s-joe
+      grantee: s-jeff
+      permission: ReadWrite
+      grantedAt: "2025-09-29T10:05:00Z"

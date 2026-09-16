@@ -92,7 +92,9 @@ configured project role in every selected project. It tests password
 authentication, project scope, and Object Storage listing. It then publishes
 one namespaced OpenStack ProviderConfig, EnvironmentConfig, and Composition
 per slot. One shared Secret contains one JSON configuration key per slot. Each
-key has the same user ID and password and a different `tenant_id`. The
+key has the same user ID and password, an empty `default_domain`, and a
+different `tenant_id`. The empty default domain prevents the OpenStack client
+from combining a domain-scoped login with `user_id` authentication. The
 ProviderConfig selects its slot key because provider-openstack reads project
 scope from the credential JSON, not from a separate ProviderConfig field.
 
@@ -125,8 +127,11 @@ namespaces. A Storage selects the slot with
 The matching Composition uses ProviderConfig `cloudferro-0001`. Keep read
 access to `cloudferro-provider-creds` limited to the provider and trusted
 operators; it carries project-admin access to every selected project. The
-Composition rejects active cross-project bucket grants until a bucket-policy
-adapter and allow/deny tests exist.
+Composition uses not only the OpenStack provider for containers and EC2
+credentials, but also the AWS S3 provider with the slot's CloudFerro endpoint
+for cross-project bucket policies. An active grant resolves the grantee
+Storage by name and reads its numbered slot EnvironmentConfig to get the
+grantee project ID.
 
 ## Remove managed access
 

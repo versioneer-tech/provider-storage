@@ -263,12 +263,13 @@ slot_binding() {
     if jq -e --arg slot "$slot" '.data[$slot] | type == "string" and length > 0' \
         <<<"$object" >/dev/null; then
       jq -e --arg slot "$slot" --arg project "$project_id" \
-        --arg url "$auth_url" --arg region "$region" --arg domain "$domain_id" \
+        --arg url "$auth_url" --arg region "$region" \
         --arg user "$user_id" --slurpfile identity "$(identity_path)" '
         .data[$slot] | @base64d | fromjson |
         .auth_url == $url and .region == $region and
         .user_id == $user and .password == $identity[0].password and
-        .user_domain_id == $domain and .tenant_id == $project
+        (has("user_domain_id") | not) and
+        .default_domain == "" and .tenant_id == $project
       ' <<<"$object" >/dev/null || die "The shared controller Secret has a different authentication binding for $slot."
     elif [[ $must_exist == true ]]; then
       die "The shared controller Secret has no configuration for $slot."
@@ -334,13 +335,12 @@ slot_openstack() (
   shift
   identity=$(identity_path)
   cd -- "$work_dir"
-  jq -n --arg project "$project_id" --arg domain "$domain_id" \
+  jq -n --arg project "$project_id" \
     --slurpfile identity "$identity" '
     {clouds:{"provider-storage-slot":{
       auth_type:"v3password", region_name:$identity[0].region,
       auth:{auth_url:$identity[0].auth_url,user_id:$identity[0].user_id,
-            password:$identity[0].password,user_domain_id:$domain,
-            project_id:$project,project_domain_id:$domain}
+            password:$identity[0].password,project_id:$project}
     }}}
   ' >"$work_dir/clouds.yaml"
   chmod 600 -- "$work_dir/clouds.yaml"
@@ -449,8 +449,8 @@ ensure_role() {
 
 publish_slot() {
   local slot=$1 project_id=$2 project_name=$3 user_id=$4 secret encoded
-  jq --arg project "$project_id" --arg domain "$domain_id" '
-    {auth_url,region,user_id,password,user_domain_id:$domain,tenant_id:$project}
+  jq --arg project "$project_id" '
+    {auth_url,region,user_id,password,default_domain:"",tenant_id:$project}
   ' "$(identity_path)" >"$work_dir/config.json"
   encoded=$(base64 -w0 "$work_dir/config.json")
   secret=$(kube get secret cloudferro-provider-creds --ignore-not-found -o json 2>/dev/null) || die 'Could not inspect the shared controller Secret.'

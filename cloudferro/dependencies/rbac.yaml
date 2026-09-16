@@ -24,6 +24,11 @@ rules:
   - cronjobs
   - jobs
   verbs: [get, list, watch, create, update, patch, delete]
+- apiGroups:
+  - aws.m.upbound.io
+  resources:
+  - providerconfigs
+  verbs: [get, list, watch, create, update, patch, delete]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding

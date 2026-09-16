@@ -191,7 +191,7 @@ spec:
                       "regionName": region_name,
                       "ownerId": numeric_owner,
                       "hideObjects": True,
-                  }, managementPolicies=["Observe", "Create", "LateInitialize"])
+                  })
 
               requested = sorted({(item.get("bucketName") or "").strip()
                                   for item in (spec.get("bucketAccessRequests") or [])

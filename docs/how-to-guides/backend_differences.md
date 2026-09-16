@@ -13,7 +13,7 @@ available implementations.
 | AWS | S3 `Bucket` | IAM `User` and `AccessKey` | IAM `Policy` resources linked to the user by `UserPolicyAttachment`. |
 | OTC | OBS `Bucket` | IAM `UserV3` and `CredentialV3` | One OBS `BucketPolicy` per bucket, with user IDs in `Principal`. |
 | OVHcloud | Regional S3 `ProjectStorage` | Project `User` and `S3Credentials` | One consolidated `S3Policy` document per user, linked by `userIdRef`. |
-| CloudFerro | Project-scoped OpenStack `ContainerV1` | One shared Keystone controller user with one `EC2CredentialV3` per Storage generation | The project owns access. Ceph S3 bucket policies share with another project, using its `root` ARN; active grants are not offered by the initial Composition. |
+| CloudFerro | Project-scoped OpenStack `ContainerV1` | One shared Keystone controller user with one `EC2CredentialV3` per Storage generation | The project owns access. An AWS S3 `BucketPolicy` uses the CloudFerro endpoint to share with another project's `root` ARN. |
 
 ### MinIO
 
@@ -46,8 +46,11 @@ available implementations.
 ### OVHcloud
 
 - **Bucket:** The Composition creates a regional S3-compatible
-  `ProjectStorage` bucket. It uses a separate, stable project `User` as the
-  bucket owner.
+  `ProjectStorage` bucket.
+- **Owner:** It creates a separate, stable project `User` without
+  `S3Credentials` or an `S3Policy`. This user owns the buckets and keeps their
+  owner ID unchanged when consumer credentials rotate or a credential user is
+  replaced.
 - **Identity and credential:** It creates a project `User` and `S3Credentials`
   for each retained credential generation.
 - **Access rule:** It creates one `S3Policy` per generation user. The policy
@@ -67,10 +70,14 @@ available implementations.
 - **Identity and credential:** One controller user receives the configured
   member role in every managed project. The Composition creates retained EC2
   credential generations for that user in the selected project.
-- **Access rule:** Users in one project can access its containers. A bucket
-  policy can share with another project's `root` ARN, but not isolate users in
-  the owner project. The initial Composition rejects active grants until this
-  policy path is implemented and tested. See the
+- **Access rule:** Users in one project can access its containers. For an
+  active grant, the Composition resolves the grantee Storage's project slot
+  and creates an AWS S3 `BucketPolicy` against the CloudFerro endpoint. The
+  policy grants the grantee project's `root` ARN. It cannot isolate users in
+  the owner project. Usage resources keep the EC2 credential, AWS provider
+  configuration, and AWS provider credential Secret until each bucket policy
+  is deleted.
+  See the
   [bucket-sharing guide](https://docs.cloudferro.com/en/latest/s3/Bucket-sharing-using-s3-bucket-policy-on-CloudFerro-Cloud.html).
 
 MinIO and OVHcloud both place consumer access on the user. MinIO users list
@@ -93,7 +100,7 @@ owner's grant selects `ReadOnly`, `WriteOnly`, `ReadWrite`, or `None`. The
 | AWS | The request creates no `UserPolicyAttachment` for the target bucket. | The owner creates an IAM grant `Policy`; the requester attaches it to each retained IAM `User`. | The requester has no attachment. With `None`, the owner's grant policy has no allow statements. |
 | OTC | The request field does not change the generated policy. | The owner's grant adds allow statements for the observed grantee ID to the bucket's `BucketPolicy`, even if the grantee did not record a request. | The bucket policy has no allow statements for that grantee. `None` does not add an explicit deny. |
 | OVHcloud | Each retained requester's `S3Policy` gets an explicit deny for the requested bucket. | The policy replaces that deny with allow statements for the granted actions. | While the request remains, the policy contains an explicit deny for that bucket. |
-| CloudFerro | The request has no cloud-side effect. | The initial Composition rejects an active grant; sharing needs a project-root bucket policy adapter. | `None` adds no cross-project allow, but does not restrict a user who is already in the owner's project. |
+| CloudFerro | The request has no cloud-side effect. | The owner adds allow statements for the grantee project's `root` ARN to the bucket policy. | `None` or grant removal adds no cross-project allow. If no active grants remain, the bucket policy is removed. This does not restrict a user who is already in the owner's project. |
 
 For the owner-label requirement and the distinction between bucket visibility
 and access, see [Discoverable Buckets](permissions.md#discoverable-buckets).
@@ -125,6 +132,7 @@ reconciled automatically. The policy updated within about a minute, but a read
 shortly after it synced still succeeded. Other grant levels, credential
 rotation, lifecycle, and teardown still need live tests.
 
-The OVHcloud Composition omits the managed `Delete` action from buckets to
-avoid deleting user data when a `Storage` claim is removed. Clean up retained
-test buckets explicitly.
+All bucket resources use the default Crossplane management policy. Removing a
+bucket from `spec.buckets`, or removing its `Storage` claim, requests bucket
+deletion. A backend can reject the request while the bucket contains data; the
+Compositions do not force removal of its objects.

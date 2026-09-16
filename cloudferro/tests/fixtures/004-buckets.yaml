@@ -1,0 +1,38 @@
+# Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+# John creates one bucket in project slot cloudferro-0004 and grants Jane's
+# project ReadWrite access.
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  name: s-john
+  labels:
+    storages.pkg.internal/backend: cloudferro-0004
+    storages.pkg.internal/discoverable: "true"
+spec:
+  crossplane:
+    compositionSelector:
+      matchLabels:
+        provider: cloudferro-0004
+  principal: s-john
+  credentialsRollover:
+    interval: daily
+  buckets:
+    - bucketName: s-john
+      discoverable: true
+  bucketAccessRequests:
+    - bucketName: s-joe
+      reason: Need access
+      requestedAt: "2025-09-29T10:25:00Z"
+    - bucketName: s-jeff
+      reason: Need access
+      requestedAt: "2025-09-29T10:26:00Z"
+    - bucketName: s-jane
+      reason: Need access
+      requestedAt: "2025-09-29T10:27:00Z"
+  bucketAccessGrants:
+    - bucketName: s-john
+      grantee: s-jane
+      permission: ReadWrite
+      grantedAt: "2025-09-29T10:28:00Z"

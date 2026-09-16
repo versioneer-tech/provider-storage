@@ -97,10 +97,12 @@ The script lists its exact project actions in `status`. The CLI does not
 expose the IAM action-reference endpoint. Review these actions before
 `apply`. The script checks the policy scope and actions on each later run.
 The policy includes bucket deletion and object reads for managed-resource
-cleanup. The Composition omits the `Delete` management action for buckets, so
-removing a `Storage` claim retains its buckets. If `status` reports
-`needs action update`, run `apply` to repair the managed policy without
-replacing the controller identity or local credential file.
+cleanup. The Composition uses the default Crossplane management policy for
+buckets. Removing a bucket from `spec.buckets`, or removing its `Storage`
+claim, requests deletion. OVHcloud rejects deletion while the bucket contains
+data. If `status` reports `needs action update`, run `apply` to repair the
+managed policy without replacing the controller identity or local credential
+file.
 
 `verify` uses the controller credential file to test access to the selected
 project. The service account is an account identity with a policy scoped to
