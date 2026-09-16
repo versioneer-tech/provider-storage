@@ -18,7 +18,7 @@ slot_one_project_id=0123456789abcdef0123456789abcdef
 slot_two_project_id=fedcba9876543210fedcba9876543210
 unmatched_project_id=00112233445566778899aabbccddeeff
 domain_id=1234567890abcdef1234567890abcdef
-controller_user_id=abcdef0123456789abcdef0123456789
+bootstrap_user_id=abcdef0123456789abcdef0123456789
 created_controller_user_id=778899aabbccddeeff00112233445566
 member_role_id=8899aabbccddeeff0011223344556677
 other_role_id=99aabbccddeeff001122334455667788
@@ -40,7 +40,7 @@ state_dir = pathlib.Path(os.environ["TEST_STATE_DIR"])
 slot_one_project_id = os.environ["TEST_SLOT_ONE_PROJECT_ID"]
 slot_two_project_id = os.environ["TEST_SLOT_TWO_PROJECT_ID"]
 domain_id = os.environ["TEST_DOMAIN_ID"]
-controller_user_id = os.environ["TEST_CONTROLLER_USER_ID"]
+bootstrap_user_id = os.environ["TEST_BOOTSTRAP_USER_ID"]
 created_controller_user_id = os.environ["TEST_CREATED_CONTROLLER_USER_ID"]
 member_role_id = os.environ["TEST_MEMBER_ROLE_ID"]
 other_role_id = os.environ["TEST_OTHER_ROLE_ID"]
@@ -69,7 +69,7 @@ if command == "openstack":
         assert "OS_PROJECT_NAME" not in os.environ
     if profile == "admin":
         if "token" in words and "issue" in words:
-            token = {"user_id": os.environ.get("TEST_ACTIVE_USER_ID", controller_user_id)}
+            token = {"user_id": os.environ.get("TEST_ACTIVE_USER_ID", bootstrap_user_id)}
             if os.environ.get("TEST_TOKEN_SCOPE") == "domain" and not project_id:
                 token["domain_id"] = domain_id
             else:
@@ -258,7 +258,7 @@ run_iam() {
   TEST_SLOT_ONE_PROJECT_ID="$slot_one_project_id" \
   TEST_SLOT_TWO_PROJECT_ID="$slot_two_project_id" \
   TEST_DOMAIN_ID="$domain_id" \
-  TEST_CONTROLLER_USER_ID="$controller_user_id" \
+  TEST_BOOTSTRAP_USER_ID="$bootstrap_user_id" \
   TEST_CREATED_CONTROLLER_USER_ID="$created_controller_user_id" \
   TEST_MEMBER_ROLE_ID="$member_role_id" \
   TEST_OTHER_ROLE_ID="$other_role_id" \
@@ -292,7 +292,7 @@ run_current_iam() {
   TEST_SLOT_ONE_PROJECT_ID="$slot_one_project_id" \
   TEST_SLOT_TWO_PROJECT_ID="$slot_two_project_id" \
   TEST_DOMAIN_ID="$domain_id" \
-  TEST_CONTROLLER_USER_ID="$controller_user_id" \
+  TEST_BOOTSTRAP_USER_ID="$bootstrap_user_id" \
   TEST_CREATED_CONTROLLER_USER_ID="$created_controller_user_id" \
   TEST_MEMBER_ROLE_ID="$member_role_id" \
   TEST_OTHER_ROLE_ID="$other_role_id" \
@@ -508,7 +508,7 @@ grep -Fq 'scoped to a different project' "$case_dir/wrong-project.out"
 
 new_case
 run_current_iam check-login >"$case_dir/login.out"
-grep -Fq "user_id=$controller_user_id project_id=$login_project_id" "$case_dir/login.out"
+grep -Fq "user_id=$bootstrap_user_id project_id=$login_project_id" "$case_dir/login.out"
 grep -Fq 'Project listing: available.' "$case_dir/login.out"
 ! grep -Fq 'fake-current-token' "$case_dir/login.out"
 ! grep -Eq 'project create|role add|application credential create|kubectl .* apply' "$case_dir/state/calls"
@@ -519,7 +519,7 @@ run_current_iam verify >"$case_dir/current-verify.out"
 
 new_case
 TEST_TOKEN_SCOPE=domain run_current_iam check-login >"$case_dir/domain-login.out"
-grep -Fq "user_id=$controller_user_id domain_id=$domain_id" "$case_dir/domain-login.out"
+grep -Fq "user_id=$bootstrap_user_id domain_id=$domain_id" "$case_dir/domain-login.out"
 ! grep -Fq 'project_id=' "$case_dir/domain-login.out"
 grep -Fq 'Project listing: available.' "$case_dir/domain-login.out"
 ! grep -Fq 'fake-current-token' "$case_dir/domain-login.out"
