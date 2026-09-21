@@ -12,7 +12,7 @@ else
 fi
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "${TMP_DIR}"' EXIT
-: "${CROSSPLANE_VERSION:=v2.0.2}"
+: "${CROSSPLANE_VERSION:=v2.4.1}"
 
 require_command() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -89,6 +89,7 @@ validate_aws_iam_policy() {
       . != "iam:GetUser") and
     any(.Statement[];
       .Sid == "ManageUsersAndAccessKeys" and
+      any(.Action[]; . == "iam:ListGroupsForUser") and
       .Resource == "__MANAGED_USER_ARN_PATTERN__") and
     any(.Statement[];
       .Sid == "ManagePolicies" and
@@ -121,6 +122,23 @@ validate_aws_secret_readiness() {
   awk 'NR == 1 { next } /^---$/ { exit } { print }' \
     "${rendered}" >"${composite}"
   dyff between "${composite}" "${scenario}/expected.yaml" -s
+  validate_schemas aws "${rendered}"
+}
+
+validate_aws_none_grant() {
+  local input="${TMP_DIR}/aws-none-grant-input.yaml"
+  local rendered="${TMP_DIR}/aws-none-grant.yaml"
+
+  printf 'Validate AWS None grant policy omission\n'
+  sed 's/permission: ReadWrite/permission: None/' \
+    "${REPO_ROOT}/examples/base/001-buckets.yaml" >"${input}"
+  crossplane render \
+    "${input}" \
+    "${REPO_ROOT}/aws/composition.yaml" \
+    "${REPO_ROOT}/aws/dependencies/functions.yaml" \
+    -x >"${rendered}"
+  ! grep -Fq 'name: provider-storage.s-jeff.s-joe' "${rendered}"
+  ! grep -Fq '"Statement": []' "${rendered}"
   validate_schemas aws "${rendered}"
 }
 
@@ -454,6 +472,7 @@ main() {
     run_backend "${backend}"
     if [[ "${backend}" == "aws" ]]; then
       validate_aws_secret_readiness
+      validate_aws_none_grant
     fi
     if [[ "${backend}" == "ovh" ]]; then
       validate_ovh_secret_readiness

@@ -17,6 +17,7 @@
         "iam:TagUser",
         "iam:UntagUser",
         "iam:ListUserTags",
+        "iam:ListGroupsForUser",
         "iam:CreateAccessKey",
         "iam:DeleteAccessKey",
         "iam:ListAccessKeys",

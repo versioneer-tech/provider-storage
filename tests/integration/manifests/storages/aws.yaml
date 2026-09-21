@@ -19,11 +19,19 @@ spec:
       discoverable: true
     - bucketName: __AWS_BUCKET_B__
       discoverable: true
+    - bucketName: __AWS_BUCKET_C__
+      discoverable: true
+    - bucketName: __AWS_BUCKET_D__
+      discoverable: true
   bucketAccessGrants:
     - bucketName: __AWS_BUCKET_B__
       grantee: provider-storage-aws-it2
       permission: ReadOnly
       grantedAt: "2026-01-01T00:00:00Z"
+    - bucketName: __AWS_BUCKET_C__
+      grantee: provider-storage-aws-it2
+      permission: None
+      grantedAt: "2026-01-01T00:00:01Z"
   crossplane:
     compositionSelector:
       matchLabels:
@@ -49,6 +57,12 @@ spec:
     - bucketName: __AWS_BUCKET_B__
       reason: Integration ReadOnly check
       requestedAt: "2026-01-01T00:00:00Z"
+    - bucketName: __AWS_BUCKET_C__
+      reason: Integration denied ReadWrite check
+      requestedAt: "2026-01-01T00:00:01Z"
+    - bucketName: __AWS_BUCKET_D__
+      reason: Integration pending ReadOnly check
+      requestedAt: "2026-01-01T00:00:02Z"
   crossplane:
     compositionSelector:
       matchLabels:

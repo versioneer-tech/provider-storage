@@ -23,11 +23,19 @@ spec:
           minAge: 30s
     - bucketName: minio-default-it-b
       discoverable: true
+    - bucketName: minio-default-it-c
+      discoverable: true
+    - bucketName: minio-default-it-d
+      discoverable: true
   bucketAccessGrants:
     - bucketName: minio-default-it-b
       grantee: provider-storage-minio-it2
       permission: ReadOnly
       grantedAt: "2026-01-01T00:00:00Z"
+    - bucketName: minio-default-it-c
+      grantee: provider-storage-minio-it2
+      permission: None
+      grantedAt: "2026-01-01T00:00:01Z"
   crossplane:
     compositionSelector:
       matchLabels:
@@ -53,6 +61,12 @@ spec:
     - bucketName: minio-default-it-b
       reason: Integration ReadOnly check
       requestedAt: "2026-01-01T00:00:00Z"
+    - bucketName: minio-default-it-c
+      reason: Integration denied ReadWrite check
+      requestedAt: "2026-01-01T00:00:01Z"
+    - bucketName: minio-default-it-d
+      reason: Integration pending ReadOnly check
+      requestedAt: "2026-01-01T00:00:02Z"
   crossplane:
     compositionSelector:
       matchLabels:

@@ -200,6 +200,8 @@ spec:
                   if not bucket or not grantee or not perm:
                       continue
                   policy_doc = _policy_for(bucket, perm)
+                  if not policy_doc["Statement"]:
+                      continue
                   pname = f"provider-storage.{grantee}.{bucket}"
                   key = f"policy-{grantee}-{bucket}"
                   rsp.desired.resources[key].resource.update({

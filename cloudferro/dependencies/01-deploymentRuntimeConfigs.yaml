@@ -22,6 +22,8 @@ spec:
         spec:
           containers:
           - name: package-runtime
+            args:
+            - --poll=1m
             resources:
               requests:
                 cpu: 100m
@@ -52,6 +54,8 @@ spec:
           serviceAccountName: provider-kubernetes
           containers:
           - name: package-runtime
+            args:
+            - --poll=1m
             resources:
               requests:
                 cpu: 100m
@@ -81,6 +85,8 @@ spec:
         spec:
           containers:
           - name: package-runtime
+            args:
+            - --poll=1m
             resources:
               requests:
                 cpu: 100m

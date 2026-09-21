@@ -25,7 +25,7 @@ spec:
 status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: bucket-s-joe, policy-s-joe, secret-s-joe, and 1 more'
+    message: 'Unready resources: bucket-s-joe, policy-s-joe-u23456, and secret-s-joe'
     reason: Creating
     status: "False"
     type: Ready
@@ -61,10 +61,10 @@ apiVersion: cloud.ovh.m.edixos.io/v1alpha1
 kind: S3Credentials
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: credentials-s-joe
+    crossplane.io/composition-resource-name: credentials-s-joe-u23456
   labels:
     crossplane.io/composite: s-joe
-  name: s-joe
+  name: s-joe-u23456
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -76,22 +76,21 @@ metadata:
 spec:
   forProvider:
     serviceName: "00000000000000000000000000000000"
-    userIdRef:
-      name: s-joe
+    userId: "23456"
   providerConfigRef:
     kind: ProviderConfig
     name: provider-ovh
   writeConnectionSecretToRef:
-    name: s-joe-credentials
+    name: s-joe-u23456-credentials
 ---
 apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: observe-secret-s-joe
+    crossplane.io/composition-resource-name: observe-secret-s-joe-u23456
   labels:
     crossplane.io/composite: s-joe
-  name: observe-secret-s-joe
+  name: observe-secret-s-joe-u23456
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -106,7 +105,7 @@ spec:
       apiVersion: v1
       kind: Secret
       metadata:
-        name: s-joe-credentials
+        name: s-joe-u23456-credentials
         namespace: default
   managementPolicies:
   - Observe
@@ -149,10 +148,10 @@ apiVersion: cloud.ovh.m.edixos.io/v1alpha1
 kind: S3Policy
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: policy-s-joe
+    crossplane.io/composition-resource-name: policy-s-joe-u23456
   labels:
     crossplane.io/composite: s-joe
-  name: s-joe
+  name: s-joe-u23456
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -163,10 +162,9 @@ metadata:
     uid: ""
 spec:
   forProvider:
-    policy: '{"Statement":[{"Action":["s3:ListAllMyBuckets"],"Effect":"Deny","Resource":["*"]},{"Action":["s3:GetBucketLocation","s3:ListBucket","s3:ListBucketMultipartUploads"],"Effect":"Allow","Resource":["arn:aws:s3:::s-joe"]},{"Action":["s3:AbortMultipartUpload","s3:DeleteObject","s3:GetObject","s3:ListMultipartUploadParts","s3:PutObject"],"Effect":"Allow","Resource":["arn:aws:s3:::s-joe/*"]},{"Action":["s3:GetBucketLocation","s3:ListBucket","s3:ListBucketMultipartUploads"],"Effect":"Allow","Resource":["arn:aws:s3:::s-jeff-shared"]},{"Action":["s3:GetObject","s3:ListMultipartUploadParts"],"Effect":"Allow","Resource":["arn:aws:s3:::s-jeff-shared/*"]}]}'
+    policy: '{"Statement":[{"Action":["s3:ListAllMyBuckets"],"Effect":"Deny","Resource":["*"]},{"Action":["s3:AbortMultipartUpload","s3:DeleteObject","s3:GetBucketAcl","s3:GetBucketLocation","s3:GetObject","s3:GetObjectAcl","s3:GetObjectAttributes","s3:ListBucket","s3:ListBucketMultipartUploads","s3:ListMultipartUploadParts","s3:PutObject"],"Effect":"Allow","Resource":["arn:aws:s3:::s-joe","arn:aws:s3:::s-joe/*"]},{"Action":["s3:GetBucketAcl","s3:GetBucketLocation","s3:GetObject","s3:GetObjectAcl","s3:GetObjectAttributes","s3:ListBucket","s3:ListBucketMultipartUploads","s3:ListMultipartUploadParts"],"Effect":"Allow","Resource":["arn:aws:s3:::s-jeff-shared","arn:aws:s3:::s-jeff-shared/*"]}]}'
     serviceName: "00000000000000000000000000000000"
-    userIdRef:
-      name: s-joe
+    userId: "23456"
   providerConfigRef:
     kind: ProviderConfig
     name: provider-ovh

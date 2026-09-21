@@ -48,20 +48,30 @@ second_bucket_name() {
 bucket_names() {
   case "$1" in
     minio)
-      printf '%s\n' minio-default-it-a minio-default-it-b
+      printf '%s\n' \
+        minio-default-it-a \
+        minio-default-it-b \
+        minio-default-it-c \
+        minio-default-it-d
       ;;
     aws)
-      printf '%s-it-a\n%s-it-b\n' "$(aws_resource_prefix)" "$(aws_resource_prefix)"
+      printf '%s-it-a\n%s-it-b\n%s-it-c\n%s-it-d\n' \
+        "$(aws_resource_prefix)" "$(aws_resource_prefix)" \
+        "$(aws_resource_prefix)" "$(aws_resource_prefix)"
       ;;
     otc)
-      printf '%s-it-a\n%s-it-b\n' "$(otc_resource_prefix)" "$(otc_resource_prefix)"
+      printf '%s-it-a\n%s-it-b\n%s-it-c\n%s-it-d\n' \
+        "$(otc_resource_prefix)" "$(otc_resource_prefix)" \
+        "$(otc_resource_prefix)" "$(otc_resource_prefix)"
       ;;
     ovh)
-      printf 'ovh-%s-it-a\novh-%s-it-b\n' \
+      printf 'ovh-%s-it-a\novh-%s-it-b\novh-%s-it-c\novh-%s-it-d\n' \
+        "$(ovh_project_prefix)" "$(ovh_project_prefix)" \
         "$(ovh_project_prefix)" "$(ovh_project_prefix)"
       ;;
     cloudferro)
-      printf 'cloudferro-%s-it-a\ncloudferro-%s-it-b\n' \
+      printf 'cloudferro-%s-it-a\ncloudferro-%s-it-b\ncloudferro-%s-it-c\ncloudferro-%s-it-d\n' \
+        "$(cloudferro_project_prefix)" "$(cloudferro_project_prefix)" \
         "$(cloudferro_project_prefix)" "$(cloudferro_project_prefix)"
       ;;
   esac
@@ -71,7 +81,28 @@ rclone_provider() {
   case "$1" in
     minio) printf 'Minio\n' ;;
     aws) printf 'AWS\n' ;;
-    otc|ovh|cloudferro) printf 'Other\n' ;;
+    ovh) printf 'OVHcloud\n' ;;
+    otc|cloudferro) printf 'Other\n' ;;
+  esac
+}
+
+validate_backend_configuration() {
+  case "$1" in
+    minio)
+      ;;
+    aws)
+      aws_resource_prefix >/dev/null
+      ;;
+    otc)
+      otc_resource_prefix >/dev/null
+      ;;
+    ovh)
+      ovh_project_prefix >/dev/null
+      ;;
+    cloudferro)
+      cloudferro_project_prefix >/dev/null
+      cloudferro_project_prefix "$(cloudferro_it2_slot)" >/dev/null
+      ;;
   esac
 }
 
@@ -186,11 +217,24 @@ verify_readonly_access() {
     "${owner}" "${bucket}" "${provider}"
 }
 
+verify_no_access() {
+  local backend="$1" scenario="$2" owner="$3" principal="$4" bucket="$5"
+  local provider="$6"
+  log "Verifying ${backend} no access to ${bucket}"
+  apply_readonly_job "storage-${backend}-${scenario}-seed" seed \
+    "${owner}" "${bucket}" "${provider}"
+  apply_readonly_job "storage-${backend}-${scenario}-verify" deny \
+    "${principal}" "${bucket}" "${provider}"
+  apply_readonly_job "storage-${backend}-${scenario}-cleanup" cleanup \
+    "${owner}" "${bucket}" "${provider}"
+}
+
 verify_backend() {
   local backend="$1"
   local storage principal second_storage second_principal second_bucket
   local bucket provider job
   local -a owned_buckets
+  validate_backend_configuration "${backend}"
   storage="$(storage_name "${backend}")"
   principal="$(principal_name "${backend}")"
   second_storage="$(storage_name "${backend}" 2)"
@@ -209,8 +253,14 @@ verify_backend() {
   verify_storage_ready "${second_storage}" "${second_principal}"
   verify_bucket_roundtrip "${second_storage}-roundtrip" \
     "${second_principal}" "${second_bucket}" "${provider}"
+  verify_no_access "${backend}" ungranted "${principal}" "${second_principal}" \
+    "${owned_buckets[0]}" "${provider}"
   verify_readonly_access "${backend}" "${principal}" "${second_principal}" \
     "${owned_buckets[1]}" "${provider}"
+  verify_no_access "${backend}" denied "${principal}" "${second_principal}" \
+    "${owned_buckets[2]}" "${provider}"
+  verify_no_access "${backend}" pending "${principal}" "${second_principal}" \
+    "${owned_buckets[3]}" "${provider}"
 }
 
 apply_lifecycle_job() {

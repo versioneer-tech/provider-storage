@@ -36,65 +36,11 @@ spec:
 status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: credentials-s-jeff-2026w36, credentials-s-jeff-2026w37,
-      lifecycle-config-s-jeff, and 7 more'
+    message: 'Unready resources: lifecycle-config-s-jeff, lifecycle-cron-s-jeff, owner-s-jeff,
+      and 2 more'
     reason: Creating
     status: "False"
     type: Ready
----
-apiVersion: cloud.ovh.m.edixos.io/v1alpha1
-kind: S3Credentials
-metadata:
-  annotations:
-    crossplane.io/composition-resource-name: credentials-s-jeff-2026w36
-  labels:
-    crossplane.io/composite: s-jeff
-  name: s-jeff-2026w36
-  namespace: default
-  ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-jeff
-    uid: ""
-spec:
-  forProvider:
-    serviceName: "00000000000000000000000000000000"
-    userIdRef:
-      name: s-jeff-2026w36
-  providerConfigRef:
-    kind: ProviderConfig
-    name: provider-ovh
-  writeConnectionSecretToRef:
-    name: s-jeff-2026w36-credentials
----
-apiVersion: cloud.ovh.m.edixos.io/v1alpha1
-kind: S3Credentials
-metadata:
-  annotations:
-    crossplane.io/composition-resource-name: credentials-s-jeff-2026w37
-  labels:
-    crossplane.io/composite: s-jeff
-  name: s-jeff-2026w37
-  namespace: default
-  ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-jeff
-    uid: ""
-spec:
-  forProvider:
-    serviceName: "00000000000000000000000000000000"
-    userIdRef:
-      name: s-jeff-2026w37
-  providerConfigRef:
-    kind: ProviderConfig
-    name: provider-ovh
-  writeConnectionSecretToRef:
-    name: s-jeff-2026w37-credentials
 ---
 apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
@@ -300,36 +246,6 @@ spec:
     kind: ProviderConfig
     name: provider-kubernetes
 ---
-apiVersion: kubernetes.m.crossplane.io/v1alpha1
-kind: Object
-metadata:
-  annotations:
-    crossplane.io/composition-resource-name: observe-secret-s-jeff
-  labels:
-    crossplane.io/composite: s-jeff
-  name: observe-secret-s-jeff
-  namespace: default
-  ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-jeff
-    uid: ""
-spec:
-  forProvider:
-    manifest:
-      apiVersion: v1
-      kind: Secret
-      metadata:
-        name: s-jeff-2026w37-credentials
-        namespace: default
-  managementPolicies:
-  - Observe
-  providerConfigRef:
-    kind: ProviderConfig
-    name: provider-kubernetes
----
 apiVersion: cloud.ovh.m.edixos.io/v1alpha1
 kind: User
 metadata:
@@ -362,84 +278,6 @@ spec:
     name: provider-ovh
 ---
 apiVersion: cloud.ovh.m.edixos.io/v1alpha1
-kind: S3Policy
-metadata:
-  annotations:
-    crossplane.io/composition-resource-name: policy-s-jeff-2026w36
-  labels:
-    crossplane.io/composite: s-jeff
-  name: s-jeff-2026w36
-  namespace: default
-  ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-jeff
-    uid: ""
-spec:
-  forProvider:
-    policy: '{"Statement":[{"Action":["s3:ListAllMyBuckets"],"Effect":"Deny","Resource":["*"]},{"Action":["s3:GetBucketLocation","s3:ListBucket","s3:ListBucketMultipartUploads"],"Effect":"Allow","Resource":["arn:aws:s3:::s-jeff"]},{"Action":["s3:AbortMultipartUpload","s3:DeleteObject","s3:GetObject","s3:ListMultipartUploadParts","s3:PutObject"],"Effect":"Allow","Resource":["arn:aws:s3:::s-jeff/*"]},{"Action":["s3:GetBucketLocation","s3:ListBucket","s3:ListBucketMultipartUploads"],"Effect":"Allow","Resource":["arn:aws:s3:::s-jeff-shared"]},{"Action":["s3:AbortMultipartUpload","s3:DeleteObject","s3:GetObject","s3:ListMultipartUploadParts","s3:PutObject"],"Effect":"Allow","Resource":["arn:aws:s3:::s-jeff-shared/*"]},{"Action":["s3:GetBucketLocation","s3:ListBucket","s3:ListBucketMultipartUploads"],"Effect":"Allow","Resource":["arn:aws:s3:::s-joe"]},{"Action":["s3:AbortMultipartUpload","s3:DeleteObject","s3:GetObject","s3:ListMultipartUploadParts","s3:PutObject"],"Effect":"Allow","Resource":["arn:aws:s3:::s-joe/*"]}]}'
-    serviceName: "00000000000000000000000000000000"
-    userIdRef:
-      name: s-jeff-2026w36
-  providerConfigRef:
-    kind: ProviderConfig
-    name: provider-ovh
----
-apiVersion: cloud.ovh.m.edixos.io/v1alpha1
-kind: S3Policy
-metadata:
-  annotations:
-    crossplane.io/composition-resource-name: policy-s-jeff-2026w37
-  labels:
-    crossplane.io/composite: s-jeff
-  name: s-jeff-2026w37
-  namespace: default
-  ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-jeff
-    uid: ""
-spec:
-  forProvider:
-    policy: '{"Statement":[{"Action":["s3:ListAllMyBuckets"],"Effect":"Deny","Resource":["*"]},{"Action":["s3:GetBucketLocation","s3:ListBucket","s3:ListBucketMultipartUploads"],"Effect":"Allow","Resource":["arn:aws:s3:::s-jeff"]},{"Action":["s3:AbortMultipartUpload","s3:DeleteObject","s3:GetObject","s3:ListMultipartUploadParts","s3:PutObject"],"Effect":"Allow","Resource":["arn:aws:s3:::s-jeff/*"]},{"Action":["s3:GetBucketLocation","s3:ListBucket","s3:ListBucketMultipartUploads"],"Effect":"Allow","Resource":["arn:aws:s3:::s-jeff-shared"]},{"Action":["s3:AbortMultipartUpload","s3:DeleteObject","s3:GetObject","s3:ListMultipartUploadParts","s3:PutObject"],"Effect":"Allow","Resource":["arn:aws:s3:::s-jeff-shared/*"]},{"Action":["s3:GetBucketLocation","s3:ListBucket","s3:ListBucketMultipartUploads"],"Effect":"Allow","Resource":["arn:aws:s3:::s-joe"]},{"Action":["s3:AbortMultipartUpload","s3:DeleteObject","s3:GetObject","s3:ListMultipartUploadParts","s3:PutObject"],"Effect":"Allow","Resource":["arn:aws:s3:::s-joe/*"]}]}'
-    serviceName: "00000000000000000000000000000000"
-    userIdRef:
-      name: s-jeff-2026w37
-  providerConfigRef:
-    kind: ProviderConfig
-    name: provider-ovh
----
-apiVersion: cloud.ovh.m.edixos.io/v1alpha1
-kind: User
-metadata:
-  annotations:
-    crossplane.io/composition-resource-name: user-s-jeff-2026w36
-  labels:
-    crossplane.io/composite: s-jeff
-  name: s-jeff-2026w36
-  namespace: default
-  ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-jeff
-    uid: ""
-spec:
-  forProvider:
-    description: Credential generation for s-jeff-2026w36
-    roleNames:
-    - objectstore_operator
-    serviceName: "00000000000000000000000000000000"
-  providerConfigRef:
-    kind: ProviderConfig
-    name: provider-ovh
----
-apiVersion: cloud.ovh.m.edixos.io/v1alpha1
 kind: User
 metadata:
   annotations:
@@ -458,6 +296,32 @@ metadata:
 spec:
   forProvider:
     description: Credential generation for s-jeff-2026w37
+    roleNames:
+    - objectstore_operator
+    serviceName: "00000000000000000000000000000000"
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-ovh
+---
+apiVersion: cloud.ovh.m.edixos.io/v1alpha1
+kind: User
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: user-s-jeff-2026w38
+  labels:
+    crossplane.io/composite: s-jeff
+  name: s-jeff-2026w38
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-jeff
+    uid: ""
+spec:
+  forProvider:
+    description: Credential generation for s-jeff-2026w38
     roleNames:
     - objectstore_operator
     serviceName: "00000000000000000000000000000000"

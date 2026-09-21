@@ -19,11 +19,17 @@ spec:
           mode: Delete
           minAge: 30s
     - bucketName: cloudferro-__CLOUDFERRO_PROJECT_PREFIX__-it-b
+    - bucketName: cloudferro-__CLOUDFERRO_PROJECT_PREFIX__-it-c
+    - bucketName: cloudferro-__CLOUDFERRO_PROJECT_PREFIX__-it-d
   bucketAccessGrants:
     - bucketName: cloudferro-__CLOUDFERRO_PROJECT_PREFIX__-it-b
       grantee: provider-storage-cloudferro-it2
       permission: ReadOnly
       grantedAt: "2026-01-01T00:00:00Z"
+    - bucketName: cloudferro-__CLOUDFERRO_PROJECT_PREFIX__-it-c
+      grantee: provider-storage-cloudferro-it2
+      permission: None
+      grantedAt: "2026-01-01T00:00:01Z"
   crossplane:
     compositionSelector:
       matchLabels:
@@ -46,6 +52,12 @@ spec:
     - bucketName: cloudferro-__CLOUDFERRO_PROJECT_PREFIX__-it-b
       reason: Integration ReadOnly check
       requestedAt: "2026-01-01T00:00:00Z"
+    - bucketName: cloudferro-__CLOUDFERRO_PROJECT_PREFIX__-it-c
+      reason: Integration denied ReadWrite check
+      requestedAt: "2026-01-01T00:00:01Z"
+    - bucketName: cloudferro-__CLOUDFERRO_PROJECT_PREFIX__-it-d
+      reason: Integration pending ReadOnly check
+      requestedAt: "2026-01-01T00:00:02Z"
   crossplane:
     compositionSelector:
       matchLabels:

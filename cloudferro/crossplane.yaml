@@ -14,4 +14,4 @@ metadata:
 spec:
   skipDependencyResolution: true
   crossplane:
-    version: ">=v2.0.2-0"
+    version: ">=v2.0.0-0 <v3.0.0-0"

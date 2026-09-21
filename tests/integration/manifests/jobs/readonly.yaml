@@ -72,6 +72,25 @@ spec:
                     exit 1
                   fi
                   ;;
+                deny)
+                  if rclone lsf "storage:__BUCKET__" --s3-no-check-bucket >/dev/null 2>&1; then
+                    printf 'Ungranted principal listed the owner bucket.\n' >&2
+                    exit 1
+                  fi
+                  if rclone cat "storage:__BUCKET__/${object}" --s3-no-check-bucket >/dev/null 2>&1; then
+                    printf 'Ungranted principal read the owner object.\n' >&2
+                    exit 1
+                  fi
+                  printf 'write must fail\n' >/tmp/readonly.txt
+                  if rclone copyto /tmp/readonly.txt "storage:__BUCKET__/${probe}" --s3-no-check-bucket >/dev/null 2>&1; then
+                    printf 'Ungranted principal wrote an object.\n' >&2
+                    exit 1
+                  fi
+                  if rclone deletefile "storage:__BUCKET__/${object}" --s3-no-check-bucket >/dev/null 2>&1; then
+                    printf 'Ungranted principal deleted the owner object.\n' >&2
+                    exit 1
+                  fi
+                  ;;
                 cleanup)
                   rclone deletefile "storage:__BUCKET__/${object}" --s3-no-check-bucket
                   rclone deletefile "storage:__BUCKET__/${probe}" --s3-no-check-bucket >/dev/null 2>&1 || true

@@ -47,6 +47,8 @@ apply_storage() {
         "${MANIFEST_DIR}/storages/aws.yaml" \
         AWS_BUCKET_A "${CROSSPLANE_AWS_RESOURCE_PREFIX}-it-a" \
         AWS_BUCKET_B "${CROSSPLANE_AWS_RESOURCE_PREFIX}-it-b" \
+        AWS_BUCKET_C "${CROSSPLANE_AWS_RESOURCE_PREFIX}-it-c" \
+        AWS_BUCKET_D "${CROSSPLANE_AWS_RESOURCE_PREFIX}-it-d" \
         AWS_BUCKET_IT2_A "${CROSSPLANE_AWS_RESOURCE_PREFIX}-it2-a"
       ;;
     otc)
@@ -54,6 +56,8 @@ apply_storage() {
         "${MANIFEST_DIR}/storages/otc.yaml" \
         OTC_BUCKET_A "${CROSSPLANE_OTC_RESOURCE_PREFIX}-it-a" \
         OTC_BUCKET_B "${CROSSPLANE_OTC_RESOURCE_PREFIX}-it-b" \
+        OTC_BUCKET_C "${CROSSPLANE_OTC_RESOURCE_PREFIX}-it-c" \
+        OTC_BUCKET_D "${CROSSPLANE_OTC_RESOURCE_PREFIX}-it-d" \
         OTC_BUCKET_IT2_A "${CROSSPLANE_OTC_RESOURCE_PREFIX}-it2-a"
       ;;
     ovh)

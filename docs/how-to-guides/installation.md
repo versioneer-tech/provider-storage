@@ -33,7 +33,7 @@ helm repo update
 helm install crossplane crossplane-stable/crossplane \
   --namespace crossplane \
   --create-namespace \
-  --version 2.0.2 \
+  --version 2.4.1 \
   --set provider.defaultActivations={}
 ```
 

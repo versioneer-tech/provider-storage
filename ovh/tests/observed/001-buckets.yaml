@@ -19,12 +19,31 @@ status:
       lastTransitionTime: "2024-01-01T00:00:00Z"
 ---
 apiVersion: cloud.ovh.m.edixos.io/v1alpha1
-kind: S3Credentials
+kind: User
 metadata:
   name: s-joe
   namespace: default
   annotations:
-    crossplane.io/composition-resource-name: credentials-s-joe
+    crossplane.io/composition-resource-name: user-s-joe
+status:
+  atProvider:
+    id: "23456"
+  conditions:
+    - type: Ready
+      status: "True"
+      reason: Available
+      lastTransitionTime: "2024-01-01T00:00:00Z"
+---
+apiVersion: cloud.ovh.m.edixos.io/v1alpha1
+kind: S3Credentials
+metadata:
+  name: s-joe-u23456
+  namespace: default
+  annotations:
+    crossplane.io/composition-resource-name: credentials-s-joe-u23456
+spec:
+  forProvider:
+    userId: "23456"
 status:
   atProvider:
     accessKeyId: EXAMPLEACCESSKEY
@@ -34,20 +53,42 @@ status:
       reason: Available
       lastTransitionTime: "2024-01-01T00:00:00Z"
 ---
+apiVersion: cloud.ovh.m.edixos.io/v1alpha1
+kind: S3Credentials
+metadata:
+  name: s-joe
+  namespace: default
+  annotations:
+    crossplane.io/composition-resource-name: credentials-s-joe
+spec:
+  forProvider:
+    userId: "11111"
+---
+apiVersion: cloud.ovh.m.edixos.io/v1alpha1
+kind: S3Policy
+metadata:
+  name: s-joe
+  namespace: default
+  annotations:
+    crossplane.io/composition-resource-name: policy-s-joe
+spec:
+  forProvider:
+    userId: "11111"
+---
 apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
-  name: observe-secret-s-joe
+  name: observe-secret-s-joe-u23456
   namespace: default
   annotations:
-    crossplane.io/composition-resource-name: observe-secret-s-joe
+    crossplane.io/composition-resource-name: observe-secret-s-joe-u23456
 status:
   atProvider:
     manifest:
       apiVersion: v1
       kind: Secret
       metadata:
-        name: s-joe-credentials
+        name: s-joe-u23456-credentials
         namespace: default
       data:
         access_key_id: RVhBTVBMRUFDQ0VTU0tFWQ==

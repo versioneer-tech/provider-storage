@@ -5,7 +5,7 @@ They set up the Crossplane runtime (providers, configs, and permissions) that th
 
 ## Runtime prerequisites
 
-- A Kubernetes cluster with Crossplane **v2.0.2+** installed and healthy.
+- A Kubernetes cluster with Crossplane **v2.x** installed and healthy. The e2e tests use **v2.4.1**.
 
 ## Providers and Functions
 

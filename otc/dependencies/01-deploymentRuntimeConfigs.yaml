@@ -24,13 +24,14 @@ spec:
           - name: package-runtime
             args:
             - --debug
+            - --poll=1m
             resources:
               requests:
-                cpu: 100m
-                memory: 128Mi
-              limits:
                 cpu: 500m
-                memory: 512Mi
+                memory: 256Mi
+              limits:
+                cpu: "4"
+                memory: 2Gi
 ---
 apiVersion: pkg.crossplane.io/v1beta1
 kind: DeploymentRuntimeConfig
@@ -54,7 +55,8 @@ spec:
           serviceAccountName: provider-kubernetes
           containers:
           - name: package-runtime
-            # args:
+            args:
+            - --poll=1m
             # - --debug
             resources:
               requests:

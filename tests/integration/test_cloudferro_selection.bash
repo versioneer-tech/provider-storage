@@ -56,10 +56,13 @@ diff -u <(printf 'storage-cloudferro-it\nstorage-cloudferro-it2\n') \
   "${test_dir}/names"
 grep -Fq "bucketName: cloudferro-${project_id:0:12}-it-a" "${TEST_APPLIED_FILE}"
 grep -Fq "bucketName: cloudferro-${project_id:0:12}-it-b" "${TEST_APPLIED_FILE}"
+grep -Fq "bucketName: cloudferro-${project_id:0:12}-it-c" "${TEST_APPLIED_FILE}"
+grep -Fq "bucketName: cloudferro-${project_id:0:12}-it-d" "${TEST_APPLIED_FILE}"
 grep -Fq 'principal: provider-storage-cloudferro-it2' "${TEST_APPLIED_FILE}"
 grep -Fq "bucketName: cloudferro-${project_two_id:0:12}-it2-a" "${TEST_APPLIED_FILE}"
 grep -Fq 'grantee: provider-storage-cloudferro-it2' "${TEST_APPLIED_FILE}"
 grep -Fq 'permission: ReadOnly' "${TEST_APPLIED_FILE}"
+grep -Fq 'permission: None' "${TEST_APPLIED_FILE}"
 
 : >"${TEST_APPLIED_FILE}"
 if CROSSPLANE_CLOUDFERRO_IT2_SLOT=invalid \

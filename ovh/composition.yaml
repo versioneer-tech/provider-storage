@@ -113,16 +113,17 @@ spec:
               object_arn = f"{bucket_arn}/*"
               if effect == "Deny":
                   return [{"Effect": "Deny", "Action": ["s3:*"], "Resource": [bucket_arn, object_arn]}]
-              bucket_actions = ["s3:GetBucketLocation", "s3:ListBucket", "s3:ListBucketMultipartUploads"]
+              bucket_actions = ["s3:GetBucketAcl", "s3:GetBucketLocation", "s3:ListBucket", "s3:ListBucketMultipartUploads"]
               object_actions = ["s3:ListMultipartUploadParts"]
               if permission in ("ReadOnly", "ReadWrite"):
-                  object_actions.append("s3:GetObject")
+                  object_actions.extend(["s3:GetObject", "s3:GetObjectAcl", "s3:GetObjectAttributes"])
               if permission in ("WriteOnly", "ReadWrite"):
                   object_actions.extend(["s3:PutObject", "s3:DeleteObject", "s3:AbortMultipartUpload"])
-              return [
-                  {"Effect": "Allow", "Action": sorted(bucket_actions), "Resource": [bucket_arn]},
-                  {"Effect": "Allow", "Action": sorted(object_actions), "Resource": [object_arn]},
-              ]
+              return [{
+                  "Effect": "Allow",
+                  "Action": sorted(bucket_actions + object_actions),
+                  "Resource": [bucket_arn, object_arn],
+              }]
 
           def grant_from_peer(peer, bucket, grantee):
               peer_spec = peer.get("spec") or {}
@@ -133,7 +134,7 @@ spec:
                       return (grant.get("permission") or "None").strip()
               return "None"
 
-          def owner_id(observed, key):
+          def ready_user_id(observed, key):
               item = observed.get(key)
               if item is None or not getattr(item, "resource", None):
                   return None
@@ -178,7 +179,7 @@ spec:
                   "serviceName": project,
               }, managementPolicies=["Observe", "Create", "Update", "LateInitialize"])
 
-              numeric_owner = owner_id(observed, owner_key)
+              numeric_owner = ready_user_id(observed, owner_key)
               own_buckets = sorted({(item.get("bucketName") or "").strip()
                                     for item in (spec.get("buckets") or []) if (item.get("bucketName") or "").strip()})
               for bucket in own_buckets:
@@ -218,6 +219,8 @@ spec:
               policy = json.dumps({"Statement": statements}, separators=(",", ":"), sort_keys=True)
 
               suffixes = rollover_suffixes(spec)
+              current = f"{principal}{suffixes[0]}"
+              current_dependent_name = None
               for suffix in suffixes:
                   generation = f"{principal}{suffix}"
                   user_key = f"user-{generation}"
@@ -227,37 +230,42 @@ spec:
                       "roleNames": ["objectstore_operator"],
                       "serviceName": project,
                   })
-                  user_ref = {"userIdRef": {"name": user_name}}
-                  managed(rsp, f"credentials-{generation}", "S3Credentials", generation, namespace, {
+                  numeric_user = ready_user_id(observed, user_key)
+                  if numeric_user is None:
+                      continue
+                  dependent_name = f"{generation}-u{numeric_user}"
+                  managed(rsp, f"credentials-{dependent_name}", "S3Credentials", dependent_name, namespace, {
                       "serviceName": project,
-                      **user_ref,
-                  }, writeConnectionSecretToRef={"name": f"{generation}-credentials"})
-                  managed(rsp, f"policy-{generation}", "S3Policy", generation, namespace, {
+                      "userId": str(numeric_user),
+                  }, writeConnectionSecretToRef={"name": f"{dependent_name}-credentials"})
+                  managed(rsp, f"policy-{dependent_name}", "S3Policy", dependent_name, namespace, {
                       "serviceName": project,
                       "policy": policy,
-                      **user_ref,
+                      "userId": str(numeric_user),
                   })
+                  if generation == current:
+                      current_dependent_name = dependent_name
 
-              current = f"{principal}{suffixes[0]}"
-              observer_key = f"observe-secret-{principal}"
-              rsp.desired.resources[observer_key].ready = fnv1.READY_FALSE
-              rsp.desired.resources[observer_key].resource.update({
-                  "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
-                  "kind": "Object",
-                  "metadata": {
-                      "name": observer_key,
-                      "namespace": namespace,
-                      "annotations": {"crossplane.io/composition-resource-name": observer_key},
-                  },
-                  "spec": {
-                      "managementPolicies": ["Observe"],
-                      "forProvider": {"manifest": {
-                          "apiVersion": "v1", "kind": "Secret",
-                          "metadata": {"name": f"{current}-credentials", "namespace": namespace},
-                      }},
-                      "providerConfigRef": {"name": "provider-kubernetes", "kind": "ProviderConfig"},
-                  },
-              })
+              if current_dependent_name is not None:
+                  observer_key = f"observe-secret-{current_dependent_name}"
+                  rsp.desired.resources[observer_key].ready = fnv1.READY_FALSE
+                  rsp.desired.resources[observer_key].resource.update({
+                      "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
+                      "kind": "Object",
+                      "metadata": {
+                          "name": observer_key,
+                          "namespace": namespace,
+                          "annotations": {"crossplane.io/composition-resource-name": observer_key},
+                      },
+                      "spec": {
+                          "managementPolicies": ["Observe"],
+                          "forProvider": {"manifest": {
+                              "apiVersion": "v1", "kind": "Secret",
+                              "metadata": {"name": f"{current_dependent_name}-credentials", "namespace": namespace},
+                          }},
+                          "providerConfigRef": {"name": "provider-kubernetes", "kind": "ProviderConfig"},
+                      },
+                  })
 
     - step: publish-current-secret
       functionRef:
@@ -304,6 +312,16 @@ spec:
               except (ValueError, UnicodeError):
                   return None
 
+          def ready_user_id(observed, key):
+              item = observed.get(key)
+              if item is None or not getattr(item, "resource", None):
+                  return None
+              data = to_dict(item.resource)
+              ready = any(condition.get("type") == "Ready" and condition.get("status") == "True"
+                          for condition in ((data.get("status") or {}).get("conditions") or []))
+              value = (((data.get("status") or {}).get("atProvider") or {}).get("id"))
+              return value if ready and isinstance(value, str) and value.isdecimal() else None
+
           def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
               xr = to_dict(req.observed.composite.resource)
               metadata = xr.get("metadata") or {}
@@ -316,12 +334,16 @@ spec:
               endpoint = (storage_env.get("endpoint") or "").strip()
               region = (storage_env.get("region") or "").strip()
               force_path_style = storage_env.get("force_path_style")
-              observer_key = f"observe-secret-{principal}"
-              rsp.desired.resources[observer_key].ready = fnv1.READY_FALSE
               if not principal or not endpoint or not region or force_path_style in (None, ""):
                   return
               observed = req.observed.resources
-              credential = observed.get(f"credentials-{generation}")
+              user_id = ready_user_id(observed, f"user-{generation}")
+              if not user_id:
+                  return
+              dependent_name = f"{generation}-u{user_id}"
+              observer_key = f"observe-secret-{dependent_name}"
+              rsp.desired.resources[observer_key].ready = fnv1.READY_FALSE
+              credential = observed.get(f"credentials-{dependent_name}")
               secret = observed.get(observer_key)
               if credential is None or secret is None:
                   return

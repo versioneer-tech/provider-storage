@@ -52,7 +52,8 @@ spec:
           serviceAccountName: provider-kubernetes
           containers:
           - name: package-runtime
-            # args:
+            args:
+            - --poll=1m
             # - --debug
             resources:
               requests:

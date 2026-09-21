@@ -12,7 +12,7 @@ readonly KIND_CLUSTER_NAME=provider-storage-it
 readonly KUBECTL_CONTEXT=kind-provider-storage-it
 readonly INTEGRATION_NAMESPACE=provider-storage-it
 readonly CROSSPLANE_NAMESPACE=crossplane
-: "${CROSSPLANE_VERSION:=2.0.2}"
+: "${CROSSPLANE_VERSION:=2.4.1}"
 : "${RCLONE_IMAGE:=rclone/rclone:1.75.1}"
 
 log() {
@@ -216,17 +216,32 @@ apply_template() {
 
 wait_for_job() {
   local name="$1"
-  if ! kube wait "job/${name}" \
-    --namespace "${INTEGRATION_NAMESPACE}" \
-    --for=condition=Complete \
-    --timeout=5m; then
+  local condition deadline
+  deadline=$((SECONDS + 300))
+  condition=""
+  while ((SECONDS < deadline)); do
+    condition="$(kube get "job/${name}" \
+      --namespace "${INTEGRATION_NAMESPACE}" \
+      -o go-template='{{range .status.conditions}}{{if eq .status "True"}}{{printf "%s\n" .type}}{{end}}{{end}}')"
+    case "${condition}" in
+      *Complete*)
+        kube logs "job/${name}" \
+          --namespace "${INTEGRATION_NAMESPACE}" \
+          --all-containers=true
+        return
+        ;;
+      *Failed*)
+        break
+        ;;
+    esac
+    sleep 2
+  done
+
+  if [[ "${condition}" != *Complete* ]]; then
     kube logs "job/${name}" \
       --namespace "${INTEGRATION_NAMESPACE}" \
       --all-containers=true || true
     kube describe "job/${name}" --namespace "${INTEGRATION_NAMESPACE}" || true
     exit 1
   fi
-  kube logs "job/${name}" \
-    --namespace "${INTEGRATION_NAMESPACE}" \
-    --all-containers=true
 }

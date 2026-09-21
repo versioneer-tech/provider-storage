@@ -5,7 +5,7 @@ They set up the Crossplane runtime (providers, configs, and permissions) that th
 
 ## Runtime prerequisites
 
-- A Kubernetes cluster with Crossplane **v2.0.2+** installed and healthy.
+- A Kubernetes cluster with Crossplane **v2.x** installed and healthy. The e2e tests use **v2.4.1**.
 - **MinIO** installed in the cluster. This Composition targets that runtime and was tested with the MinIO **Operator** (chart: `operator`, version: **7.1.1**). See the [MinIO Operator documentation](https://github.com/minio/operator).
 
 ## Providers and Functions

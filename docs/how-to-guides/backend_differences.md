@@ -12,7 +12,7 @@ available implementations.
 | MinIO | `Bucket` | `User` with generated credentials | Named `Policy` resources; the `User` lists their names. |
 | AWS | S3 `Bucket` | IAM `User` and `AccessKey` | IAM `Policy` resources linked to the user by `UserPolicyAttachment`. |
 | OTC | OBS `Bucket` | IAM `UserV3` and `CredentialV3` | One OBS `BucketPolicy` per bucket, with user IDs in `Principal`. |
-| OVHcloud | Regional S3 `ProjectStorage` | Project `User` and `S3Credentials` | One consolidated `S3Policy` document per user, linked by `userIdRef`. |
+| OVHcloud | Regional S3 `ProjectStorage` | Project `User` and `S3Credentials` | One consolidated `S3Policy` document per user, linked by its observed numeric user ID. |
 | CloudFerro | Project-scoped OpenStack `ContainerV1` | One shared Keystone controller user with one `EC2CredentialV3` per Storage generation | The project owns access. An AWS S3 `BucketPolicy` uses the CloudFerro endpoint to share with another project's `root` ARN. |
 
 ### MinIO
@@ -53,13 +53,9 @@ available implementations.
   replaced.
 - **Identity and credential:** It creates a project `User` and `S3Credentials`
   for each retained credential generation.
-- **Access rule:** It creates one `S3Policy` per generation user. The policy
-  document contains statements for owned buckets and requested buckets,
-  with allow or deny rules based on the owner's grant. `userIdRef` links the
-  policy to the user. This is a separate
-  Crossplane resource that sets the user's policy document; the document is
-  not inline in the `User` resource. Regional OVHcloud does
-  not support bucket policies. See the [OVHcloud access guide](https://docs.ovhcloud.com/en/guides/storage-and-backup/object-storage/s3-identity-and-access-management).
+- **Access rule:** It creates a separate `S3Policy` for each credential user.
+  The policy allows or denies access to owned and requested buckets based on
+  the owner's grants. See the [OVHcloud access guide](https://docs.ovhcloud.com/en/guides/storage-and-backup/object-storage/s3-identity-and-access-management).
 
 ### CloudFerro
 
@@ -106,9 +102,9 @@ For the owner-label requirement and the distinction between bucket visibility
 and access, see [Discoverable Buckets](permissions.md#discoverable-buckets).
 
 OTC builds policies from the bucket owner's grants and observed grantee user
-IDs. Its current Composition does not use peer `Storage` resources to resolve
-requests. Its grantee observer uses the unsuffixed logical name, while created
-users have generation suffixes. This grant path still needs a live test.
+IDs. It resolves each grantee principal through the matching discoverable peer
+`Storage`, then observes the provider-native user for that peer's current
+credential generation.
 
 Removing a request also differs by backend. MinIO removes the grant policy
 name from the requester's users, and AWS removes the grant attachments. OTC
@@ -120,19 +116,20 @@ rules](https://docs.ovhcloud.com/en/guides/storage-and-backup/object-storage/s3-
 
 These descriptions are the resources the Compositions request. Cloud-side
 enforcement and revocation are asynchronous and need positive and negative
-S3 tests, especially for OTC retained users and OVHcloud ACL fallback.
+S3 tests.
 
 ## Verification Status
 
-The OVHcloud integration run created one `Storage` with two buckets in DE.
-The claim reached Ready, and both buckets passed S3 object round trips. A
-composed peer was denied before a grant, could read but not write under
-`ReadOnly`, and lost read access after `None`
-reconciled automatically. The policy updated within about a minute, but a read
-shortly after it synced still succeeded. Other grant levels, credential
-rotation, lifecycle, and teardown still need live tests.
+The common OVHcloud integration verification passes in DE. The primary
+principal completes an S3 write, list, read, and delete round trip in its four
+buckets. The secondary principal completes the same round trip in its own
+bucket. It has no access to the ungranted, denied, and pending buckets. It can
+read the bucket with a `ReadOnly` grant, but it cannot write to or delete from
+that bucket. Credential rotation, lifecycle rules, and full teardown still
+need separate live tests.
 
 All bucket resources use the default Crossplane management policy. Removing a
 bucket from `spec.buckets`, or removing its `Storage` claim, requests bucket
-deletion. A backend can reject the request while the bucket contains data; the
-Compositions do not force removal of its objects.
+deletion. Deletion behavior is provider-specific. A provider can reject the
+request when it cannot empty the bucket or when its cloud identity lacks the
+required delete permission.
