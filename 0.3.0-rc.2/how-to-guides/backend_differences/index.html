@@ -1,0 +1,1332 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://versioneer-tech.github.io/provider-storage/0.3.0-rc.2/how-to-guides/backend_differences/">
+      
+      
+        <link rel="prev" href="../permissions/">
+      
+      
+        <link rel="next" href="../installation/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../imgs/favicon.ico">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Backend Differences - provider-storage</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="white" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#provider-storage-backend-differences" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="provider-storage" class="md-header__button md-logo" aria-label="provider-storage" data-md-component="logo">
+      
+  <img src="../../imgs/logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            provider-storage
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Backend Differences
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="white" data-md-color-accent="indigo"  aria-hidden="true"  type="radio" name="__palette" id="__palette_0">
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/versioneer-tech/provider-storage" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    versioneer-tech/provider-storage
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="provider-storage" class="md-nav__button md-logo" aria-label="provider-storage" data-md-component="logo">
+      
+  <img src="../../imgs/logo.png" alt="logo">
+
+    </a>
+    provider-storage
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/versioneer-tech/provider-storage" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    versioneer-tech/provider-storage
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How-to guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    How-to guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../usage_concepts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Usage & Concepts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../permissions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Permissions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Backend Differences
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Backend Differences
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#where-access-rules-live" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where Access Rules Live
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Where Access Rules Live">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#minio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MinIO
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aws" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AWS
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#otc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OTC
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ovhcloud" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OVHcloud
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cloudferro" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CloudFerro
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#from-request-to-access" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        From Request to Access
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verification-status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verification Status
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cloud-iam-bootstrap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cloud IAM Bootstrap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../local_setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Local Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference-guides/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/credential-strategy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Credential Strategy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/0001-provision-storage-on-aws-otc-and-minio/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-001 AWS, OTC, and MinIO Provisioning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/0002-rotate-static-credentials-by-generation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-002 Static Credential Rotation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/0003-run-portable-lifecycle-cleanup-jobs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-003 Lifecycle Cleanup Jobs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/0004-add-an-ovhcloud-s3-backend/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-004 OVHcloud S3 Backend
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/0005-add-a-cloudferro-s3-backend/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-005 CloudFerro Project Slots
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#where-access-rules-live" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where Access Rules Live
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Where Access Rules Live">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#minio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MinIO
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aws" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AWS
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#otc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OTC
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ovhcloud" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OVHcloud
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cloudferro" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CloudFerro
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#from-request-to-access" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        From Request to Access
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verification-status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verification Status
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="provider-storage-backend-differences">Provider Storage – Backend Differences</h1>
+<p>The <code>Storage</code> API defines the same buckets, credentials, access requests,
+grants, and lifecycle rules for every backend. Each Composition maps that API
+to its provider's bucket and access resources. The table below compares the
+available implementations.</p>
+<h2 id="where-access-rules-live">Where Access Rules Live</h2>
+<table>
+<thead>
+<tr>
+<th>Backend</th>
+<th>Bucket</th>
+<th>Identity and credential</th>
+<th>Access rule</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MinIO</td>
+<td><code>Bucket</code></td>
+<td><code>User</code> with generated credentials</td>
+<td>Named <code>Policy</code> resources; the <code>User</code> lists their names.</td>
+</tr>
+<tr>
+<td>AWS</td>
+<td>S3 <code>Bucket</code></td>
+<td>IAM <code>User</code> and <code>AccessKey</code></td>
+<td>IAM <code>Policy</code> resources linked to the user by <code>UserPolicyAttachment</code>.</td>
+</tr>
+<tr>
+<td>OTC</td>
+<td>OBS <code>Bucket</code></td>
+<td>IAM <code>UserV3</code> and <code>CredentialV3</code></td>
+<td>One OBS <code>BucketPolicy</code> per bucket, with user IDs in <code>Principal</code>.</td>
+</tr>
+<tr>
+<td>OVHcloud</td>
+<td>Regional S3 <code>ProjectStorage</code></td>
+<td>Project <code>User</code> and <code>S3Credentials</code></td>
+<td>One consolidated <code>S3Policy</code> document per user, linked by its observed numeric user ID.</td>
+</tr>
+<tr>
+<td>CloudFerro</td>
+<td>Project-scoped OpenStack <code>ContainerV1</code></td>
+<td>One shared Keystone controller user with one <code>EC2CredentialV3</code> per Storage generation</td>
+<td>The project owns access. An AWS S3 <code>BucketPolicy</code> uses the CloudFerro endpoint to share with another project's <code>root</code> ARN.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="minio">MinIO</h3>
+<ul>
+<li><strong>Bucket:</strong> The Composition creates a MinIO <code>Bucket</code> for each claimed bucket.</li>
+<li><strong>Identity and credential:</strong> It creates a <code>User</code> for each retained credential
+  generation.</li>
+<li><strong>Access rule:</strong> It creates named <code>Policy</code> resources for owned buckets and
+  grants. Each <code>User</code> lists the policy names that apply to that generation.</li>
+</ul>
+<h3 id="aws">AWS</h3>
+<ul>
+<li><strong>Bucket:</strong> The Composition creates an S3 <code>Bucket</code> for each claimed bucket.</li>
+<li><strong>Identity and credential:</strong> It creates an IAM <code>User</code> and <code>AccessKey</code> for
+  each retained credential generation.</li>
+<li><strong>Access rule:</strong> It creates IAM <code>Policy</code> resources for owned buckets and
+  grants. A <code>UserPolicyAttachment</code> links each applicable policy to a user.
+  The Composition does not create S3 bucket policies.</li>
+</ul>
+<h3 id="otc">OTC</h3>
+<ul>
+<li><strong>Bucket:</strong> The Composition creates an OBS <code>Bucket</code>. Consumers use its
+  S3-compatible endpoint.</li>
+<li><strong>Identity and credential:</strong> It creates an IAM <code>UserV3</code> and <code>CredentialV3</code>
+  for each retained credential generation.</li>
+<li><strong>Access rule:</strong> It creates one OBS <code>BucketPolicy</code> for each bucket named in
+  the claim's buckets or grants.
+  The policy contains the observed IDs of allowed users in <code>Principal</code>.
+  The Composition must observe those IDs before it can build the policy.</li>
+</ul>
+<h3 id="ovhcloud">OVHcloud</h3>
+<ul>
+<li><strong>Bucket:</strong> The Composition creates a regional S3-compatible
+  <code>ProjectStorage</code> bucket.</li>
+<li><strong>Owner:</strong> It creates a separate, stable project <code>User</code> without
+  <code>S3Credentials</code> or an <code>S3Policy</code>. This user owns the buckets and keeps their
+  owner ID unchanged when consumer credentials rotate or a credential user is
+  replaced.</li>
+<li><strong>Identity and credential:</strong> It creates a project <code>User</code> and <code>S3Credentials</code>
+  for each retained credential generation.</li>
+<li><strong>Access rule:</strong> It creates a separate <code>S3Policy</code> for each credential user.
+  The policy allows or denies access to owned and requested buckets based on
+  the owner's grants. See the <a href="https://docs.ovhcloud.com/en/guides/storage-and-backup/object-storage/s3-identity-and-access-management">OVHcloud access guide</a>.</li>
+</ul>
+<h3 id="cloudferro">CloudFerro</h3>
+<ul>
+<li><strong>Bucket:</strong> A slot-specific OpenStack ProviderConfig scopes each
+  <code>ContainerV1</code> to one project. The slot name is selected with
+  <code>spec.crossplane.compositionSelector.matchLabels.provider</code>, such as
+  <code>cloudferro-0001</code>.</li>
+<li><strong>Identity and credential:</strong> One controller user receives the configured
+  member role in every managed project. The Composition creates retained EC2
+  credential generations for that user in the selected project.</li>
+<li><strong>Access rule:</strong> Users in one project can access its containers. For an
+  active grant, the Composition resolves the grantee Storage's project slot
+  and creates an AWS S3 <code>BucketPolicy</code> against the CloudFerro endpoint. The
+  policy grants the grantee project's <code>root</code> ARN. It cannot isolate users in
+  the owner project. Usage resources keep the EC2 credential, AWS provider
+  configuration, and AWS provider credential Secret until each bucket policy
+  is deleted.
+  See the
+  <a href="https://docs.cloudferro.com/en/latest/s3/Bucket-sharing-using-s3-bucket-policy-on-CloudFerro-Cloud.html">bucket-sharing guide</a>.</li>
+</ul>
+<p>MinIO and OVHcloud both place consumer access on the user. MinIO users list
+multiple named policies. OVHcloud has one policy document per user, so the
+Composition combines all bucket rules into that document. AWS also uses user
+policies, but needs explicit attachment resources. OTC places the consumer
+grant rules on each bucket.</p>
+<h2 id="from-request-to-access">From Request to Access</h2>
+<p>The requester records a target bucket in <code>bucketAccessRequests</code>. The bucket
+owner records its decision in <code>bucketAccessGrants</code>. These are fields on
+<code>Storage</code> claims; no backend creates a separate cloud request resource. The
+owner's grant selects <code>ReadOnly</code>, <code>WriteOnly</code>, <code>ReadWrite</code>, or <code>None</code>. The
+<a href="../permissions/">permission guide</a> shows the claim fields and an example.</p>
+<table>
+<thead>
+<tr>
+<th>Backend</th>
+<th>Request pending, with no owner grant</th>
+<th>Owner grants access</th>
+<th>Owner sets <code>None</code> or removes the grant</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MinIO</td>
+<td>The request adds no policy name to the requester's <code>User</code>.</td>
+<td>The owner creates a named grant <code>Policy</code>; the requester lists that policy on each retained <code>User</code>.</td>
+<td>The requester stops listing the policy. With <code>None</code>, the owner's named policy has no allow statements.</td>
+</tr>
+<tr>
+<td>AWS</td>
+<td>The request creates no <code>UserPolicyAttachment</code> for the target bucket.</td>
+<td>The owner creates an IAM grant <code>Policy</code>; the requester attaches it to each retained IAM <code>User</code>.</td>
+<td>The requester has no attachment. With <code>None</code>, the owner's grant policy has no allow statements.</td>
+</tr>
+<tr>
+<td>OTC</td>
+<td>The request field does not change the generated policy.</td>
+<td>The owner's grant adds allow statements for the observed grantee ID to the bucket's <code>BucketPolicy</code>, even if the grantee did not record a request.</td>
+<td>The bucket policy has no allow statements for that grantee. <code>None</code> does not add an explicit deny.</td>
+</tr>
+<tr>
+<td>OVHcloud</td>
+<td>Each retained requester's <code>S3Policy</code> gets an explicit deny for the requested bucket.</td>
+<td>The policy replaces that deny with allow statements for the granted actions.</td>
+<td>While the request remains, the policy contains an explicit deny for that bucket.</td>
+</tr>
+<tr>
+<td>CloudFerro</td>
+<td>The request has no cloud-side effect.</td>
+<td>The owner adds allow statements for the grantee project's <code>root</code> ARN to the bucket policy.</td>
+<td><code>None</code> or grant removal adds no cross-project allow. If no active grants remain, the bucket policy is removed. This does not restrict a user who is already in the owner's project.</td>
+</tr>
+</tbody>
+</table>
+<p>For the owner-label requirement and the distinction between bucket visibility
+and access, see <a href="../permissions/#discoverable-buckets">Discoverable Buckets</a>.</p>
+<p>OTC builds policies from the bucket owner's grants and observed grantee user
+IDs. It resolves each grantee principal through the matching discoverable peer
+<code>Storage</code>, then observes the provider-native user for that peer's current
+credential generation.</p>
+<p>Removing a request also differs by backend. MinIO removes the grant policy
+name from the requester's users, and AWS removes the grant attachments. OTC
+does not use the request field, so removing it has no policy effect. OVHcloud
+removes the bucket-specific rule from the requester's user policy. OVHcloud
+then falls back to ACLs when no policy rule matches; removing a request alone
+does not prove that S3 access is denied. See the <a href="https://docs.ovhcloud.com/en/guides/storage-and-backup/object-storage/s3-identity-and-access-management">OVHcloud policy evaluation
+rules</a>.</p>
+<p>These descriptions are the resources the Compositions request. Cloud-side
+enforcement and revocation are asynchronous and need positive and negative
+S3 tests.</p>
+<h2 id="verification-status">Verification Status</h2>
+<p>The common OVHcloud integration verification passes in DE. The primary
+principal completes an S3 write, list, read, and delete round trip in its four
+buckets. The secondary principal completes the same round trip in its own
+bucket. It has no access to the ungranted, denied, and pending buckets. It can
+read the bucket with a <code>ReadOnly</code> grant, but it cannot write to or delete from
+that bucket. Credential rotation, lifecycle rules, and full teardown still
+need separate live tests.</p>
+<p>All bucket resources use the default Crossplane management policy. Removing a
+bucket from <code>spec.buckets</code>, or removing its <code>Storage</code> claim, requests bucket
+deletion. Deletion behavior is provider-specific. A provider can reject the
+request when it cannot empty the bucket or when its cloud identity lacks the
+required delete permission.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2025, Versioneer
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["content.code.copy", "search.suggest", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>
