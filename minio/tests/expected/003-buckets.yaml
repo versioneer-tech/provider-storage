@@ -15,9 +15,43 @@ spec:
   credentialsRollover:
     interval: quarterly
     maxToKeep: 5
+  crossplane:
+    resourceRefs:
+    - apiVersion: kubernetes.m.crossplane.io/v1alpha1
+      kind: Object
+      name: observe-secret-s-jane
+      namespace: default
+    - apiVersion: kubernetes.m.crossplane.io/v1alpha1
+      kind: Object
+      name: user-s-jane-2025q3
+      namespace: default
+    - apiVersion: kubernetes.m.crossplane.io/v1alpha1
+      kind: Object
+      name: user-s-jane-2025q4
+      namespace: default
+    - apiVersion: kubernetes.m.crossplane.io/v1alpha1
+      kind: Object
+      name: user-s-jane-2026q1
+      namespace: default
+    - apiVersion: kubernetes.m.crossplane.io/v1alpha1
+      kind: Object
+      name: user-s-jane-2026q2
+      namespace: default
+    - apiVersion: kubernetes.m.crossplane.io/v1alpha1
+      kind: Object
+      name: user-s-jane-2026q3
+      namespace: default
   principal: s-jane
 status:
   conditions:
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    reason: WatchCircuitClosed
+    status: "True"
+    type: Responsive
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    reason: ReconcileSuccess
+    status: "True"
+    type: Synced
   - lastTransitionTime: "2024-01-01T00:00:00Z"
     message: 'Unready resources: user-s-jane-2025q3, user-s-jane-2025q4, user-s-jane-2026q1,
       and 2 more'
@@ -40,7 +74,7 @@ metadata:
     controller: true
     kind: Storage
     name: s-jane
-    uid: ""
+    uid: b53320a7-8ede-5a09-b7a9-2356f940802f
 spec:
   forProvider:
     manifest:
@@ -70,7 +104,7 @@ metadata:
     controller: true
     kind: Storage
     name: s-jane
-    uid: ""
+    uid: b53320a7-8ede-5a09-b7a9-2356f940802f
 spec:
   forProvider:
     manifest:
@@ -106,7 +140,7 @@ metadata:
     controller: true
     kind: Storage
     name: s-jane
-    uid: ""
+    uid: b53320a7-8ede-5a09-b7a9-2356f940802f
 spec:
   forProvider:
     manifest:
@@ -142,7 +176,7 @@ metadata:
     controller: true
     kind: Storage
     name: s-jane
-    uid: ""
+    uid: b53320a7-8ede-5a09-b7a9-2356f940802f
 spec:
   forProvider:
     manifest:
@@ -178,7 +212,7 @@ metadata:
     controller: true
     kind: Storage
     name: s-jane
-    uid: ""
+    uid: b53320a7-8ede-5a09-b7a9-2356f940802f
 spec:
   forProvider:
     manifest:
@@ -214,7 +248,7 @@ metadata:
     controller: true
     kind: Storage
     name: s-jane
-    uid: ""
+    uid: b53320a7-8ede-5a09-b7a9-2356f940802f
 spec:
   forProvider:
     manifest:

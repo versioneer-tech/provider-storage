@@ -16,7 +16,7 @@ metadata:
     controller: true
     kind: Storage
     name: s-joe
-    uid: ""
+    uid: 24a08e59-0c26-5e84-9bfa-ba05aa9ae080
 status:
   atProvider:
     manifest:

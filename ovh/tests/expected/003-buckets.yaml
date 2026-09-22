@@ -15,9 +15,43 @@ spec:
   credentialsRollover:
     interval: quarterly
     maxToKeep: 5
+  crossplane:
+    resourceRefs:
+    - apiVersion: cloud.ovh.m.edixos.io/v1alpha1
+      kind: User
+      name: s-jane-2025q3
+      namespace: default
+    - apiVersion: cloud.ovh.m.edixos.io/v1alpha1
+      kind: User
+      name: s-jane-2025q4
+      namespace: default
+    - apiVersion: cloud.ovh.m.edixos.io/v1alpha1
+      kind: User
+      name: s-jane-2026q1
+      namespace: default
+    - apiVersion: cloud.ovh.m.edixos.io/v1alpha1
+      kind: User
+      name: s-jane-2026q2
+      namespace: default
+    - apiVersion: cloud.ovh.m.edixos.io/v1alpha1
+      kind: User
+      name: s-jane-2026q3
+      namespace: default
+    - apiVersion: cloud.ovh.m.edixos.io/v1alpha1
+      kind: User
+      name: s-jane-owner
+      namespace: default
   principal: s-jane
 status:
   conditions:
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    reason: WatchCircuitClosed
+    status: "True"
+    type: Responsive
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    reason: ReconcileSuccess
+    status: "True"
+    type: Synced
   - lastTransitionTime: "2024-01-01T00:00:00Z"
     message: 'Unready resources: owner-s-jane, user-s-jane-2025q3, user-s-jane-2025q4,
       and 3 more'
@@ -40,7 +74,7 @@ metadata:
     controller: true
     kind: Storage
     name: s-jane
-    uid: ""
+    uid: b53320a7-8ede-5a09-b7a9-2356f940802f
 spec:
   forProvider:
     description: Stable owner for s-jane
@@ -71,7 +105,7 @@ metadata:
     controller: true
     kind: Storage
     name: s-jane
-    uid: ""
+    uid: b53320a7-8ede-5a09-b7a9-2356f940802f
 spec:
   forProvider:
     description: Credential generation for s-jane-2025q3
@@ -97,7 +131,7 @@ metadata:
     controller: true
     kind: Storage
     name: s-jane
-    uid: ""
+    uid: b53320a7-8ede-5a09-b7a9-2356f940802f
 spec:
   forProvider:
     description: Credential generation for s-jane-2025q4
@@ -123,7 +157,7 @@ metadata:
     controller: true
     kind: Storage
     name: s-jane
-    uid: ""
+    uid: b53320a7-8ede-5a09-b7a9-2356f940802f
 spec:
   forProvider:
     description: Credential generation for s-jane-2026q1
@@ -149,7 +183,7 @@ metadata:
     controller: true
     kind: Storage
     name: s-jane
-    uid: ""
+    uid: b53320a7-8ede-5a09-b7a9-2356f940802f
 spec:
   forProvider:
     description: Credential generation for s-jane-2026q2
@@ -175,7 +209,7 @@ metadata:
     controller: true
     kind: Storage
     name: s-jane
-    uid: ""
+    uid: b53320a7-8ede-5a09-b7a9-2356f940802f
 spec:
   forProvider:
     description: Credential generation for s-jane-2026q3

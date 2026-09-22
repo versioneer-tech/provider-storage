@@ -29,11 +29,30 @@ spec:
     discoverable: true
   credentialsRollover:
     interval: daily
+    maxToKeep: 1
+  crossplane:
+    resourceRefs:
+    - apiVersion: cloud.ovh.m.edixos.io/v1alpha1
+      kind: User
+      name: s-john-20260922
+      namespace: default
+    - apiVersion: cloud.ovh.m.edixos.io/v1alpha1
+      kind: User
+      name: s-john-owner
+      namespace: default
   principal: s-john
 status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: owner-s-john, user-s-john-20260917'
+    reason: WatchCircuitClosed
+    status: "True"
+    type: Responsive
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    reason: ReconcileSuccess
+    status: "True"
+    type: Synced
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    message: 'Unready resources: owner-s-john, user-s-john-20260922'
     reason: Creating
     status: "False"
     type: Ready
@@ -53,7 +72,7 @@ metadata:
     controller: true
     kind: Storage
     name: s-john
-    uid: ""
+    uid: b4f4ce7a-c24f-506f-ac18-c5dd3f58626c
 spec:
   forProvider:
     description: Stable owner for s-john
@@ -73,10 +92,10 @@ apiVersion: cloud.ovh.m.edixos.io/v1alpha1
 kind: User
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: user-s-john-20260917
+    crossplane.io/composition-resource-name: user-s-john-20260922
   labels:
     crossplane.io/composite: s-john
-  name: s-john-20260917
+  name: s-john-20260922
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -84,10 +103,10 @@ metadata:
     controller: true
     kind: Storage
     name: s-john
-    uid: ""
+    uid: b4f4ce7a-c24f-506f-ac18-c5dd3f58626c
 spec:
   forProvider:
-    description: Credential generation for s-john-20260917
+    description: Credential generation for s-john-20260922
     roleNames:
     - objectstore_operator
     serviceName: "00000000000000000000000000000000"

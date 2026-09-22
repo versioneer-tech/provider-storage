@@ -21,9 +21,47 @@ spec:
   buckets:
   - bucketName: s-joe
     discoverable: true
+  crossplane:
+    resourceRefs:
+    - apiVersion: iam.aws.m.upbound.io/v1beta1
+      kind: AccessKey
+      name: s-joe
+      namespace: default
+    - apiVersion: iam.aws.m.upbound.io/v1beta1
+      kind: Policy
+      name: provider-storage.s-jeff.s-joe
+      namespace: default
+    - apiVersion: iam.aws.m.upbound.io/v1beta1
+      kind: Policy
+      name: provider-storage.s-joe
+      namespace: default
+    - apiVersion: iam.aws.m.upbound.io/v1beta1
+      kind: UserPolicyAttachment
+      name: s-joe.s-joe.own
+      namespace: default
+    - apiVersion: iam.aws.m.upbound.io/v1beta1
+      kind: User
+      name: s-joe
+      namespace: default
+    - apiVersion: kubernetes.m.crossplane.io/v1alpha1
+      kind: Object
+      name: observe-secret-s-joe
+      namespace: default
+    - apiVersion: s3.aws.m.upbound.io/v1beta1
+      kind: Bucket
+      name: s-joe
+      namespace: default
   principal: s-joe
 status:
   conditions:
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    reason: WatchCircuitClosed
+    status: "True"
+    type: Responsive
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    reason: ReconcileSuccess
+    status: "True"
+    type: Synced
   - lastTransitionTime: "2024-01-01T00:00:00Z"
     message: 'Unready resources: access-key-s-joe, bucket-s-joe, observe-secret-s-joe,
       and 4 more'
@@ -46,7 +84,7 @@ metadata:
     controller: true
     kind: Storage
     name: s-joe
-    uid: ""
+    uid: 24a08e59-0c26-5e84-9bfa-ba05aa9ae080
 spec:
   forProvider:
     userRef:
@@ -72,7 +110,7 @@ metadata:
     controller: true
     kind: Storage
     name: s-joe
-    uid: ""
+    uid: 24a08e59-0c26-5e84-9bfa-ba05aa9ae080
 spec:
   forProvider:
     region: eu-central-1
@@ -95,7 +133,7 @@ metadata:
     controller: true
     kind: Storage
     name: s-joe
-    uid: ""
+    uid: 24a08e59-0c26-5e84-9bfa-ba05aa9ae080
 spec:
   forProvider:
     manifest:
@@ -125,7 +163,7 @@ metadata:
     controller: true
     kind: Storage
     name: s-joe
-    uid: ""
+    uid: 24a08e59-0c26-5e84-9bfa-ba05aa9ae080
 spec:
   forProvider:
     path: /provider-storage/managed/
@@ -167,7 +205,7 @@ metadata:
     controller: true
     kind: Storage
     name: s-joe
-    uid: ""
+    uid: 24a08e59-0c26-5e84-9bfa-ba05aa9ae080
 spec:
   forProvider:
     path: /provider-storage/managed/
@@ -206,7 +244,7 @@ metadata:
     controller: true
     kind: Storage
     name: s-joe
-    uid: ""
+    uid: 24a08e59-0c26-5e84-9bfa-ba05aa9ae080
 spec:
   forProvider:
     policyArnRef:
@@ -232,7 +270,7 @@ metadata:
     controller: true
     kind: Storage
     name: s-joe
-    uid: ""
+    uid: 24a08e59-0c26-5e84-9bfa-ba05aa9ae080
 spec:
   forProvider:
     path: /provider-storage/managed/

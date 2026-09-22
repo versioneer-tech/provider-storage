@@ -21,9 +21,27 @@ spec:
   buckets:
   - bucketName: s-joe
     discoverable: true
+  crossplane:
+    resourceRefs:
+    - apiVersion: cloud.ovh.m.edixos.io/v1alpha1
+      kind: User
+      name: s-joe-owner
+      namespace: default
+    - apiVersion: cloud.ovh.m.edixos.io/v1alpha1
+      kind: User
+      name: s-joe
+      namespace: default
   principal: s-joe
 status:
   conditions:
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    reason: WatchCircuitClosed
+    status: "True"
+    type: Responsive
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    reason: ReconcileSuccess
+    status: "True"
+    type: Synced
   - lastTransitionTime: "2024-01-01T00:00:00Z"
     message: 'Unready resources: owner-s-joe, user-s-joe'
     reason: Creating
@@ -45,7 +63,7 @@ metadata:
     controller: true
     kind: Storage
     name: s-joe
-    uid: ""
+    uid: 24a08e59-0c26-5e84-9bfa-ba05aa9ae080
 spec:
   forProvider:
     description: Stable owner for s-joe
@@ -76,7 +94,7 @@ metadata:
     controller: true
     kind: Storage
     name: s-joe
-    uid: ""
+    uid: 24a08e59-0c26-5e84-9bfa-ba05aa9ae080
 spec:
   forProvider:
     description: Credential generation for s-joe

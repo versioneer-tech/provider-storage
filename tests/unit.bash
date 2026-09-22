@@ -53,11 +53,20 @@ normalize_generations() {
 validate_schemas() {
   local backend="$1"
   local resources="$2"
+  local validation_resources="${TMP_DIR}/${backend}-validation.yaml"
 
   printf 'Validate %s render against extension schemas\n' "${backend}"
-  crossplane beta validate \
+  awk '
+    /^---$/ {
+      document++
+      if (document == 1) next
+    }
+    document == 1 && /^      namespace:/ { next }
+    { print }
+  ' "${resources}" >"${validation_resources}"
+  crossplane resource validate \
     "${REPO_ROOT}/xrd.yaml,${REPO_ROOT}/${backend}/dependencies/02-providers.yaml" \
-    "${resources}" \
+    "${validation_resources}" \
     --cache-dir "${TMP_DIR}/crossplane-cache" \
     --crossplane-image "xpkg.crossplane.io/crossplane/crossplane:${CROSSPLANE_VERSION}" \
     --error-on-missing-schemas \
@@ -117,6 +126,9 @@ validate_aws_secret_readiness() {
     "${scenario}/input.yaml" \
     "${REPO_ROOT}/aws/composition.yaml" \
     "${REPO_ROOT}/aws/dependencies/functions.yaml" \
+    --xrd="${REPO_ROOT}/xrd.yaml" \
+    --crossplane-version="${CROSSPLANE_VERSION}" \
+    --timeout=5m \
     --observed-resources "${scenario}/observed.yaml" \
     -x >"${rendered}"
   awk 'NR == 1 { next } /^---$/ { exit } { print }' \
@@ -136,6 +148,9 @@ validate_aws_none_grant() {
     "${input}" \
     "${REPO_ROOT}/aws/composition.yaml" \
     "${REPO_ROOT}/aws/dependencies/functions.yaml" \
+    --xrd="${REPO_ROOT}/xrd.yaml" \
+    --crossplane-version="${CROSSPLANE_VERSION}" \
+    --timeout=5m \
     -x >"${rendered}"
   ! grep -Fq 'name: provider-storage.s-jeff.s-joe' "${rendered}"
   ! grep -Fq '"Statement": []' "${rendered}"
@@ -150,6 +165,9 @@ validate_ovh_secret_readiness() {
     "${REPO_ROOT}/examples/base/001-buckets.yaml" \
     "${REPO_ROOT}/ovh/composition.yaml" \
     "${REPO_ROOT}/ovh/dependencies/functions.yaml" \
+    --xrd="${REPO_ROOT}/xrd.yaml" \
+    --crossplane-version="${CROSSPLANE_VERSION}" \
+    --timeout=5m \
     --required-resources "${REPO_ROOT}/ovh/tests/required/001x-buckets.yaml" \
     --observed-resources "${REPO_ROOT}/ovh/tests/readiness/observed-missing.yaml" \
     -x >"${missing}"
@@ -171,6 +189,9 @@ validate_ovh_provider_identity() {
     "${input}" \
     "${REPO_ROOT}/ovh/composition.yaml" \
     "${REPO_ROOT}/ovh/dependencies/functions.yaml" \
+    --xrd="${REPO_ROOT}/xrd.yaml" \
+    --crossplane-version="${CROSSPLANE_VERSION}" \
+    --timeout=5m \
     --required-resources "${REPO_ROOT}/ovh/tests/required/environment.yaml" \
     -x >"${rendered}"
   grep -Fxq '  name: it-owner' "${rendered}"
@@ -195,6 +216,8 @@ validate_cloudferro_composition() {
 
   printf 'Validate CloudFerro project slot, resource ordering, and consumer Secret\n'
   crossplane render "${input}" "${composition}" "${functions}" \
+    --xrd="${REPO_ROOT}/xrd.yaml" \
+    --crossplane-version="${CROSSPLANE_VERSION}" --timeout=5m \
     --required-resources "${required}" -x >"${base}"
   grep -Fq 'kind: ContainerV1' "${base}"
   grep -Fq 'kind: EC2CredentialV3' "${base}"
@@ -211,6 +234,8 @@ validate_cloudferro_composition() {
   validate_schemas cloudferro "${base}"
 
   crossplane render "${input}" "${composition}" "${functions}" \
+    --xrd="${REPO_ROOT}/xrd.yaml" \
+    --crossplane-version="${CROSSPLANE_VERSION}" --timeout=5m \
     --required-resources "${required}" \
     --observed-resources "${observed}/credential-ready.yaml" -x >"${credential}"
   grep -Fq 'AWS_ACCESS_KEY_ID: RVhBTVBMRUFDQ0VTU0tFWQ==' "${credential}"
@@ -227,6 +252,8 @@ validate_cloudferro_composition() {
   sed 's/cloudferro-0001/cloudferro-0002/g' "${composition}" >"${TMP_DIR}/cloudferro-slot-0002-composition.yaml"
   crossplane render "${REPO_ROOT}/cloudferro/tests/fixtures/002-buckets.yaml" \
     "${TMP_DIR}/cloudferro-slot-0002-composition.yaml" "${functions}" \
+    --xrd="${REPO_ROOT}/xrd.yaml" \
+    --crossplane-version="${CROSSPLANE_VERSION}" --timeout=5m \
     --required-resources "${REPO_ROOT}/cloudferro/tests/required/002x-buckets.yaml" \
     -x >"${second}"
   grep -Fq 'name: cloudferro-0002' "${second}"
@@ -241,6 +268,8 @@ validate_cloudferro_composition() {
   sed 's/storages.pkg.internal\/backend: cloudferro-0001/storages.pkg.internal\/backend: cloudferro-0002/' \
     "${input}" >"${wrong_label}"
   if crossplane render "${wrong_label}" "${composition}" "${functions}" \
+    --xrd="${REPO_ROOT}/xrd.yaml" \
+    --crossplane-version="${CROSSPLANE_VERSION}" --timeout=5m \
     --required-resources "${required}" -x >"${denied}" 2>&1; then
     printf 'CloudFerro accepted a backend label that disagrees with its slot selector.\n' >&2
     return 1
@@ -381,6 +410,9 @@ render_and_compare() {
     "${source}" \
     "${REPO_ROOT}/${backend}/composition.yaml" \
     "${REPO_ROOT}/${backend}/dependencies/functions.yaml" \
+    --xrd="${REPO_ROOT}/xrd.yaml" \
+    --crossplane-version="${CROSSPLANE_VERSION}" \
+    --timeout=5m \
     "$@" \
     -x >"${actual}"
   normalize_generations "${actual}" "${actual}.normalized"

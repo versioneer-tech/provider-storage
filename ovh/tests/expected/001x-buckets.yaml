@@ -21,9 +21,47 @@ spec:
   buckets:
   - bucketName: s-joe
     discoverable: true
+  crossplane:
+    resourceRefs:
+    - apiVersion: cloud.ovh.m.edixos.io/v1alpha1
+      kind: ProjectStorage
+      name: s-joe
+      namespace: default
+    - apiVersion: cloud.ovh.m.edixos.io/v1alpha1
+      kind: S3Credentials
+      name: s-joe-u23456
+      namespace: default
+    - apiVersion: cloud.ovh.m.edixos.io/v1alpha1
+      kind: S3Policy
+      name: s-joe-u23456
+      namespace: default
+    - apiVersion: cloud.ovh.m.edixos.io/v1alpha1
+      kind: User
+      name: s-joe-owner
+      namespace: default
+    - apiVersion: cloud.ovh.m.edixos.io/v1alpha1
+      kind: User
+      name: s-joe
+      namespace: default
+    - apiVersion: kubernetes.m.crossplane.io/v1alpha1
+      kind: Object
+      name: observe-secret-s-joe-u23456
+      namespace: default
+    - apiVersion: kubernetes.m.crossplane.io/v1alpha1
+      kind: Object
+      name: secret-s-joe
+      namespace: default
   principal: s-joe
 status:
   conditions:
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    reason: WatchCircuitClosed
+    status: "True"
+    type: Responsive
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    reason: ReconcileSuccess
+    status: "True"
+    type: Synced
   - lastTransitionTime: "2024-01-01T00:00:00Z"
     message: 'Unready resources: bucket-s-joe, policy-s-joe-u23456, and secret-s-joe'
     reason: Creating
@@ -45,7 +83,7 @@ metadata:
     controller: true
     kind: Storage
     name: s-joe
-    uid: ""
+    uid: 24a08e59-0c26-5e84-9bfa-ba05aa9ae080
 spec:
   forProvider:
     hideObjects: true
@@ -72,7 +110,7 @@ metadata:
     controller: true
     kind: Storage
     name: s-joe
-    uid: ""
+    uid: 24a08e59-0c26-5e84-9bfa-ba05aa9ae080
 spec:
   forProvider:
     serviceName: "00000000000000000000000000000000"
@@ -98,7 +136,7 @@ metadata:
     controller: true
     kind: Storage
     name: s-joe
-    uid: ""
+    uid: 24a08e59-0c26-5e84-9bfa-ba05aa9ae080
 spec:
   forProvider:
     manifest:
@@ -128,7 +166,7 @@ metadata:
     controller: true
     kind: Storage
     name: s-joe
-    uid: ""
+    uid: 24a08e59-0c26-5e84-9bfa-ba05aa9ae080
 spec:
   forProvider:
     description: Stable owner for s-joe
@@ -159,7 +197,7 @@ metadata:
     controller: true
     kind: Storage
     name: s-joe
-    uid: ""
+    uid: 24a08e59-0c26-5e84-9bfa-ba05aa9ae080
 spec:
   forProvider:
     policy: '{"Statement":[{"Action":["s3:ListAllMyBuckets"],"Effect":"Deny","Resource":["*"]},{"Action":["s3:AbortMultipartUpload","s3:DeleteObject","s3:GetBucketAcl","s3:GetBucketLocation","s3:GetObject","s3:GetObjectAcl","s3:GetObjectAttributes","s3:ListBucket","s3:ListBucketMultipartUploads","s3:ListMultipartUploadParts","s3:PutObject"],"Effect":"Allow","Resource":["arn:aws:s3:::s-joe","arn:aws:s3:::s-joe/*"]},{"Action":["s3:GetBucketAcl","s3:GetBucketLocation","s3:GetObject","s3:GetObjectAcl","s3:GetObjectAttributes","s3:ListBucket","s3:ListBucketMultipartUploads","s3:ListMultipartUploadParts"],"Effect":"Allow","Resource":["arn:aws:s3:::s-jeff-shared","arn:aws:s3:::s-jeff-shared/*"]}]}'
@@ -184,7 +222,7 @@ metadata:
     controller: true
     kind: Storage
     name: s-joe
-    uid: ""
+    uid: 24a08e59-0c26-5e84-9bfa-ba05aa9ae080
 spec:
   forProvider:
     manifest:
@@ -219,7 +257,7 @@ metadata:
     controller: true
     kind: Storage
     name: s-joe
-    uid: ""
+    uid: 24a08e59-0c26-5e84-9bfa-ba05aa9ae080
 spec:
   forProvider:
     description: Credential generation for s-joe

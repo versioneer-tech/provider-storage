@@ -20,6 +20,7 @@ spec:
     requestedAt: "2025-09-29T10:10:00Z"
   buckets:
   - bucketName: s-jeff
+    discoverable: false
   - bucketName: s-jeff-shared
     discoverable: true
     lifecycleRules:
@@ -32,9 +33,59 @@ spec:
   credentialsRollover:
     interval: weekly
     maxToKeep: 2
+  crossplane:
+    resourceRefs:
+    - apiVersion: kubernetes.m.crossplane.io/v1alpha1
+      kind: Object
+      name: bucket-s-jeff-shared
+      namespace: default
+    - apiVersion: kubernetes.m.crossplane.io/v1alpha1
+      kind: Object
+      name: bucket-s-jeff
+      namespace: default
+    - apiVersion: kubernetes.m.crossplane.io/v1alpha1
+      kind: Object
+      name: lifecycle-config-s-jeff
+      namespace: default
+    - apiVersion: kubernetes.m.crossplane.io/v1alpha1
+      kind: Object
+      name: lifecycle-cron-s-jeff
+      namespace: default
+    - apiVersion: kubernetes.m.crossplane.io/v1alpha1
+      kind: Object
+      name: observe-secret-s-jeff
+      namespace: default
+    - apiVersion: kubernetes.m.crossplane.io/v1alpha1
+      kind: Object
+      name: policy-full-s-jeff-shared
+      namespace: default
+    - apiVersion: kubernetes.m.crossplane.io/v1alpha1
+      kind: Object
+      name: policy-full-s-jeff
+      namespace: default
+    - apiVersion: kubernetes.m.crossplane.io/v1alpha1
+      kind: Object
+      name: policy-s-joe-s-jeff-shared
+      namespace: default
+    - apiVersion: kubernetes.m.crossplane.io/v1alpha1
+      kind: Object
+      name: user-s-jeff-2026w38
+      namespace: default
+    - apiVersion: kubernetes.m.crossplane.io/v1alpha1
+      kind: Object
+      name: user-s-jeff-2026w39
+      namespace: default
   principal: s-jeff
 status:
   conditions:
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    reason: WatchCircuitClosed
+    status: "True"
+    type: Responsive
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    reason: ReconcileSuccess
+    status: "True"
+    type: Synced
   - lastTransitionTime: "2024-01-01T00:00:00Z"
     message: 'Unready resources: bucket-s-jeff, bucket-s-jeff-shared, lifecycle-config-s-jeff,
       and 6 more'
@@ -57,7 +108,7 @@ metadata:
     controller: true
     kind: Storage
     name: s-jeff
-    uid: ""
+    uid: a86e0716-04c4-5977-b127-01a60791e5c2
 spec:
   forProvider:
     manifest:
@@ -89,7 +140,7 @@ metadata:
     controller: true
     kind: Storage
     name: s-jeff
-    uid: ""
+    uid: a86e0716-04c4-5977-b127-01a60791e5c2
 spec:
   forProvider:
     manifest:
@@ -121,7 +172,7 @@ metadata:
     controller: true
     kind: Storage
     name: s-jeff
-    uid: ""
+    uid: a86e0716-04c4-5977-b127-01a60791e5c2
 spec:
   forProvider:
     manifest:
@@ -158,7 +209,7 @@ metadata:
     controller: true
     kind: Storage
     name: s-jeff
-    uid: ""
+    uid: a86e0716-04c4-5977-b127-01a60791e5c2
 spec:
   forProvider:
     manifest:
@@ -321,14 +372,14 @@ metadata:
     controller: true
     kind: Storage
     name: s-jeff
-    uid: ""
+    uid: a86e0716-04c4-5977-b127-01a60791e5c2
 spec:
   forProvider:
     manifest:
       apiVersion: v1
       kind: Secret
       metadata:
-        name: s-jeff-2026w37
+        name: s-jeff-2026w39
         namespace: default
   managementPolicies:
   - Observe
@@ -351,7 +402,7 @@ metadata:
     controller: true
     kind: Storage
     name: s-jeff
-    uid: ""
+    uid: a86e0716-04c4-5977-b127-01a60791e5c2
 spec:
   forProvider:
     manifest:
@@ -398,7 +449,7 @@ metadata:
     controller: true
     kind: Storage
     name: s-jeff
-    uid: ""
+    uid: a86e0716-04c4-5977-b127-01a60791e5c2
 spec:
   forProvider:
     manifest:
@@ -445,7 +496,7 @@ metadata:
     controller: true
     kind: Storage
     name: s-jeff
-    uid: ""
+    uid: a86e0716-04c4-5977-b127-01a60791e5c2
 spec:
   forProvider:
     manifest:
@@ -490,10 +541,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: user-s-jeff-2026w36
+    crossplane.io/composition-resource-name: user-s-jeff-2026w38
   labels:
     crossplane.io/composite: s-jeff
-  name: user-s-jeff-2026w36
+  name: user-s-jeff-2026w38
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -501,24 +552,24 @@ metadata:
     controller: true
     kind: Storage
     name: s-jeff
-    uid: ""
+    uid: a86e0716-04c4-5977-b127-01a60791e5c2
 spec:
   forProvider:
     manifest:
       apiVersion: minio.crossplane.io/v1
       kind: User
       metadata:
-        name: provider-storage-managed-s-jeff-2026w36
+        name: provider-storage-managed-s-jeff-2026w38
       spec:
         forProvider:
           policies:
           - provider-storage.s-jeff
           - provider-storage.s-jeff-shared
-          userName: provider-storage-managed-s-jeff-2026w36
+          userName: provider-storage-managed-s-jeff-2026w38
         providerConfigRef:
           name: provider-minio
         writeConnectionSecretToRef:
-          name: s-jeff-2026w36
+          name: s-jeff-2026w38
           namespace: default
   providerConfigRef:
     kind: ProviderConfig
@@ -528,10 +579,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: user-s-jeff-2026w37
+    crossplane.io/composition-resource-name: user-s-jeff-2026w39
   labels:
     crossplane.io/composite: s-jeff
-  name: user-s-jeff-2026w37
+  name: user-s-jeff-2026w39
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -539,24 +590,24 @@ metadata:
     controller: true
     kind: Storage
     name: s-jeff
-    uid: ""
+    uid: a86e0716-04c4-5977-b127-01a60791e5c2
 spec:
   forProvider:
     manifest:
       apiVersion: minio.crossplane.io/v1
       kind: User
       metadata:
-        name: provider-storage-managed-s-jeff-2026w37
+        name: provider-storage-managed-s-jeff-2026w39
       spec:
         forProvider:
           policies:
           - provider-storage.s-jeff
           - provider-storage.s-jeff-shared
-          userName: provider-storage-managed-s-jeff-2026w37
+          userName: provider-storage-managed-s-jeff-2026w39
         providerConfigRef:
           name: provider-minio
         writeConnectionSecretToRef:
-          name: s-jeff-2026w37
+          name: s-jeff-2026w39
           namespace: default
   providerConfigRef:
     kind: ProviderConfig

@@ -8,9 +8,31 @@ metadata:
   name: s-pending
 spec:
   buckets: []
+  crossplane:
+    resourceRefs:
+    - apiVersion: iam.aws.m.upbound.io/v1beta1
+      kind: AccessKey
+      name: s-pending
+      namespace: default
+    - apiVersion: iam.aws.m.upbound.io/v1beta1
+      kind: User
+      name: s-pending
+      namespace: default
+    - apiVersion: kubernetes.m.crossplane.io/v1alpha1
+      kind: Object
+      name: observe-secret-s-pending
+      namespace: default
   principal: s-pending
 status:
   conditions:
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    reason: WatchCircuitClosed
+    status: "True"
+    type: Responsive
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    reason: ReconcileSuccess
+    status: "True"
+    type: Synced
   - lastTransitionTime: "2024-01-01T00:00:00Z"
     message: 'Unready resources: observe-secret-s-pending'
     reason: Creating

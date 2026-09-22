@@ -29,9 +29,40 @@ spec:
     discoverable: true
   credentialsRollover:
     interval: daily
+    maxToKeep: 1
+  crossplane:
+    resourceRefs:
+    - apiVersion: kubernetes.m.crossplane.io/v1alpha1
+      kind: Object
+      name: bucket-s-john
+      namespace: default
+    - apiVersion: kubernetes.m.crossplane.io/v1alpha1
+      kind: Object
+      name: bucketpolicy-s-john
+      namespace: default
+    - apiVersion: kubernetes.m.crossplane.io/v1alpha1
+      kind: Object
+      name: observe-secret-s-john
+      namespace: default
+    - apiVersion: kubernetes.m.crossplane.io/v1alpha1
+      kind: Object
+      name: observe-user-s-jane
+      namespace: default
+    - apiVersion: kubernetes.m.crossplane.io/v1alpha1
+      kind: Object
+      name: user-s-john-20260922
+      namespace: default
   principal: s-john
 status:
   conditions:
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    reason: WatchCircuitClosed
+    status: "True"
+    type: Responsive
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    reason: ReconcileSuccess
+    status: "True"
+    type: Synced
   - lastTransitionTime: "2024-01-01T00:00:00Z"
     message: 'Unready resources: bucket-s-john, bucketpolicy-s-john, observe-secret-s-john,
       and 2 more'
@@ -54,7 +85,7 @@ metadata:
     controller: true
     kind: Storage
     name: s-john
-    uid: ""
+    uid: b4f4ce7a-c24f-506f-ac18-c5dd3f58626c
 spec:
   forProvider:
     manifest:
@@ -89,7 +120,7 @@ metadata:
     controller: true
     kind: Storage
     name: s-john
-    uid: ""
+    uid: b4f4ce7a-c24f-506f-ac18-c5dd3f58626c
 spec:
   forProvider:
     manifest:
@@ -128,14 +159,14 @@ metadata:
     controller: true
     kind: Storage
     name: s-john
-    uid: ""
+    uid: b4f4ce7a-c24f-506f-ac18-c5dd3f58626c
 spec:
   forProvider:
     manifest:
       apiVersion: v1
       kind: Secret
       metadata:
-        name: s-john-20260911
+        name: s-john-20260922
         namespace: default
   managementPolicies:
   - Observe
@@ -158,7 +189,7 @@ metadata:
     controller: true
     kind: Storage
     name: s-john
-    uid: ""
+    uid: b4f4ce7a-c24f-506f-ac18-c5dd3f58626c
 spec:
   forProvider:
     manifest:
@@ -176,10 +207,10 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: user-s-john-20260911
+    crossplane.io/composition-resource-name: user-s-john-20260922
   labels:
     crossplane.io/composite: s-john
-  name: user-s-john-20260911
+  name: user-s-john-20260922
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -187,19 +218,19 @@ metadata:
     controller: true
     kind: Storage
     name: s-john
-    uid: ""
+    uid: b4f4ce7a-c24f-506f-ac18-c5dd3f58626c
 spec:
   forProvider:
     manifest:
       apiVersion: identity.opentelekomcloud.crossplane.io/v1alpha1
       kind: UserV3
       metadata:
-        name: provider-storage-managed-s-john-20260911
+        name: provider-storage-managed-s-john-20260922
       spec:
         forProvider:
           accessType: programmatic
           enabled: true
-          name: provider-storage-managed-s-john-20260911
+          name: provider-storage-managed-s-john-20260922
         providerConfigRef:
           name: provider-otc
   providerConfigRef:
