@@ -44,8 +44,7 @@ jobs:
 
           crossplane xpkg build \
             --package-root=minio \
-            --ignore 'dependencies/*' \
-            --ignore 'tests/expected/*,tests/observed/*,tests/required/*,tests/*' \
+            --ignore 'dependencies/*,tests/*,tests/*/*' \
             --package-file minio/storage-minio.xpkg \
             --verbose
 
@@ -66,8 +65,7 @@ jobs:
 
           crossplane xpkg build \
             --package-root=aws \
-            --ignore 'dependencies/*' \
-            --ignore 'tests/expected/*,tests/observed/*,tests/required/*,tests/*' \
+            --ignore 'dependencies/*,tests/*,tests/*/*' \
             --package-file aws/storage-aws.xpkg \
             --verbose
 
@@ -88,8 +86,7 @@ jobs:
 
           crossplane xpkg build \
             --package-root=otc \
-            --ignore 'dependencies/*' \
-            --ignore 'tests/expected/*,tests/observed/*,tests/required/*,tests/*' \
+            --ignore 'dependencies/*,tests/*,tests/*/*' \
             --package-file otc/storage-otc.xpkg \
             --verbose
 
@@ -110,8 +107,7 @@ jobs:
 
           crossplane xpkg build \
             --package-root=ovh \
-            --ignore 'dependencies/*' \
-            --ignore 'tests/expected/*,tests/observed/*,tests/required/*,tests/probe/*,tests/readiness/*,tests/*' \
+            --ignore 'dependencies/*,tests/*,tests/*/*' \
             --package-file ovh/storage-ovh.xpkg \
             --verbose
 
@@ -132,8 +128,7 @@ jobs:
 
           crossplane xpkg build \
             --package-root=cloudferro \
-            --ignore 'dependencies/*' \
-            --ignore 'tests/*' \
+            --ignore 'dependencies/*,tests/*,tests/*/*' \
             --package-file cloudferro/storage-cloudferro.xpkg \
             --verbose
 
