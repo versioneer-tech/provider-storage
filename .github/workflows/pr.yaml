@@ -1,13 +1,20 @@
 # Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
 # SPDX-License-Identifier: Apache-2.0
 
-name: PR
+name: Tests
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
   pull_request:
     types: [opened, reopened, synchronize]
     branches:
       - main
+
+concurrency:
+  group: tests-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   unit_and_minio_integration:
@@ -17,7 +24,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Install test CLIs
         run: |

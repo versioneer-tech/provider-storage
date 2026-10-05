@@ -405,5 +405,6 @@ share generated credentials or tokens.
 
 ## CI scope
 
-The pull-request workflow runs the unit suite and the MinIO integration path.
-It does not use cloud-provider credentials.
+Pull requests to `main`, pushes to `main`, and manual workflow runs execute the
+unit suite and the full MinIO integration path. The workflow does not use
+cloud-provider credentials. The managed cloud integration paths remain manual.

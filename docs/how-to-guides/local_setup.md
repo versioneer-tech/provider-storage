@@ -72,8 +72,3 @@ you to do so:
 ```bash
 kind delete cluster --name provider-storage-it
 ```
-
-## Pull-request checks
-
-The pull-request workflow runs all Composition unit tests and the Kind/MinIO
-integration path. It does not load cloud-provider credentials.
