@@ -177,7 +177,8 @@ install_cloudferro() {
     --for=condition=Healthy --timeout=10m
   kube apply --namespace "${INTEGRATION_NAMESPACE}" \
     -f "${REPO_ROOT}/cloudferro/dependencies/03-providerConfigs.yaml"
-  log "Run cloudferro/dependencies/iam.sh apply to publish numbered project slots"
+  kube apply -f "${REPO_ROOT}/cloudferro/composition.yaml"
+  log "Run cloudferro/dependencies/iam.sh apply to publish numbered project resources"
 }
 
 main() {

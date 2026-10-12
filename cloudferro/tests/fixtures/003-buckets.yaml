@@ -13,7 +13,7 @@ spec:
   crossplane:
     compositionSelector:
       matchLabels:
-        provider: cloudferro-0003
+        provider: cloudferro
   principal: s-jane
   credentialsRollover:
     interval: quarterly

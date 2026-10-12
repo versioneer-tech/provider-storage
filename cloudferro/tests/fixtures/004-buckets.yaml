@@ -14,7 +14,7 @@ spec:
   crossplane:
     compositionSelector:
       matchLabels:
-        provider: cloudferro-0004
+        provider: cloudferro
   principal: s-john
   credentialsRollover:
     interval: daily

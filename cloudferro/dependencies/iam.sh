@@ -294,7 +294,7 @@ slot_binding() {
 identity_path() { printf '%s/controller.identity.json' "$credentials_dir"; }
 
 check_identity_file() {
-  local file user_id user
+  local file
   file=$(identity_path)
   [[ ! -L $file && -f $file ]] || die 'Missing shared controller identity file.'
   [[ $(stat -c '%a:%u' -- "$file") == "600:$(id -u)" ]] || die 'A controller identity file must be owned by you and mode 0600.'
@@ -304,15 +304,6 @@ check_identity_file() {
     (.user_id | type == "string" and test("^[a-fA-F0-9]{32}$")) and
     (.password | type == "string" and length > 0)
   ' "$file" >/dev/null || die 'The shared controller identity file has an invalid format or binding.'
-  user_id=$(jq -r '.user_id' "$file")
-  user=$(admin_json user show "$user_id")
-  jq -e --arg id "$user_id" --arg domain "$domain_id" --arg name "$controller_name" \
-    --arg description 'Provider Storage shared controller' '
-    (.id // .ID) == $id and .domain_id == $domain and .name == $name and
-    (.default_project_id == null or .default_project_id == "None" or .default_project_id == "") and
-    .description == $description and
-    (.enabled == true or .Enabled == true)
-  ' <<<"$user" >/dev/null || die 'The shared controller user has changed; refusing to use it.'
 }
 
 slot_for_name() {
