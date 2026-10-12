@@ -234,7 +234,6 @@ check_slot_resources() {
   local slot=$1
   check_owned providerconfig.openstack.m.crossplane.io "$slot" namespaced
   check_owned environmentconfig "storage-$slot" cluster
-  check_owned composition "storage-$slot" cluster
 }
 
 slot_binding() {
@@ -289,12 +288,6 @@ slot_binding() {
     ' <<<"$object" >/dev/null || die "Slot $slot EnvironmentConfig has a different project, controller, region, or endpoint."
   elif [[ $must_exist == true ]]; then
     die "Slot $slot EnvironmentConfig is missing."
-  fi
-  object=$(kubectl --context "$kube_context" get composition "storage-$slot" --ignore-not-found -o json 2>/dev/null) || die "Could not inspect Composition for $slot."
-  if [[ -n $object ]]; then
-    jq -e --arg slot "$slot" '.metadata.labels.provider == $slot' <<<"$object" >/dev/null || die "Slot $slot Composition has a different selector."
-  elif [[ $must_exist == true ]]; then
-    die "Slot $slot Composition is missing."
   fi
 }
 
@@ -364,7 +357,6 @@ verify_credential() {
 delete_slot() {
   local slot=$1 project_id=$2 secret
   kube delete providerconfig.openstack.m.crossplane.io "$slot" --ignore-not-found >/dev/null
-  kubectl --context "$kube_context" delete composition "storage-$slot" --ignore-not-found >/dev/null
   kubectl --context "$kube_context" delete environmentconfig "storage-$slot" --ignore-not-found >/dev/null
   openstack_profile "$admin_cloud" role remove --user "$controller_user_id" \
     --project "$project_id" "$project_role" >/dev/null 2>&1 || \
@@ -495,9 +487,6 @@ publish_slot() {
   ' >"$work_dir/environment.json"
   kubectl --context "$kube_context" apply --server-side --field-manager="$managed_by" -f "$work_dir/environment.json" >/dev/null
 
-  sed "s/cloudferro-0001/$slot/g" "$repo_dir/cloudferro/composition.yaml" >"$work_dir/composition.yaml"
-  kubectl --context "$kube_context" apply --server-side --force-conflicts \
-    --field-manager="$managed_by" -f "$work_dir/composition.yaml" >/dev/null
 }
 
 if [[ $admin_cloud == current ]]; then

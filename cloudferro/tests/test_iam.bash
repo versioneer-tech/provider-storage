@@ -369,8 +369,7 @@ jq -e --arg project "$slot_one_project_id" --arg controller "$created_controller
        ."environmentconfig/storage-cloudferro-0001".data.storage.serviceName == $project and
        ."environmentconfig/storage-cloudferro-0001".data.storage.controllerUserId == $controller and
        ."environmentconfig/storage-cloudferro-0001".data.storage.region == "WAW3-2" and
-       ."environmentconfig/storage-cloudferro-0001".data.storage.s3Region == "RegionOne" and
-       ."composition/storage-cloudferro-0001".metadata.labels["app.kubernetes.io/managed-by"] == "provider-storage-cloudferro-iam"' \
+       ."environmentconfig/storage-cloudferro-0001".data.storage.s3Region == "RegionOne"' \
   "$case_dir/state/resources.json" >/dev/null
 jq -e --arg project "$slot_one_project_id" --arg controller "$created_controller_user_id" '
   ."secret/cloudferro-provider-creds".data["cloudferro-0001"] |
@@ -430,8 +429,7 @@ grep -Fq "cloudferro-0002: project=$slot_two_project_id controller verified, clu
 jq -e --arg project "$slot_two_project_id" '."providerconfig/cloudferro-0001" and ."providerconfig/cloudferro-0002" and
        ."providerconfig/cloudferro-0002".metadata.annotations["storages.pkg.internal/project-name"] == "team-b-0002" and
        ."providerconfig/cloudferro-0002".metadata.annotations["storages.pkg.internal/project-id"] == $project and
-       ."environmentconfig/storage-cloudferro-0001" and ."environmentconfig/storage-cloudferro-0002" and
-       ."composition/storage-cloudferro-0001" and ."composition/storage-cloudferro-0002"' \
+       ."environmentconfig/storage-cloudferro-0001" and ."environmentconfig/storage-cloudferro-0002"' \
   "$case_dir/state/resources.json" >/dev/null
 jq -e --arg first "$slot_one_project_id" --arg second "$slot_two_project_id" '
   (."secret/cloudferro-provider-creds".data["cloudferro-0001"] | @base64d | fromjson | .tenant_id) == $first and

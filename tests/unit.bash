@@ -249,9 +249,8 @@ validate_cloudferro_composition() {
   grep -Fq 'name: usage-credential-bucketpolicy-s-joe' "${credential}"
   validate_schemas cloudferro "${credential}"
 
-  sed 's/cloudferro-0001/cloudferro-0002/g' "${composition}" >"${TMP_DIR}/cloudferro-slot-0002-composition.yaml"
   crossplane render "${REPO_ROOT}/cloudferro/tests/fixtures/002-buckets.yaml" \
-    "${TMP_DIR}/cloudferro-slot-0002-composition.yaml" "${functions}" \
+    "${composition}" "${functions}" \
     --xrd="${REPO_ROOT}/xrd.yaml" \
     --crossplane-version="${CROSSPLANE_VERSION}" --timeout=5m \
     --required-resources "${REPO_ROOT}/cloudferro/tests/required/002x-buckets.yaml" \
@@ -265,7 +264,7 @@ validate_cloudferro_composition() {
   grep -Fq 'arn:aws:iam::0123456789abcdef0123456789abcdef:root' "${second}"
   validate_schemas cloudferro "${second}"
 
-  sed 's/storages.pkg.internal\/backend: cloudferro-0001/storages.pkg.internal\/backend: cloudferro-0002/' \
+  sed 's/storages.pkg.internal\/backend: cloudferro-0001/storages.pkg.internal\/backend: invalid/' \
     "${input}" >"${wrong_label}"
   if crossplane render "${wrong_label}" "${composition}" "${functions}" \
     --xrd="${REPO_ROOT}/xrd.yaml" \
@@ -274,7 +273,7 @@ validate_cloudferro_composition() {
     printf 'CloudFerro accepted a backend label that disagrees with its slot selector.\n' >&2
     return 1
   fi
-  grep -Fq 'backend label and Composition selector must name the same slot' "${denied}"
+  grep -Fq 'backend label must name a valid project slot' "${denied}"
 }
 
 validate_otc_iam_bootstrap() {

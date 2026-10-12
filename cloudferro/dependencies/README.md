@@ -123,8 +123,9 @@ for the two-Storage cross-project test.
 All ProviderConfigs from one run live in the selected namespace. Restrict
 which team can select each slot through trusted admission or separate
 namespaces. A Storage selects the slot with
-`spec.crossplane.compositionSelector.matchLabels.provider: cloudferro-0001`.
-The matching Composition uses ProviderConfig `cloudferro-0001`. Keep read
+`spec.crossplane.compositionSelector.matchLabels.provider: cloudferro` and set
+`storages.pkg.internal/backend: cloudferro-0001`. The Composition uses
+ProviderConfig `cloudferro-0001`. Keep read
 access to `cloudferro-provider-creds` limited to the provider and trusted
 operators; it carries project-admin access to every selected project. The
 Composition uses not only the OpenStack provider for containers and EC2

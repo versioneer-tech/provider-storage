@@ -19,7 +19,7 @@ patches:
         value:
           compositionSelector:
             matchLabels:
-              provider: cloudferro-0001
+              provider: cloudferro
       - op: remove
         path: /spec/bucketAccessRequests
   - target:
@@ -52,9 +52,6 @@ patches:
       - op: add
         path: /metadata/labels/storages.pkg.internal~1backend
         value: cloudferro-0002
-      - op: replace
-        path: /spec/crossplane/compositionSelector/matchLabels/provider
-        value: cloudferro-0002
       - op: remove
         path: /spec/bucketAccessGrants
       - op: remove
@@ -67,9 +64,6 @@ patches:
     patch: |
       - op: add
         path: /metadata/labels/storages.pkg.internal~1backend
-        value: cloudferro-0002
-      - op: replace
-        path: /spec/crossplane/compositionSelector/matchLabels/provider
         value: cloudferro-0002
       - op: remove
         path: /spec/bucketAccessGrants

@@ -14,7 +14,7 @@ spec:
   crossplane:
     compositionSelector:
       matchLabels:
-        provider: cloudferro-0001
+        provider: cloudferro
   principal: s-joe
   buckets:
     - bucketName: s-joe

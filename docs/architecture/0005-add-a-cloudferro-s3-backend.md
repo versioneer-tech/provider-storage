@@ -61,9 +61,9 @@ and Object Storage access before publishing the slot. It also
 creates a matching cluster-scoped `EnvironmentConfig` and selectable
 Composition. CloudFerro's portal activation and billing remain separate.
 
-Each slot has a stable name such as `cloudferro-0001`, its own project ID, and
-a matching selectable Composition. A `Storage` selects the slot with the
-existing Composition selector:
+Each slot has a stable name such as `cloudferro-0001` and its own project ID.
+A `Storage` selects the CloudFerro Composition and names the slot with its
+backend label:
 
 ```yaml
 metadata:
@@ -73,7 +73,7 @@ spec:
   crossplane:
     compositionSelector:
       matchLabels:
-        provider: cloudferro-0001
+        provider: cloudferro
 ```
 
 The Composition must use that slot's ProviderConfig for project-scoped bucket
@@ -82,7 +82,7 @@ the project scope. The four-digit suffix provides at most 10,000 distinct slot
 names.
 The OpenStack region and S3 signing region are separate settings. CREODIAS
 WAW3-2 uses `WAW3-2` for OpenStack and `RegionOne` for S3 clients.
-The Storage backend label and Composition selector must agree; reconciliation
+The Storage backend label must name a valid CloudFerro slot; reconciliation
 fails if they name different slots.
 The selected slot must belong to the Storage's team; platform controls must
 prevent a team from selecting another team's slot.

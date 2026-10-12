@@ -4,10 +4,9 @@
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
-  name: storage-cloudferro-0001
+  name: storage-cloudferro
   labels:
-    provider: cloudferro-0001
-    app.kubernetes.io/managed-by: provider-storage-cloudferro-iam
+    provider: cloudferro
 spec:
   compositeTypeRef:
     apiVersion: pkg.internal/v1beta1
@@ -33,12 +32,16 @@ spec:
           def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
               xr = to_dict(req.observed.composite.resource)
               metadata = xr.get("metadata") or {}
+              slot = ((metadata.get("labels") or {}).get("storages.pkg.internal/backend") or "").strip()
+              if not slot.startswith("cloudferro-") or len(slot) != len("cloudferro-0001") or not slot[-4:].isdigit():
+                  response.fatal(rsp, "CloudFerro Storage backend label must name a valid project slot.")
+                  return
               response.require_resources(
                   rsp,
                   name="storage-environment",
                   api_version="apiextensions.crossplane.io/v1beta1",
                   kind="EnvironmentConfig",
-                  match_name="storage-cloudferro-0001",
+                  match_name=f"storage-{slot}",
               )
               environment = request.get_required_resource(req, "storage-environment") or {}
               rsp.context.MergeFrom(resource.dict_to_struct({ENVIRONMENT_KEY: environment.get("data") or {}}))
@@ -57,8 +60,6 @@ spec:
           from google.protobuf import json_format
 
           ENVIRONMENT_KEY = "apiextensions.crossplane.io/environment"
-          SLOT = "cloudferro-0001"
-
           def to_dict(value):
               return {} if value is None else (value if isinstance(value, dict) else json_format.MessageToDict(value, preserving_proto_field_name=True))
 
@@ -85,7 +86,7 @@ spec:
                   return [""]
               return ["-" + date for date in dates]
 
-          def managed(rsp, key, api_version, kind, name, namespace, for_provider, **fields):
+          def managed(rsp, key, api_version, kind, name, namespace, slot, for_provider, **fields):
               rsp.desired.resources[key].resource.update({
                   "apiVersion": api_version,
                   "kind": kind,
@@ -96,7 +97,7 @@ spec:
                   },
                   "spec": {
                       "forProvider": for_provider,
-                      "providerConfigRef": {"name": SLOT, "kind": "ProviderConfig"},
+                      "providerConfigRef": {"name": slot, "kind": "ProviderConfig"},
                       **fields,
                   },
               })
@@ -107,6 +108,7 @@ spec:
               spec = xr.get("spec") or {}
               namespace = (metadata.get("labels") or {}).get("crossplane.io/claim-namespace") or metadata.get("namespace") or "default"
               principal = (spec.get("principal") or metadata.get("name") or "").strip()
+              slot = ((metadata.get("labels") or {}).get("storages.pkg.internal/backend") or "").strip()
               env = (to_dict(req.context).get(ENVIRONMENT_KEY) or {}).get("storage") or {}
               project_id = (env.get("serviceName") or "").strip()
               controller_user_id = (env.get("controllerUserId") or "").strip()
@@ -117,15 +119,15 @@ spec:
                       not region or not s3_region):
                   response.fatal(rsp, "CloudFerro slot environment is incomplete.")
                   return
-              declared_slot = (metadata.get("labels") or {}).get("storages.pkg.internal/backend")
               selected_slot = (((spec.get("crossplane") or {}).get("compositionSelector") or {}).get("matchLabels") or {}).get("provider")
-              if declared_slot != SLOT or selected_slot != SLOT:
-                  response.fatal(rsp, "CloudFerro Storage backend label and Composition selector must name the same slot.")
+              if (not slot.startswith("cloudferro-") or len(slot) != len("cloudferro-0001") or
+                      not slot[-4:].isdigit() or selected_slot != "cloudferro"):
+                  response.fatal(rsp, "CloudFerro Storage must select provider cloudferro and name a valid project slot in its backend label.")
                   return
 
               own_buckets = sorted({(b.get("bucketName") or "").strip() for b in (spec.get("buckets") or []) if (b.get("bucketName") or "").strip()})
               for bucket in own_buckets:
-                  managed(rsp, f"bucket-{bucket}", "objectstorage.openstack.m.crossplane.io/v1alpha1", "ContainerV1", bucket, namespace, {
+                  managed(rsp, f"bucket-{bucket}", "objectstorage.openstack.m.crossplane.io/v1alpha1", "ContainerV1", bucket, namespace, slot, {
                       "name": bucket,
                       "region": region,
                       "forceDestroy": False,
@@ -133,7 +135,7 @@ spec:
 
               for suffix in rollover_suffixes(spec):
                   generation = f"{principal}{suffix}"
-                  managed(rsp, f"credentials-{generation}", "identity.openstack.m.crossplane.io/v1alpha1", "EC2CredentialV3", generation, namespace, {
+                  managed(rsp, f"credentials-{generation}", "identity.openstack.m.crossplane.io/v1alpha1", "EC2CredentialV3", generation, namespace, slot, {
                       "projectId": project_id,
                       "userId": controller_user_id,
                   }, writeConnectionSecretToRef={"name": f"{generation}-credentials"})

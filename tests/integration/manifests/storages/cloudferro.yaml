@@ -33,7 +33,7 @@ spec:
   crossplane:
     compositionSelector:
       matchLabels:
-        provider: __CLOUDFERRO_SLOT__
+        provider: cloudferro
 ---
 apiVersion: pkg.internal/v1beta1
 kind: Storage
@@ -61,4 +61,4 @@ spec:
   crossplane:
     compositionSelector:
       matchLabels:
-        provider: __CLOUDFERRO_IT2_SLOT__
+        provider: cloudferro

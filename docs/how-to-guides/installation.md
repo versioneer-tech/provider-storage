@@ -230,9 +230,10 @@ metadata:
 
 This is the same hook used by higher-level workspace APIs to point new `Storage` resources at a specific provider-storage environment.
 
-For a generated project slot, select its Composition with
-`spec.crossplane.compositionSelector.matchLabels.provider: cloudferro-0001`
-as shown in the [CloudFerro overlay](https://github.com/versioneer-tech/provider-storage/blob/main/examples/overlays/cloudferro/kustomization.yaml).
+Select the CloudFerro Composition with
+`spec.crossplane.compositionSelector.matchLabels.provider: cloudferro`. Set the
+project slot with the `storages.pkg.internal/backend` label, for example
+`cloudferro-0001`, as shown in the [CloudFerro overlay](https://github.com/versioneer-tech/provider-storage/blob/main/examples/overlays/cloudferro/kustomization.yaml).
 
 ---
 
