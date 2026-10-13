@@ -32,7 +32,7 @@ and S3 endpoint in
 [`04-environmentConfigs.yaml`](04-environmentConfigs.yaml).
 
 Set `CROSSPLANE_OVH_NAMESPACE` to that namespace and create the controller
-Secret before you apply the `ProviderConfig`:
+Secret:
 
 ```bash
 ovh/dependencies/iam.sh render-secrets |

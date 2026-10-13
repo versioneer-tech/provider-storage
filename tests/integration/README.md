@@ -118,8 +118,8 @@ tests/integration/create-cluster.bash
 ```
 
 The command creates or reuses the cluster and applies the
-`provider-storage-it` namespace. You can then publish a controller Secret
-before provider deployment.
+`provider-storage-it` namespace. The backend procedures below publish the
+controller Secret to this namespace.
 
 Clear `KUBECONFIG` first if a cloud login script selected another cluster.
 Other integration scripts stop and print the cluster creation command if the

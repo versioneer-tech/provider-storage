@@ -17,9 +17,7 @@ select a backend.
 ## Start here
 
 1. Follow the [installation guide](docs/how-to-guides/installation.md).
-2. For a managed cloud, review and run the backend IAM bootstrap before you
-   deploy its provider configuration. The bootstrap uses an administrator
-   login to prepare a separate Crossplane controller identity. See the
+2. For a managed cloud, prepare the controller credentials as described in the
    [cloud IAM guide](docs/how-to-guides/cloud-iam-bootstrap.md).
 3. Create a `Storage` resource in the same namespace as its namespaced
    `ProviderConfig`.

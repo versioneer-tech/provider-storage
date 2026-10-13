@@ -30,7 +30,7 @@ contains `otc-provider-creds`. Set the OBS endpoint and region in
 [`04-environmentConfigs.yaml`](04-environmentConfigs.yaml).
 
 Set `CROSSPLANE_OTC_NAMESPACE` to that namespace and create the controller
-Secret before you apply the `ProviderConfig`:
+Secret:
 
 ```bash
 otc/dependencies/iam.sh render-secrets |

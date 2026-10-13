@@ -44,7 +44,7 @@ Then configure the base controller identity:
   `aws-provider-creds`.
 
 For `static-user`, set `CROSSPLANE_AWS_NAMESPACE` to that namespace and
-create the controller Secret before you apply the `ProviderConfig`:
+create the controller Secret:
 
 ```bash
 aws/dependencies/iam.sh render-secrets |

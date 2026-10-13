@@ -38,7 +38,7 @@ then verifies an object round trip and lifecycle cleanup.
 
 ## Test a cloud backend
 
-Cloud tests use the same cluster. Before provider deployment:
+Cloud tests use the same cluster. Before you run a cloud integration test:
 
 1. complete the backend procedure in the
    [cloud IAM bootstrap guide](cloud-iam-bootstrap.md);

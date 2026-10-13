@@ -24,11 +24,10 @@ consumer Secret in the same namespace as the `Storage` resource. Provider
 controller credentials are separate and must never be copied to this consumer
 Secret.
 
-!!! warning "Bootstrap cloud IAM before deployment"
+!!! warning "Prepare cloud IAM before use"
 
-    Before you deploy a managed cloud backend, a bootstrap administrator must
-    review and run its `<cloud>/dependencies/iam.sh` script. Crossplane uses
-    the separate controller identity that this procedure prepares. Read the
+    Managed cloud backends require controller credentials. Prepare them as
+    described in the
     [cloud IAM guide](how-to-guides/cloud-iam-bootstrap.md).
 
 ## Documentation path

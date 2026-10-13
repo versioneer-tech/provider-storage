@@ -21,6 +21,13 @@ controller credential, `apply` writes a private local credential file.
 `render-secrets` reads only that file and prints the Secret manifest. Do not
 send this output to CI logs.
 
+Provider installation and IAM bootstrap are independent. You can install the
+backend's providers and `ProviderConfig` resources before or after bootstrap.
+A managed-cloud `Storage` can become ready only when the rendered controller
+Secret is present and the provider configuration it needs is ready. For
+CloudFerro, the Composition creates a project-scoped OpenStack
+`ProviderConfig` during `Storage` reconciliation.
+
 | Backend | Default controller credential file |
 | --- | --- |
 | AWS | `~/.config/provider-storage/aws-creds.json` |
