@@ -24,9 +24,12 @@ require_command() {
 validate_shell_syntax() {
   local script
   printf 'Validate shell script syntax\n'
-  while IFS= read -r script; do
-    bash -n "${REPO_ROOT}/${script}"
-  done < <(cd "${REPO_ROOT}" && rg --files -g '*.bash' -g '*.sh' | sort)
+  while IFS= read -r -d '' script; do
+    bash -n "${script}"
+  done < <(
+    find "${REPO_ROOT}" -type f \( -name '*.bash' -o -name '*.sh' \) -print0 |
+      sort -z
+  )
 }
 
 normalize_principal_generations() {
@@ -512,7 +515,6 @@ run_backend() {
 main() {
   require_command crossplane
   require_command dyff
-  require_command rg
 
   validate_shell_syntax
 
