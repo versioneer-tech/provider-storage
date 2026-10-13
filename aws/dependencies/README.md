@@ -14,8 +14,7 @@ for the permission model and safety details.
 AWS supports two controller authentication modes:
 
 - `assume-role` uses an existing workload identity.
-- `bootstrap-user` creates a static controller credential user. This legacy
-  option name does not refer to the bootstrap administrator.
+- `static-user` creates a static controller credential user.
 
 Set `CROSSPLANE_AWS_AUTH_MODE`, `CROSSPLANE_AWS_ACCOUNT_ID`, and any optional
 resource prefix or IAM names. For `assume-role`, also set
@@ -27,7 +26,7 @@ aws/dependencies/iam.sh apply
 aws/dependencies/iam.sh verify
 ```
 
-For `bootstrap-user`, keep the local credential file private and outside Git.
+For `static-user`, keep the local credential file private and outside Git.
 
 ## Deployment
 
@@ -40,11 +39,11 @@ Then configure the base controller identity:
 - For `assume-role`, replace the Secret credentials block with the source for
   the existing workload identity, such as `IRSA` or `PodIdentity`. This mode
   does not use `aws-provider-creds`.
-- For `bootstrap-user`, keep the Secret credentials block. Replace
+- For `static-user`, keep the Secret credentials block. Replace
   `<storage-namespace>` with the namespace where `render-secrets` created
   `aws-provider-creds`.
 
-For `bootstrap-user`, set `CROSSPLANE_AWS_NAMESPACE` to that namespace and
+For `static-user`, set `CROSSPLANE_AWS_NAMESPACE` to that namespace and
 create the controller Secret before you apply the `ProviderConfig`:
 
 ```bash

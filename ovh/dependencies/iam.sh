@@ -37,6 +37,8 @@ administrator login from ~/.ovh.conf. The script writes a separate controller
 JSON file in your home directory; never set its path to ~/.ovh.conf. Run
 status before apply. The separate render-secrets action prints a Kubernetes
 Secret manifest. The script does not access Kubernetes.
+If the credential and recovery files are missing for an existing service
+account, apply asks for its client secret and restores the credential file.
 EOF
 }
 
@@ -165,7 +167,7 @@ previous_actions_json=$(jq -c 'map(select(. != "publicCloudProject:apiovh:user/o
 duplicated_actions_json=$(jq -nc \
   --argjson previous "$previous_actions_json" --argjson current "$actions_json" \
   '$previous + $current | sort')
-client_name="provider-storage-bootstrap-${project_id:0:12}"
+client_name="provider-storage-controller-${project_id:0:12}"
 policy_name="provider-storage-controller-${project_id:0:12}"
 description="Provider Storage controller for project $project_id. Managed by ovh/dependencies/iam.sh."
 
@@ -216,6 +218,35 @@ publish_credentials() {
     die 'Could not publish credentials without overwriting a file. The recovery file is retained.'
   fi
   rm -f -- "$temporary"
+}
+
+restore_credentials() {
+  local expected_client_id=$1 client_secret temporary
+  printf 'Please provide the client secret for OVHcloud service account %s: ' \
+    "$expected_client_id" >&2
+  if ! IFS= read -r -s client_secret; then
+    printf '\n' >&2
+    die 'Could not read the OVHcloud client secret from the terminal.'
+  fi
+  printf '\n' >&2
+  [[ -n $client_secret && $client_secret != *$'\n'* && \
+     $client_secret != *$'\r'* ]] || die 'The OVHcloud client secret is empty or invalid.'
+  temporary=$(mktemp "$(dirname -- "$credentials_file")/.provider-ovh.XXXXXXXX") ||
+    die 'Could not prepare the private credential file.'
+  if ! jq -n --arg endpoint "$endpoint" --arg id "$expected_client_id" \
+      --arg secret "$client_secret" \
+      '{endpoint:$endpoint,client_id:$id,client_secret:$secret}' >"$temporary"; then
+    rm -f -- "$temporary"
+    die 'Could not prepare the private credential file.'
+  fi
+  unset client_secret
+  chmod 600 -- "$temporary"
+  if ! ln -T -- "$temporary" "$credentials_file"; then
+    rm -f -- "$temporary"
+    die 'Could not publish credentials without overwriting a file.'
+  fi
+  rm -f -- "$temporary"
+  printf 'Restored the service-account credential file.\n'
 }
 
 check_recovery_client() {
@@ -341,6 +372,8 @@ case $action in
       if [[ ! -e $credentials_file && -f $recovery_file ]]; then
         check_recovery_client "$client_id"
         publish_credentials "$recovery_file" "$client_id"
+      elif [[ ! -e $credentials_file ]]; then
+        restore_credentials "$client_id"
       fi
       read_credentials
       [[ $(jq -er '.client_id' "$credentials_file") == "$client_id" ]] || die 'The credential file belongs to another service account.'

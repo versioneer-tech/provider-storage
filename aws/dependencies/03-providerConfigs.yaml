@@ -12,7 +12,7 @@ spec:
   # assumeRoleChain:
   #   - roleARN: arn:aws:iam::<account-id>:role/provider-storage/crossplane
   #
-  # This credentials block is for bootstrap-user mode. Create aws-provider-creds
+  # This credentials block is for static-user mode. Create aws-provider-creds
   # from CROSSPLANE_AWS_CREDENTIALS_FILE before you apply this ProviderConfig.
   # Create the Secret and apply this ProviderConfig in every namespace that
   # contains an AWS Storage. Replace <storage-namespace> below. If you use

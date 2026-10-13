@@ -2,13 +2,15 @@
 # Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
 # SPDX-License-Identifier: Apache-2.0
 
+# Secret keys must never be traced or printed.
+set +x
 set -euo pipefail
 
 : "${CROSSPLANE_OTC_REGION:=eu-nl}"
 : "${CROSSPLANE_OTC_AUTH_URL:=https://iam.${CROSSPLANE_OTC_REGION}.otc.t-systems.com/v3}"
 : "${CROSSPLANE_OTC_RESOURCE_PREFIX:=otc-${CROSSPLANE_OTC_DOMAIN_ID:-}}"
-: "${CROSSPLANE_OTC_USER_NAME:=provider-storage-bootstrap-crossplane}"
-: "${CROSSPLANE_OTC_GROUP_NAME:=provider-storage-bootstrap-crossplane}"
+: "${CROSSPLANE_OTC_USER_NAME:=provider-storage-controller-crossplane}"
+: "${CROSSPLANE_OTC_GROUP_NAME:=provider-storage-controller-crossplane}"
 : "${CROSSPLANE_OTC_NAMESPACE:=workspace}"
 
 readonly USER_DESCRIPTION="Provider Storage controller for ${CROSSPLANE_OTC_RESOURCE_PREFIX}. Managed by otc/dependencies/iam.sh."
@@ -63,9 +65,9 @@ Optional environment:
       otc-<domain-id>). Set an explicit installation-specific value during IAM
       bootstrap if the domain has multiple installs.
   CROSSPLANE_OTC_USER_NAME
-      Controller user name (default: provider-storage-bootstrap-crossplane).
+      Controller user name (default: provider-storage-controller-crossplane).
   CROSSPLANE_OTC_GROUP_NAME
-      Controller group name (default: provider-storage-bootstrap-crossplane).
+      Controller group name (default: provider-storage-controller-crossplane).
   OS_CLOUD or standard OS_* variables
       Select the administrator session used by the openstack client. The
       script re-scopes an existing token to the target domain for IAM calls.
@@ -74,6 +76,9 @@ The script creates one programmatic controller user and one permission group.
 It writes the user's permanent AK/SK to CROSSPLANE_OTC_CREDENTIALS_FILE with
 mode 0600. The separate render-secrets action prints a Kubernetes Secret
 manifest. The script does not access Kubernetes.
+
+If the credential file is missing for an existing access key, apply asks for
+the secret key and restores the file. OTC cannot return that secret.
 
 OTC requires the Security Administrator system role to manage permanent
 credentials for other IAM users. The script assigns that role at domain scope
@@ -486,8 +491,23 @@ list_credentials() {
 
 verify_credentials_file() {
   local access_key="$1"
-  [[ -f "${CROSSPLANE_OTC_CREDENTIALS_FILE}" ]] \
-    || fail "The existing controller secret key cannot be recovered; restore the credentials file before apply."
+  local secret_key
+  if [[ ! -f "${CROSSPLANE_OTC_CREDENTIALS_FILE}" ]]; then
+    printf 'Please provide the secret key for OTC access key %s: ' \
+      "${access_key}" >&2
+    if ! IFS= read -r -s secret_key; then
+      printf '\n' >&2
+      fail "Could not read the OTC secret key from the terminal."
+    fi
+    printf '\n' >&2
+    [[ -n "${secret_key}" && "${secret_key}" != *$'\n'* && \
+       "${secret_key}" != *$'\r'* ]] \
+      || fail "The OTC secret key is empty or invalid."
+    write_credentials_file "${access_key}" "${secret_key}" \
+      || fail "Could not restore CROSSPLANE_OTC_CREDENTIALS_FILE."
+    unset secret_key
+    printf 'Restored the controller credential file.\n'
+  fi
   jq -e \
     --arg access_key "${access_key}" \
     --arg auth_url "${CROSSPLANE_OTC_AUTH_URL%/}" \

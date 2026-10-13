@@ -9,11 +9,6 @@ This guide uses these terms:
 - **Consumer identity:** An identity that Provider Storage creates for access
   to a bucket.
 
-Some existing resource names and command options contain `bootstrap`. Keep
-these names until a separate migration changes the cloud resources and their
-credentials. In this guide, such a persistent identity is a controller
-identity, even if its resource name contains `bootstrap`.
-
 !!! danger "Review before deployment"
 
     Provider Storage needs permission to manage buckets, identities, policies,
@@ -71,11 +66,11 @@ The provider can use one of these base controller identities:
 | Mode | Base controller identity |
 | --- | --- |
 | `assume-role` | An existing workload identity, such as IRSA or EKS Pod Identity |
-| `bootstrap-user` | A dedicated IAM user with a static access key |
+| `static-user` | A dedicated IAM user with a static access key |
 
-`bootstrap-user` is a legacy option name. The IAM user is a persistent
-controller credential user. It is not the bootstrap administrator. Its
-default path is `/provider-storage/bootstrap/crossplane`.
+The IAM user is a persistent controller credential user. It is not the
+bootstrap administrator. Its default path is
+`/provider-storage/controller/crossplane`.
 
 In both modes, the base identity assumes the controller runtime role. The
 runtime role creates S3 buckets, consumer users, access keys, and policies.
@@ -83,7 +78,7 @@ runtime role creates S3 buckets, consumer users, access keys, and policies.
 ### AWS permissions
 
 The bootstrap administrator must be able to inspect and manage the IAM role,
-trust policy, inline policy, and tags. In `bootstrap-user` mode, it must also
+trust policy, inline policy, and tags. In `static-user` mode, it must also
 be able to manage the dedicated controller credential user and its access key.
 Review the templates in
 [`policies/`](https://github.com/versioneer-tech/provider-storage/tree/main/aws/dependencies/policies)
@@ -109,7 +104,7 @@ the bucket prefix before `apply`; the runtime policy contains that prefix.
 ### Configure the AWS provider
 
 Both modes set the controller runtime role in `assumeRoleChain`.
-`assume-role` uses a workload credential source. `bootstrap-user` uses the
+`assume-role` uses a workload credential source. `static-user` uses the
 generated `aws-provider-creds` Secret.
 
 ### Inspect AWS
@@ -130,10 +125,9 @@ with an existing OTC administrator login. The script creates one programmatic
 controller user, one controller group, and one permanent AK/SK. Crossplane
 uses that controller credential through its `ProviderConfig`.
 
-The current default user and group name is
-`provider-storage-bootstrap-crossplane`. This is a legacy resource name. Both
-resources belong to the persistent controller identity. Consumer users start
-with `provider-storage-managed-`.
+The default user and group name is `provider-storage-controller-crossplane`.
+The IAM script does not adopt or delete resources that use older names.
+Consumer users start with `provider-storage-managed-`.
 
 ### OTC permissions
 
@@ -183,9 +177,7 @@ with an existing OVHcloud administrator session. The script creates an OAuth2
 controller service account and a project-scoped IAM policy. Crossplane uses
 the service account through its `ProviderConfig`.
 
-The current service account name starts with `provider-storage-bootstrap-`.
-This is a legacy resource name. The service account is the persistent
-controller identity. Its IAM policy name starts with
+The service account and IAM policy names start with
 `provider-storage-controller-`.
 
 ### OVHcloud permissions

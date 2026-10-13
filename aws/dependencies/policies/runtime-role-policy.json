@@ -2,10 +2,10 @@
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "ProtectBootstrapUser",
+      "Sid": "ProtectControllerUser",
       "Effect": "Deny",
       "Action": "iam:*",
-      "Resource": "__BOOTSTRAP_USER_ARN__"
+      "Resource": "__CONTROLLER_USER_ARN__"
     },
     {
       "Sid": "ManageUsersAndAccessKeys",

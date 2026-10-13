@@ -317,13 +317,13 @@ store_controller_identity() {
 
 recover_identity() {
   local user_id=$1 password
-  printf 'Enter the password for existing controller %s (%s): ' \
-    "$controller_name" "$user_id"
+  printf 'Please provide the password for CloudFerro controller %s (%s): ' \
+    "$controller_name" "$user_id" >&2
   if ! IFS= read -r -s password; then
-    printf '\n'
+    printf '\n' >&2
     die 'Could not read the existing controller password from the terminal.'
   fi
-  printf '\n'
+  printf '\n' >&2
   [[ -n $password && $password != *$'\n'* && $password != *$'\r'* ]] || die 'The existing controller password is empty or invalid.'
   printf '%s' "$password" >"$work_dir/controller-password"
   unset password

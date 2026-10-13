@@ -86,7 +86,7 @@ validate_schemas() {
 
 validate_aws_iam_policy() {
   local policy="${REPO_ROOT}/aws/dependencies/policies/runtime-role-policy.json"
-  local bootstrap_policy="${REPO_ROOT}/aws/dependencies/policies/bootstrap-user-policy.json"
+  local static_user_policy="${REPO_ROOT}/aws/dependencies/policies/static-user-policy.json"
   local script="${REPO_ROOT}/aws/dependencies/iam.sh"
   local credentials="${TMP_DIR}/aws-provider.credentials"
   local rendered_secret="${TMP_DIR}/aws-provider-secret.yaml"
@@ -120,13 +120,13 @@ validate_aws_iam_policy() {
       .Sid == "ManagePrefixedBuckets" and
       .Resource == ["__BUCKET_ARN_PATTERN__", "__OBJECT_ARN_PATTERN__"]) and
     any(.Statement[];
-      .Sid == "ProtectBootstrapUser" and .Effect == "Deny" and
-      .Resource == "__BOOTSTRAP_USER_ARN__")
+      .Sid == "ProtectControllerUser" and .Effect == "Deny" and
+      .Resource == "__CONTROLLER_USER_ARN__")
   ' "${policy}" >/dev/null
   jq -e '
     .Statement == [{Sid: "AssumeProviderStorageRuntimeRole", Effect: "Allow",
       Action: "sts:AssumeRole", Resource: "__RUNTIME_ROLE_ARN__"}]
-  ' "${bootstrap_policy}" >/dev/null
+  ' "${static_user_policy}" >/dev/null
 
   jq -n '{access_key_id:"TESTACCESSKEY",secret_access_key:"test-secret-key"}' \
     >"${credentials}"
@@ -333,9 +333,9 @@ validate_otc_iam_bootstrap() {
   grep -Fq 'token_domain_id="$(jq -r' "${script}"
   grep -Fq ': "${CROSSPLANE_OTC_RESOURCE_PREFIX:=otc-${CROSSPLANE_OTC_DOMAIN_ID:-}}"' \
     "${script}"
-  grep -Fq ': "${CROSSPLANE_OTC_USER_NAME:=provider-storage-bootstrap-crossplane}"' \
+  grep -Fq ': "${CROSSPLANE_OTC_USER_NAME:=provider-storage-controller-crossplane}"' \
     "${script}"
-  grep -Fq ': "${CROSSPLANE_OTC_GROUP_NAME:=provider-storage-bootstrap-crossplane}"' \
+  grep -Fq ': "${CROSSPLANE_OTC_GROUP_NAME:=provider-storage-controller-crossplane}"' \
     "${script}"
   grep -Fq '"${IAM_V3_ROOT}/domains/${CROSSPLANE_OTC_DOMAIN_ID}/groups/${group_id}/roles/${role_id}"' \
     "${script}"

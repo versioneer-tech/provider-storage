@@ -2,6 +2,8 @@
 # Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
 # SPDX-License-Identifier: Apache-2.0
 
+# Access-key secrets must never be traced or printed.
+set +x
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -13,14 +15,16 @@ POLICY_DIR="${SCRIPT_DIR}/policies"
 : "${CROSSPLANE_AWS_ROLE_PATH:=/provider-storage/}"
 : "${CROSSPLANE_AWS_POLICY_NAME:=provider-storage}"
 : "${CROSSPLANE_AWS_USER_NAME:=crossplane}"
-: "${CROSSPLANE_AWS_USER_PATH:=/provider-storage/bootstrap/}"
+: "${CROSSPLANE_AWS_USER_PATH:=/provider-storage/controller/}"
 : "${CROSSPLANE_AWS_USER_POLICY_NAME:=${CROSSPLANE_AWS_POLICY_NAME}-assume-role}"
 : "${CROSSPLANE_AWS_MANAGED_USER_PATH:=/provider-storage/managed/}"
 : "${CROSSPLANE_AWS_MANAGED_POLICY_PATH:=/provider-storage/managed/}"
 : "${CROSSPLANE_AWS_NAMESPACE:=workspace}"
 
 ROLE_PURPOSE="runtime-controller"
-USER_PURPOSE="bootstrap-source"
+USER_PURPOSE="static-controller-source"
+LEGACY_USER_PURPOSE="bootstrap-source"
+LEGACY_USER_PATH="/provider-storage/bootstrap/"
 
 usage() {
   cat <<'EOF'
@@ -45,17 +49,17 @@ Authentication modes:
       Trust an existing same-account IAM role or user.
       CROSSPLANE_AWS_TRUST_PRINCIPAL_ARN is required by apply. This is the
       default mode.
-  bootstrap-user
+  static-user
       Create a dedicated IAM user with only sts:AssumeRole permission and one
       access key. Apply writes it to the configured credential file.
 
 Optional environment:
   CROSSPLANE_AWS_AUTH_MODE
-      assume-role or bootstrap-user (default: assume-role).
+      assume-role or static-user (default: assume-role).
   CROSSPLANE_AWS_TRUST_PRINCIPAL_ARN
       Existing principal for assume-role mode.
   CROSSPLANE_AWS_CREDENTIALS_FILE
-      Absolute output path for the bootstrap-user AWS credentials file
+      Absolute output path for the static-user AWS credentials file
       (default: ~/.config/provider-storage/aws-creds.json). Never place it in Git.
       This is the only cloud credential input used by render-secrets.
   CROSSPLANE_AWS_NAMESPACE
@@ -71,11 +75,11 @@ Optional environment:
   CROSSPLANE_AWS_POLICY_NAME
       Runtime inline policy name (default: provider-storage).
   CROSSPLANE_AWS_USER_NAME
-      Bootstrap user name (default: crossplane).
+      Controller user name (default: crossplane).
   CROSSPLANE_AWS_USER_PATH
-      Bootstrap user path (default: /provider-storage/bootstrap/).
+      Controller user path (default: /provider-storage/controller/).
   CROSSPLANE_AWS_USER_POLICY_NAME
-      Bootstrap user inline policy name (default: <policy>-assume-role).
+      Controller user inline policy name (default: <policy>-assume-role).
   CROSSPLANE_AWS_MANAGED_USER_PATH
       Path for Composition-created users (default: /provider-storage/managed/).
   CROSSPLANE_AWS_MANAGED_POLICY_PATH
@@ -84,12 +88,15 @@ Optional environment:
   AWS_PROFILE, AWS_REGION
       Standard AWS CLI selection variables.
 
-In bootstrap-user mode, apply writes the new access key to
+In static-user mode, apply writes the new access key to
 CROSSPLANE_AWS_CREDENTIALS_FILE with mode 0600. The separate render-secrets
 action prints a Kubernetes Secret manifest. The script does not access
 Kubernetes. Use a dedicated account where possible and apply organization
 guardrails. An assume-role mode principal still needs permission to call
 sts:AssumeRole for the resulting runtime role.
+
+If the credential file is missing for an existing access key, apply asks for
+the secret access key and restores the file. AWS cannot return that secret.
 EOF
 }
 
@@ -166,8 +173,8 @@ validate_inputs() {
   local action="$1"
   [[ "${CROSSPLANE_AWS_ACCOUNT_ID:-}" =~ ^[0-9]{12}$ ]] \
     || fail "CROSSPLANE_AWS_ACCOUNT_ID must be the exact 12-digit target account ID."
-  [[ "${CROSSPLANE_AWS_AUTH_MODE}" == "assume-role" || "${CROSSPLANE_AWS_AUTH_MODE}" == "bootstrap-user" ]] \
-    || fail "CROSSPLANE_AWS_AUTH_MODE must be assume-role or bootstrap-user."
+  [[ "${CROSSPLANE_AWS_AUTH_MODE}" == "assume-role" || "${CROSSPLANE_AWS_AUTH_MODE}" == "static-user" ]] \
+    || fail "CROSSPLANE_AWS_AUTH_MODE must be assume-role or static-user."
   [[ "${CROSSPLANE_AWS_RESOURCE_PREFIX}" =~ ^[a-z0-9][a-z0-9-]{2,39}$ ]] \
     || fail "CROSSPLANE_AWS_RESOURCE_PREFIX must be 3-40 lowercase letters, digits, or hyphens."
   [[ "${CROSSPLANE_AWS_ROLE_NAME}" =~ ^[A-Za-z0-9+=,.@_-]{1,64}$ ]] \
@@ -189,9 +196,9 @@ validate_inputs() {
   [[ "${CROSSPLANE_AWS_NAMESPACE}" =~ ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$ ]] \
     || fail "CROSSPLANE_AWS_NAMESPACE must be a valid Kubernetes namespace."
   [[ "${CROSSPLANE_AWS_USER_PATH}${CROSSPLANE_AWS_USER_NAME}" != "${CROSSPLANE_AWS_MANAGED_USER_PATH}"* ]] \
-    || fail "The bootstrap user must be outside CROSSPLANE_AWS_MANAGED_USER_PATH."
+    || fail "The controller user must be outside CROSSPLANE_AWS_MANAGED_USER_PATH."
 
-  if [[ "${CROSSPLANE_AWS_AUTH_MODE}" == "bootstrap-user" ]]; then
+  if [[ "${CROSSPLANE_AWS_AUTH_MODE}" == "static-user" ]]; then
     validate_credentials_path
   fi
 }
@@ -250,7 +257,7 @@ validate_policy_templates() {
   for template_name in \
     runtime-role-trust-policy.json \
     runtime-role-policy.json \
-    bootstrap-user-policy.json; do
+    static-user-policy.json; do
     [[ -r "${POLICY_DIR}/${template_name}" ]] \
       || fail "Required policy template is not readable: ${POLICY_DIR}/${template_name}"
   done
@@ -280,7 +287,7 @@ render_policy_template() {
   printf '%s\n' "${content}" >"${destination}"
 }
 
-bootstrap_user_arn() {
+controller_user_arn() {
   local partition="$1"
   printf 'arn:%s:iam::%s:user%s%s\n' \
     "${partition}" "${CROSSPLANE_AWS_ACCOUNT_ID}" "${CROSSPLANE_AWS_USER_PATH}" \
@@ -344,14 +351,29 @@ verify_user_ownership() {
   if [[ "$(user_tag_value project)" != "provider-storage" || \
         ( "${purpose}" != "${USER_PURPOSE}" && "${purpose}" != "cloud-e2e-source" ) || \
         "$(user_tag_value resource-prefix)" != "${CROSSPLANE_AWS_RESOURCE_PREFIX}" ]]; then
-    fail "Bootstrap user ${CROSSPLANE_AWS_USER_NAME} does not have the expected ownership tags."
+    fail "Controller user ${CROSSPLANE_AWS_USER_NAME} does not have the expected ownership tags."
   fi
 }
 
-verify_bootstrap_user_identity() {
+verify_legacy_user_ownership() {
+  if [[ "$(user_tag_value project)" != "provider-storage" || \
+        "$(user_tag_value purpose)" != "${LEGACY_USER_PURPOSE}" || \
+        "$(user_tag_value resource-prefix)" != "${CROSSPLANE_AWS_RESOURCE_PREFIX}" ]]; then
+    fail "Controller user ${CROSSPLANE_AWS_USER_NAME} at the legacy path does not have the expected ownership tags."
+  fi
+}
+
+legacy_controller_user_arn() {
+  local partition="$1"
+  printf 'arn:%s:iam::%s:user%s%s\n' \
+    "${partition}" "${CROSSPLANE_AWS_ACCOUNT_ID}" "${LEGACY_USER_PATH}" \
+    "${CROSSPLANE_AWS_USER_NAME}"
+}
+
+verify_controller_user_identity() {
   local partition="$1"
   local actual_user_arn expected_user_arn
-  expected_user_arn="$(bootstrap_user_arn "${partition}")"
+  expected_user_arn="$(controller_user_arn "${partition}")"
   actual_user_arn="$(
     aws_cli iam get-user \
       --user-name "${CROSSPLANE_AWS_USER_NAME}" \
@@ -359,14 +381,29 @@ verify_bootstrap_user_identity() {
       --output text
   )"
   [[ "${actual_user_arn}" == "${expected_user_arn}" ]] \
-    || fail "Bootstrap user ${CROSSPLANE_AWS_USER_NAME} exists at unexpected ARN ${actual_user_arn}."
+    || fail "Controller user ${CROSSPLANE_AWS_USER_NAME} exists at unexpected ARN ${actual_user_arn}."
   verify_user_ownership
 }
 
-ensure_bootstrap_user() {
-  local partition="$1"
+ensure_controller_user() {
+  local partition="$1" actual_user_arn expected_user_arn legacy_user_arn
   if user_exists; then
-    verify_bootstrap_user_identity "${partition}"
+    actual_user_arn="$(aws_cli iam get-user --user-name "${CROSSPLANE_AWS_USER_NAME}" \
+      --query User.Arn --output text)"
+    expected_user_arn="$(controller_user_arn "${partition}")"
+    legacy_user_arn="$(legacy_controller_user_arn "${partition}")"
+    if [[ "${actual_user_arn}" == "${legacy_user_arn}" && \
+          "${actual_user_arn}" != "${expected_user_arn}" ]]; then
+      verify_legacy_user_ownership
+      aws_cli iam update-user \
+        --user-name "${CROSSPLANE_AWS_USER_NAME}" \
+        --new-path "${CROSSPLANE_AWS_USER_PATH}" \
+        >/dev/null
+      printf 'Moved the legacy controller user from %s to %s.\n' \
+        "${LEGACY_USER_PATH}" "${CROSSPLANE_AWS_USER_PATH}"
+    else
+      verify_controller_user_identity "${partition}"
+    fi
     aws_cli iam tag-user \
       --user-name "${CROSSPLANE_AWS_USER_NAME}" \
       --tags \
@@ -393,7 +430,7 @@ write_credentials_file() (
   parent="$(dirname -- "${destination}")"
   umask 077
   temp_path="$(mktemp "${parent}/.provider-storage-credentials.XXXXXX")"
-  trap 'rm -f "${temp_path}"' EXIT
+  trap 'rm -f -- "${temp_path}"' EXIT
   jq -n --arg access_key_id "${access_key_id}" \
     --arg secret_access_key "${secret_access_key}" \
     '{access_key_id:$access_key_id,secret_access_key:$secret_access_key}' \
@@ -403,27 +440,41 @@ write_credentials_file() (
   trap - EXIT
 )
 
-list_bootstrap_access_keys() {
+list_controller_access_keys() {
   aws_cli iam list-access-keys \
     --user-name "${CROSSPLANE_AWS_USER_NAME}" \
     --query 'AccessKeyMetadata[].AccessKeyId' \
     --output text
 }
 
-ensure_bootstrap_access_key() {
+ensure_controller_access_key() {
   local access_key_id secret_access_key key_output created_key
   local -a access_key_ids=()
-  key_output="$(list_bootstrap_access_keys)"
+  key_output="$(list_controller_access_keys)"
   read -r -a access_key_ids <<<"${key_output}" || true
 
   if ((${#access_key_ids[@]} > 1)); then
-    fail "Bootstrap user has more than one access key; clean it up before apply."
+    fail "Controller user has more than one access key; clean it up before apply."
   fi
 
   if ((${#access_key_ids[@]} == 1)); then
     access_key_id="${access_key_ids[0]}"
-    [[ -f "${CROSSPLANE_AWS_CREDENTIALS_FILE}" ]] \
-      || fail "The existing access key secret cannot be recovered; restore the credentials file before apply."
+    if [[ ! -f "${CROSSPLANE_AWS_CREDENTIALS_FILE}" ]]; then
+      printf 'Please provide the secret access key for AWS access key %s: ' \
+        "${access_key_id}" >&2
+      if ! IFS= read -r -s secret_access_key; then
+        printf '\n' >&2
+        fail "Could not read the AWS secret access key from the terminal."
+      fi
+      printf '\n' >&2
+      [[ -n "${secret_access_key}" && "${secret_access_key}" != *$'\n'* && \
+         "${secret_access_key}" != *$'\r'* ]] \
+        || fail "The AWS secret access key is empty or invalid."
+      write_credentials_file "${access_key_id}" "${secret_access_key}" \
+        || fail "Could not restore CROSSPLANE_AWS_CREDENTIALS_FILE."
+      unset secret_access_key
+      printf 'Restored the static-user credential file.\n'
+    fi
     jq -e --arg access_key_id "${access_key_id}" \
       '.access_key_id == $access_key_id and
        (.secret_access_key | type == "string" and length > 0)' \
@@ -452,7 +503,7 @@ ensure_bootstrap_access_key() {
     fail "Could not store the new access key; AWS access key was deleted."
   fi
   unset secret_access_key created_key
-  printf 'Created one bootstrap-user access key.\n'
+  printf 'Created one controller user access key.\n'
 }
 
 run_trust_policy_change() {
@@ -485,7 +536,7 @@ run_trust_policy_change() {
 apply_role() (
   local partition temp_dir trust_path permissions_path user_permissions_path
   local trust_error_path
-  local role_arn trusted_principal_arn bootstrap_user_arn_value
+  local role_arn trusted_principal_arn controller_user_arn_value
   partition="$(current_partition)"
   if role_exists; then
     verify_role_ownership "${partition}"
@@ -494,8 +545,8 @@ apply_role() (
     validate_trusted_principal "${partition}"
     trusted_principal_arn="${CROSSPLANE_AWS_TRUST_PRINCIPAL_ARN}"
   else
-    bootstrap_user_arn_value="$(bootstrap_user_arn "${partition}")"
-    trusted_principal_arn="${bootstrap_user_arn_value}"
+    controller_user_arn_value="$(controller_user_arn "${partition}")"
+    trusted_principal_arn="${controller_user_arn_value}"
   fi
   temp_dir="$(mktemp -d)"
   trap 'rm -rf "${temp_dir}"' EXIT
@@ -506,7 +557,7 @@ apply_role() (
   render_policy_template runtime-role-trust-policy.json "${trust_path}" \
     __TRUSTED_PRINCIPAL_ARN__ "${trusted_principal_arn}"
   render_policy_template runtime-role-policy.json "${permissions_path}" \
-    __BOOTSTRAP_USER_ARN__ "$(bootstrap_user_arn "${partition}")" \
+    __CONTROLLER_USER_ARN__ "$(controller_user_arn "${partition}")" \
     __MANAGED_USER_ARN_PATTERN__ \
       "arn:${partition}:iam::${CROSSPLANE_AWS_ACCOUNT_ID}:user${CROSSPLANE_AWS_MANAGED_USER_PATH}*" \
     __ACCOUNT_USER_ARN_PATTERN__ \
@@ -517,11 +568,11 @@ apply_role() (
       "arn:${partition}:s3:::${CROSSPLANE_AWS_RESOURCE_PREFIX}-*" \
     __OBJECT_ARN_PATTERN__ \
       "arn:${partition}:s3:::${CROSSPLANE_AWS_RESOURCE_PREFIX}-*/*"
-  render_policy_template bootstrap-user-policy.json "${user_permissions_path}" \
+  render_policy_template static-user-policy.json "${user_permissions_path}" \
     __RUNTIME_ROLE_ARN__ "$(runtime_role_arn "${partition}")"
 
-  if [[ "${CROSSPLANE_AWS_AUTH_MODE}" == "bootstrap-user" ]]; then
-    ensure_bootstrap_user "${partition}"
+  if [[ "${CROSSPLANE_AWS_AUTH_MODE}" == "static-user" ]]; then
+    ensure_controller_user "${partition}"
   fi
 
   if role_exists; then
@@ -554,12 +605,12 @@ apply_role() (
     --policy-name "${CROSSPLANE_AWS_POLICY_NAME}" \
     --policy-document "file://${permissions_path}"
 
-  if [[ "${CROSSPLANE_AWS_AUTH_MODE}" == "bootstrap-user" ]]; then
+  if [[ "${CROSSPLANE_AWS_AUTH_MODE}" == "static-user" ]]; then
     aws_cli iam put-user-policy \
       --user-name "${CROSSPLANE_AWS_USER_NAME}" \
       --policy-name "${CROSSPLANE_AWS_USER_POLICY_NAME}" \
       --policy-document "file://${user_permissions_path}"
-    ensure_bootstrap_access_key
+    ensure_controller_access_key
   fi
 
   role_arn="$(aws_cli iam get-role --role-name "${CROSSPLANE_AWS_ROLE_NAME}" --query Role.Arn --output text)"
@@ -568,9 +619,9 @@ apply_role() (
     "${CROSSPLANE_AWS_AUTH_MODE}"
   printf 'Managed user path: %s\nManaged policy path: %s\n' \
     "${CROSSPLANE_AWS_MANAGED_USER_PATH}" "${CROSSPLANE_AWS_MANAGED_POLICY_PATH}"
-  if [[ "${CROSSPLANE_AWS_AUTH_MODE}" == "bootstrap-user" ]]; then
-    printf 'Bootstrap user ARN: %s\nCredentials file: %s\n' \
-      "${bootstrap_user_arn_value}" "${CROSSPLANE_AWS_CREDENTIALS_FILE}"
+  if [[ "${CROSSPLANE_AWS_AUTH_MODE}" == "static-user" ]]; then
+    printf 'Controller user ARN: %s\nCredentials file: %s\n' \
+      "${controller_user_arn_value}" "${CROSSPLANE_AWS_CREDENTIALS_FILE}"
   else
     printf 'Trusted principal ARN: %s\n' "${trusted_principal_arn}"
   fi
@@ -596,22 +647,31 @@ show_role_status() {
     "${CROSSPLANE_AWS_MANAGED_POLICY_PATH}"
 }
 
-show_bootstrap_user_status() {
-  local partition="$1"
+show_controller_user_status() {
+  local partition="$1" actual_user_arn legacy_user_arn
   local key_output
   local -a access_key_ids=()
   if ! user_exists; then
-    printf 'Bootstrap user %s is absent.\n' "${CROSSPLANE_AWS_USER_NAME}"
+    printf 'Controller user %s is absent.\n' "${CROSSPLANE_AWS_USER_NAME}"
     return
   fi
-  verify_bootstrap_user_identity "${partition}"
+  actual_user_arn="$(aws_cli iam get-user --user-name "${CROSSPLANE_AWS_USER_NAME}" \
+    --query User.Arn --output text)"
+  legacy_user_arn="$(legacy_controller_user_arn "${partition}")"
+  if [[ "${actual_user_arn}" == "${legacy_user_arn}" ]]; then
+    verify_legacy_user_ownership
+    printf 'Controller user uses legacy path %s; run apply to move it to %s.\n' \
+      "${LEGACY_USER_PATH}" "${CROSSPLANE_AWS_USER_PATH}"
+  else
+    verify_controller_user_identity "${partition}"
+  fi
   aws_cli iam get-user-policy \
     --user-name "${CROSSPLANE_AWS_USER_NAME}" \
     --policy-name "${CROSSPLANE_AWS_USER_POLICY_NAME}" \
     >/dev/null
-  key_output="$(list_bootstrap_access_keys)"
+  key_output="$(list_controller_access_keys)"
   read -r -a access_key_ids <<<"${key_output}" || true
-  printf 'Bootstrap user exists.\nUser name: %s\nUser path: %s\nAccess keys: %s\n' \
+  printf 'Controller user exists.\nUser name: %s\nUser path: %s\nAccess keys: %s\n' \
     "${CROSSPLANE_AWS_USER_NAME}" "${CROSSPLANE_AWS_USER_PATH}" "${#access_key_ids[@]}"
   if [[ -n "${CROSSPLANE_AWS_CREDENTIALS_FILE:-}" ]]; then
     printf 'Credentials file: %s\n' "${CROSSPLANE_AWS_CREDENTIALS_FILE}"
@@ -629,20 +689,20 @@ verify_resources() {
     --policy-name "${CROSSPLANE_AWS_POLICY_NAME}" \
     >/dev/null
 
-  if [[ "${CROSSPLANE_AWS_AUTH_MODE}" == bootstrap-user ]]; then
-    user_exists || fail "Bootstrap user ${CROSSPLANE_AWS_USER_NAME} is absent."
-    verify_bootstrap_user_identity "${partition}"
+  if [[ "${CROSSPLANE_AWS_AUTH_MODE}" == static-user ]]; then
+    user_exists || fail "Controller user ${CROSSPLANE_AWS_USER_NAME} is absent."
+    verify_controller_user_identity "${partition}"
     aws_cli iam get-user-policy \
       --user-name "${CROSSPLANE_AWS_USER_NAME}" \
       --policy-name "${CROSSPLANE_AWS_USER_POLICY_NAME}" \
       >/dev/null
-    key_output="$(list_bootstrap_access_keys)"
+    key_output="$(list_controller_access_keys)"
     read -r -a access_key_ids <<<"${key_output}" || true
     ((${#access_key_ids[@]} == 1)) \
-      || fail "Bootstrap user must have exactly one access key."
+      || fail "Controller user must have exactly one access key."
     access_key_id="${access_key_ids[0]}"
     [[ -f "${CROSSPLANE_AWS_CREDENTIALS_FILE}" ]] \
-      || fail "The bootstrap-user credential file is missing."
+      || fail "The static-user credential file is missing."
     jq -e --arg access_key_id "${access_key_id}" \
       '.access_key_id == $access_key_id and
        (.secret_access_key | type == "string" and length > 0)' \
@@ -675,7 +735,7 @@ main() {
     return
   fi
 
-  if [[ "${CROSSPLANE_AWS_AUTH_MODE}" == bootstrap-user ]]; then
+  if [[ "${CROSSPLANE_AWS_AUTH_MODE}" == static-user ]]; then
     require_command jq
     require_command stat
     if [[ "${action}" == apply ]]; then
@@ -698,8 +758,8 @@ main() {
       verify_account
       partition="$(current_partition)"
       show_role_status "${partition}"
-      if [[ "${CROSSPLANE_AWS_AUTH_MODE}" == "bootstrap-user" ]]; then
-        show_bootstrap_user_status "${partition}"
+      if [[ "${CROSSPLANE_AWS_AUTH_MODE}" == "static-user" ]]; then
+        show_controller_user_status "${partition}"
       fi
       ;;
     verify)

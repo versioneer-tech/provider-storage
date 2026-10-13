@@ -140,6 +140,7 @@ new_case() {
   create_mode=success
   edit_mode=success
   default_mode=false
+  input_file=/dev/null
 }
 
 run_iam() {
@@ -159,7 +160,7 @@ run_iam() {
     TEST_IDENTITY_URN="$identity_urn" TEST_ADMIN_HOME="$case_dir/admin-home" \
     TEST_PROJECT_MODE="$project_mode" TEST_RESOURCE_MODE="$resource_mode" \
     TEST_CREATE_MODE="$create_mode" TEST_EDIT_MODE="$edit_mode" \
-    bash "$script" "$1" >"$case_dir/stdout" 2>"$case_dir/stderr"
+    bash "$script" "$1" <"$input_file" >"$case_dir/stdout" 2>"$case_dir/stderr"
 }
 
 expect_success() {
@@ -224,7 +225,7 @@ grep -Fxq 'OVHcloud Provider Storage controller identity is ready.' "$case_dir/s
   fail 'apply omitted its readiness summary'
 grep -Fxq "Project: $target_id" "$case_dir/stdout" || fail 'apply omitted project'
 grep -Fxq 'API region: EU' "$case_dir/stdout" || fail 'apply omitted API region'
-grep -Fxq "Controller service account: provider-storage-bootstrap-${target_id:0:12}" "$case_dir/stdout" ||
+grep -Fxq "Controller service account: provider-storage-controller-${target_id:0:12}" "$case_dir/stdout" ||
   fail 'apply omitted the service account name'
 grep -Fxq "Credentials file: $credentials_file" "$case_dir/stdout" ||
   fail 'apply omitted the credential path'
@@ -280,6 +281,19 @@ expect_success apply
   fail 'apply did not recover the one-time secret without creating another resource'
 cmp -s "$credentials_file" "$case_dir/first-credentials.json" ||
   fail 'recovered credentials changed'
+
+rm -- "$credentials_file"
+printf '%s\n' "$client_secret" >"$case_dir/client-secret.input"
+input_file="$case_dir/client-secret.input"
+expect_success apply
+[[ $(create_count) == 2 && -f $credentials_file ]] ||
+  fail 'apply did not restore the deleted credential file from the provided secret'
+grep -Fq "Please provide the client secret for OVHcloud service account $client_id:" \
+  "$case_dir/stderr" || fail 'apply did not prompt for the existing client secret'
+cmp -s "$credentials_file" "$case_dir/first-credentials.json" ||
+  fail 'credentials restored from the provided secret changed'
+! grep -Fq "$client_secret" "$case_dir/stdout" "$case_dir/stderr" ||
+  fail 'credential recovery exposed the client secret'
 
 jq --arg other_urn "urn:v1:eu:resource:publicCloudProject:$other_id" \
   '.resources=[{urn:$other_urn}]' \
