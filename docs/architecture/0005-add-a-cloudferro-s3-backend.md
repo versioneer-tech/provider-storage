@@ -45,16 +45,14 @@ only that file and prints one
 namespaced Secret manifest for each project. Its name is
 `cloudferro-project-<project-id>` and its key is `config`. The JSON value
 contains the controller credentials and the project ID as `tenant_id`. A
-static `storage` EnvironmentConfig contains only endpoint and region
-settings. This is the same default EnvironmentConfig name as the other
-backends.
+static `storage` EnvironmentConfig contains only endpoint and region settings.
+Multi-backend installations can select another name with the
+`storages.pkg.internal/environment` annotation or label.
 
 A Storage selects the generic Composition and declares its project ID:
 
 ```yaml
 metadata:
-  labels:
-    storages.pkg.internal/backend: cloudferro
   annotations:
     storages.pkg.internal/cloudferro-project-id: 0123456789abcdef0123456789abcdef
 spec:

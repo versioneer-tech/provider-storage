@@ -8,6 +8,7 @@ metadata:
   namespace: provider-storage-it
   annotations:
     storages.pkg.internal/cloudferro-project-id: __CLOUDFERRO_PROJECT_ID__
+    storages.pkg.internal/environment: storage-cloudferro
   labels:
     storages.pkg.internal/backend: cloudferro
     storages.pkg.internal/discoverable: "true"
@@ -44,6 +45,7 @@ metadata:
   namespace: provider-storage-it
   annotations:
     storages.pkg.internal/cloudferro-project-id: __CLOUDFERRO_IT2_PROJECT_ID__
+    storages.pkg.internal/environment: storage-cloudferro
   labels:
     storages.pkg.internal/backend: cloudferro
     storages.pkg.internal/discoverable: "true"

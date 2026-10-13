@@ -9,8 +9,6 @@ metadata:
   name: s-jane
   annotations:
     storages.pkg.internal/cloudferro-project-id: 0123456789abcdef0123456789abcdef
-  labels:
-    storages.pkg.internal/backend: cloudferro
 spec:
   crossplane:
     compositionSelector:

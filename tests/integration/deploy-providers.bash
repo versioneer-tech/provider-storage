@@ -189,7 +189,7 @@ install_cloudferro() {
     --for=condition=Healthy --timeout=10m
   kube apply --namespace "${INTEGRATION_NAMESPACE}" \
     -f "${REPO_ROOT}/cloudferro/dependencies/03-providerConfigs.yaml"
-  kube apply -f "${REPO_ROOT}/cloudferro/dependencies/04-environmentConfigs.yaml"
+  kube apply -f "${MANIFEST_DIR}/environment-configs/cloudferro.yaml"
   kube apply -f "${REPO_ROOT}/cloudferro/composition.yaml"
 }
 

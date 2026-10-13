@@ -32,16 +32,19 @@ spec:
           def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
               xr = to_dict(req.observed.composite.resource)
               metadata = xr.get("metadata") or {}
-              backend = ((metadata.get("labels") or {}).get("storages.pkg.internal/backend") or "").strip()
-              if backend != "cloudferro":
-                  response.fatal(rsp, "CloudFerro Storage backend label must be cloudferro.")
-                  return
+              annotations = metadata.get("annotations") or {}
+              labels = metadata.get("labels") or {}
+              env_name = (
+                  annotations.get("storages.pkg.internal/environment")
+                  or labels.get("storages.pkg.internal/environment")
+                  or "storage"
+              ).strip() or "storage"
               response.require_resources(
                   rsp,
                   name="storage-environment",
                   api_version="apiextensions.crossplane.io/v1beta1",
                   kind="EnvironmentConfig",
-                  match_name="storage",
+                  match_name=env_name,
               )
               environment = request.get_required_resource(req, "storage-environment") or {}
               data = environment.get("data") or {}
@@ -111,7 +114,6 @@ spec:
               spec = xr.get("spec") or {}
               namespace = metadata.get("namespace") or "default"
               principal = (spec.get("principal") or metadata.get("name") or "").strip()
-              backend = ((metadata.get("labels") or {}).get("storages.pkg.internal/backend") or "").strip()
               project_id = ((metadata.get("annotations") or {}).get(PROJECT_ID_ANNOTATION) or "").strip()
               env = (to_dict(req.context).get(ENVIRONMENT_KEY) or {}).get("storage") or {}
               region = (env.get("region") or "").strip()
@@ -121,8 +123,8 @@ spec:
                   response.fatal(rsp, "CloudFerro environment or project ID annotation is incomplete or invalid.")
                   return
               selected_provider = (((spec.get("crossplane") or {}).get("compositionSelector") or {}).get("matchLabels") or {}).get("provider")
-              if backend != "cloudferro" or selected_provider != "cloudferro":
-                  response.fatal(rsp, "CloudFerro Storage must select provider cloudferro and use the cloudferro backend label.")
+              if selected_provider != "cloudferro":
+                  response.fatal(rsp, "CloudFerro Storage must select provider cloudferro.")
                   return
 
               provider_config_name = f"cloudferro-{principal}"
@@ -421,8 +423,9 @@ spec:
                       return
                   peer = matches[0]
                   peer_metadata = peer.get("metadata") or {}
-                  backend = (peer_metadata.get("labels") or {}).get("storages.pkg.internal/backend", "").strip()
-                  if backend != "cloudferro":
+                  peer_spec = peer.get("spec") or {}
+                  peer_provider = (((peer_spec.get("crossplane") or {}).get("compositionSelector") or {}).get("matchLabels") or {}).get("provider")
+                  if peer_provider != "cloudferro":
                       response.fatal(rsp, f"CloudFerro grantee principal {grantee} does not use the cloudferro backend.")
                       return
                   project_id = ((peer_metadata.get("annotations") or {}).get(

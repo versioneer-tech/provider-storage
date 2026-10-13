@@ -60,9 +60,8 @@ available implementations.
 ### CloudFerro
 
 - **Bucket:** A composed OpenStack ProviderConfig scopes each `ContainerV1` to
-  the project in `storages.pkg.internal/cloudferro-project-id`. The backend
-  inventory label uses `cloudferro`. In a multi-backend cluster, the optional
-  Composition selector also uses `cloudferro`.
+  the project in `storages.pkg.internal/cloudferro-project-id`. The required
+  Composition selector uses `provider: cloudferro`.
 - **Identity and credential:** One controller user receives the configured
   member role in every managed project. The Composition creates retained EC2
   credential generations for that user in the selected project.

@@ -36,7 +36,7 @@ Keep the local controller credential file private and outside Git.
 ## Deployment
 
 Set the CloudFerro endpoint, OpenStack region, and S3 signing region in the
-common `storage` EnvironmentConfig in
+default `storage` EnvironmentConfig in
 [`04-environmentConfigs.yaml`](04-environmentConfigs.yaml).
 
 Set `CROSSPLANE_CLOUDFERRO_NAMESPACE` to the target namespace. Create one

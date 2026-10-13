@@ -10,7 +10,6 @@ metadata:
   annotations:
     storages.pkg.internal/cloudferro-project-id: fedcba9876543210fedcba9876543210
   labels:
-    storages.pkg.internal/backend: cloudferro
     storages.pkg.internal/discoverable: "true"
 spec:
   crossplane:

@@ -1,0 +1,15 @@
+# Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: apiextensions.crossplane.io/v1beta1
+kind: EnvironmentConfig
+metadata:
+  name: storage-cloudferro
+data:
+  storage:
+    endpoint: https://s3.waw3-2.cloudferro.com
+    force_path_style: "true"
+    provider: Other
+    region: WAW3-2
+    s3Region: RegionOne
+    type: s3

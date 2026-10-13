@@ -14,6 +14,7 @@ verify_scenario() {
   [[ "$(grep -c '^kind: Storage$' <<<"${content}")" == 2 ]]
   grep -Fxq "  name: storage-${backend}-it" <<<"${content}"
   grep -Fxq "  name: storage-${backend}-it2" <<<"${content}"
+  [[ "$(grep -Fc "storages.pkg.internal/environment: storage-${backend}" <<<"${content}")" == 2 ]]
   grep -Fxq "  principal: provider-storage-${backend}-it2" <<<"${content}"
   grep -Fq "bucketName: ${bucket_a}" <<<"${content}"
   [[ "$(grep -Fc "bucketName: ${bucket_b}" <<<"${content}")" == 3 ]]

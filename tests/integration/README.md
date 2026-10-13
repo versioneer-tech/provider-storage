@@ -373,8 +373,9 @@ export CROSSPLANE_CLOUDFERRO_IT2_PROJECT_ID=5e5a59562f4b4b95b2e5699bd27393c0 # e
 tests/integration/run.bash cloudferro
 ```
 
-The provider deployment verifies that both project Secrets exist and applies
-the common `storage` EnvironmentConfig.
+The provider deployment applies the integration-specific
+`storage-cloudferro` EnvironmentConfig. Both test `Storage` resources select
+it with the `storages.pkg.internal/environment` annotation.
 
 The test creates one Storage with four buckets in the first project and one
 Storage with one bucket in the second project. It verifies each Storage's own

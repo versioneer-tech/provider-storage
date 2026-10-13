@@ -25,13 +25,12 @@ spec:
         provider: minio
 ```
 
-All backends use the `storage` EnvironmentConfig by default. AWS, MinIO, OTC,
-and OVHcloud also let you set the `storages.pkg.internal/environment`
-annotation or label to select a different EnvironmentConfig.
+All backends use the `storage` EnvironmentConfig by default. Set the
+`storages.pkg.internal/environment` annotation or label to select a different
+EnvironmentConfig. The multi-backend examples select `storage-<backend>`.
 
-CloudFerro uses the common `storage` EnvironmentConfig. It also requires the
-`storages.pkg.internal/backend: cloudferro` inventory label and the
-`storages.pkg.internal/cloudferro-project-id` annotation. See the
+CloudFerro also requires the `storages.pkg.internal/cloudferro-project-id`
+annotation and an explicit `provider: cloudferro` Composition selector. See the
 [CloudFerro dependency guide](https://github.com/versioneer-tech/provider-storage/blob/main/cloudferro/dependencies/README.md).
 
 ## Concepts

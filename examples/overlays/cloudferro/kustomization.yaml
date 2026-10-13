@@ -29,13 +29,10 @@ patches:
       name: s-jane
     patch: |
       - op: add
-        path: /metadata/labels
-        value:
-          storages.pkg.internal/backend: cloudferro
-      - op: add
         path: /metadata/annotations
         value:
           storages.pkg.internal/cloudferro-project-id: 0123456789abcdef0123456789abcdef
+          storages.pkg.internal/environment: storage-cloudferro
   - target:
       group: pkg.internal
       version: v1beta1
@@ -43,12 +40,10 @@ patches:
       name: s-joe
     patch: |
       - op: add
-        path: /metadata/labels/storages.pkg.internal~1backend
-        value: cloudferro
-      - op: add
         path: /metadata/annotations
         value:
           storages.pkg.internal/cloudferro-project-id: 0123456789abcdef0123456789abcdef
+          storages.pkg.internal/environment: storage-cloudferro
       - op: remove
         path: /spec/bucketAccessGrants
   - target:
@@ -58,12 +53,10 @@ patches:
       name: s-jeff
     patch: |
       - op: add
-        path: /metadata/labels/storages.pkg.internal~1backend
-        value: cloudferro
-      - op: add
         path: /metadata/annotations
         value:
           storages.pkg.internal/cloudferro-project-id: fedcba9876543210fedcba9876543210
+          storages.pkg.internal/environment: storage-cloudferro
       - op: remove
         path: /spec/bucketAccessGrants
       - op: remove
@@ -75,11 +68,9 @@ patches:
       name: s-john
     patch: |
       - op: add
-        path: /metadata/labels/storages.pkg.internal~1backend
-        value: cloudferro
-      - op: add
         path: /metadata/annotations
         value:
           storages.pkg.internal/cloudferro-project-id: fedcba9876543210fedcba9876543210
+          storages.pkg.internal/environment: storage-cloudferro
       - op: remove
         path: /spec/bucketAccessGrants

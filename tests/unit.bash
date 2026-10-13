@@ -290,16 +290,16 @@ validate_cloudferro_composition() {
   grep -Fq 'arn:aws:iam::0123456789abcdef0123456789abcdef:root' "${second}"
   validate_schemas cloudferro "${second}"
 
-  sed 's/storages.pkg.internal\/backend: cloudferro/storages.pkg.internal\/backend: invalid/' \
+  sed 's/provider: cloudferro/provider: invalid/' \
     "${input}" >"${wrong_label}"
   if crossplane render "${wrong_label}" "${composition}" "${functions}" \
     --xrd="${REPO_ROOT}/xrd.yaml" \
     --crossplane-version="${CROSSPLANE_VERSION}" --timeout=5m \
     --required-resources "${required}" -x >"${denied}" 2>&1; then
-    printf 'CloudFerro accepted an invalid backend label.\n' >&2
+    printf 'CloudFerro accepted an invalid Composition selector.\n' >&2
     return 1
   fi
-  grep -Fq 'backend label must be cloudferro' "${denied}"
+  grep -Fq 'incorrect value for label "provider"' "${denied}"
 }
 
 validate_otc_iam_bootstrap() {
