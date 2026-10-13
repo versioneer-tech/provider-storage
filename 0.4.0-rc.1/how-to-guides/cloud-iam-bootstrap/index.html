@@ -1,0 +1,1803 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://versioneer-tech.github.io/provider-storage/0.4.0-rc.1/how-to-guides/cloud-iam-bootstrap/">
+      
+      
+        <link rel="prev" href="../installation/">
+      
+      
+        <link rel="next" href="../usage_concepts/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../imgs/favicon.ico">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Cloud IAM Bootstrap - provider-storage</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="white" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#cloud-iam-bootstrap" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="provider-storage" class="md-header__button md-logo" aria-label="provider-storage" data-md-component="logo">
+      
+  <img src="../../imgs/logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            provider-storage
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Cloud IAM Bootstrap
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="white" data-md-color-accent="indigo"  aria-hidden="true"  type="radio" name="__palette" id="__palette_0">
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/versioneer-tech/provider-storage" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    versioneer-tech/provider-storage
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="provider-storage" class="md-nav__button md-logo" aria-label="provider-storage" data-md-component="logo">
+      
+  <img src="../../imgs/logo.png" alt="logo">
+
+    </a>
+    provider-storage
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/versioneer-tech/provider-storage" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    versioneer-tech/provider-storage
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How-to guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    How-to guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../backend_differences/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Backend Differences
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cloud IAM Bootstrap
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cloud IAM Bootstrap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#aws" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AWS
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="AWS">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#aws-identity-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AWS identity model
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aws-permissions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AWS permissions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#run-aws-bootstrap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Run AWS bootstrap
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configure-the-aws-provider" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configure the AWS provider
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#inspect-aws" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inspect AWS
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#otc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OTC
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="OTC">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#otc-identity-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OTC identity model
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#otc-permissions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OTC permissions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#run-otc-bootstrap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Run OTC bootstrap
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configure-the-otc-provider" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configure the OTC provider
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#inspect-otc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inspect OTC
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ovhcloud" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OVHcloud
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="OVHcloud">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ovhcloud-identity-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OVHcloud identity model
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ovhcloud-permissions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OVHcloud permissions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#run-ovhcloud-bootstrap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Run OVHcloud bootstrap
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configure-the-ovhcloud-provider" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configure the OVHcloud provider
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#inspect-ovhcloud" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inspect OVHcloud
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cloudferro" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CloudFerro
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="CloudFerro">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cloudferro-identity-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CloudFerro identity model
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cloudferro-permissions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CloudFerro permissions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#run-cloudferro-bootstrap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Run CloudFerro bootstrap
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configure-the-cloudferro-provider" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configure the CloudFerro provider
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#inspect-cloudferro" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inspect CloudFerro
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../usage_concepts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Usage and Concepts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../permissions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Permission Model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../local_setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Local Integration Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference-guides/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/credential-strategy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Credential Strategy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/0001-provision-storage-on-aws-otc-and-minio/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-001 AWS, OTC, and MinIO Provisioning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/0002-rotate-static-credentials-by-generation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-002 Static Credential Rotation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/0003-run-portable-lifecycle-cleanup-jobs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-003 Lifecycle Cleanup Jobs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/0004-add-an-ovhcloud-s3-backend/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-004 OVHcloud S3 Backend
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/0005-add-a-cloudferro-s3-backend/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-005 CloudFerro Project Boundaries
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#aws" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AWS
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="AWS">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#aws-identity-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AWS identity model
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aws-permissions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AWS permissions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#run-aws-bootstrap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Run AWS bootstrap
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configure-the-aws-provider" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configure the AWS provider
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#inspect-aws" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inspect AWS
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#otc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OTC
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="OTC">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#otc-identity-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OTC identity model
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#otc-permissions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OTC permissions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#run-otc-bootstrap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Run OTC bootstrap
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configure-the-otc-provider" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configure the OTC provider
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#inspect-otc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inspect OTC
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ovhcloud" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OVHcloud
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="OVHcloud">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ovhcloud-identity-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OVHcloud identity model
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ovhcloud-permissions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OVHcloud permissions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#run-ovhcloud-bootstrap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Run OVHcloud bootstrap
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configure-the-ovhcloud-provider" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configure the OVHcloud provider
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#inspect-ovhcloud" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inspect OVHcloud
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cloudferro" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CloudFerro
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="CloudFerro">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cloudferro-identity-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CloudFerro identity model
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cloudferro-permissions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CloudFerro permissions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#run-cloudferro-bootstrap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Run CloudFerro bootstrap
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configure-the-cloudferro-provider" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configure the CloudFerro provider
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#inspect-cloudferro" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inspect CloudFerro
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="cloud-iam-bootstrap">Cloud IAM bootstrap</h1>
+<p>This guide uses these terms:</p>
+<ul>
+<li><strong>Bootstrap administrator:</strong> The person who runs <code>iam.sh</code> with an existing
+  privileged login. Crossplane does not use this login.</li>
+<li><strong>Controller identity:</strong> The persistent machine identity that Crossplane
+  uses through a <code>ProviderConfig</code>.</li>
+<li><strong>Consumer identity:</strong> An identity that Provider Storage creates for access
+  to a bucket.</li>
+</ul>
+<div class="admonition danger">
+<p class="admonition-title">Review before deployment</p>
+<p>Provider Storage needs permission to manage buckets, identities, policies,
+and access credentials. A cloud administrator must review the backend's
+<code>iam.sh</code> and policy files before running the bootstrap.</p>
+</div>
+<p>Run the IAM bootstrap before you render and apply its Kubernetes Secret
+manifest. No <code>iam.sh</code> accesses Kubernetes. For each backend that uses a static
+controller credential, <code>apply</code> writes a private local credential file.
+<code>render-secrets</code> reads only that file and prints the Secret manifest. Do not
+send this output to CI logs.</p>
+<p>Provider installation and IAM bootstrap are independent. You can install the
+backend's providers and <code>ProviderConfig</code> resources before or after bootstrap.
+A managed-cloud <code>Storage</code> can become ready only when the rendered controller
+Secret is present and the provider configuration it needs is ready. For
+CloudFerro, the Composition creates a project-scoped OpenStack
+<code>ProviderConfig</code> during <code>Storage</code> reconciliation.</p>
+<table>
+<thead>
+<tr>
+<th>Backend</th>
+<th>Default controller credential file</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AWS</td>
+<td><code>~/.config/provider-storage/aws-creds.json</code></td>
+</tr>
+<tr>
+<td>OTC</td>
+<td><code>~/.config/provider-storage/otc-creds.json</code></td>
+</tr>
+<tr>
+<td>OVHcloud</td>
+<td><code>~/.config/provider-storage/ovh-creds.json</code></td>
+</tr>
+<tr>
+<td>CloudFerro</td>
+<td><code>~/.config/provider-storage/cloudferro-creds.json</code></td>
+</tr>
+</tbody>
+</table>
+<p>Each backend-specific <code>CROSSPLANE_&lt;CLOUD&gt;_CREDENTIALS_FILE</code> variable can
+override its default.</p>
+<p>The managed-cloud scripts use the same command model:</p>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>status</code></td>
+<td>Reads the cloud setup and local credential-file state. It does not change resources.</td>
+</tr>
+<tr>
+<td><code>apply</code></td>
+<td>Creates or updates the controller resources. It writes the local credential file when the selected mode uses one.</td>
+</tr>
+<tr>
+<td><code>verify</code></td>
+<td>Fails unless the required controller resources and credentials are ready. The exact live check depends on the backend.</td>
+</tr>
+<tr>
+<td><code>render-secrets</code></td>
+<td>Reads only the local credential file and prints Kubernetes Secret manifests. It does not call the cloud API or Kubernetes.</td>
+</tr>
+</tbody>
+</table>
+<p>OTC also provides <code>rotate-credential</code> to replace its controller AK/SK. Run
+<code>&lt;cloud&gt;/dependencies/iam.sh --help</code> for required variables and backend-specific
+options.</p>
+<div class="admonition warning">
+<p class="admonition-title">Choose the bucket prefix during IAM bootstrap</p>
+<p>Bucket names are user-facing. For AWS and OTC, the default prefixes are
+<code>aws-&lt;account-id&gt;</code> and <code>otc-&lt;domain-id&gt;</code>. Configure an override before
+bootstrap and use it for every <code>Storage</code> deployment. AWS enforces this
+prefix in IAM. The OTC prefix is only a naming rule. It does not limit the
+<code>OBS Administrator</code> permission.</p>
+</div>
+<h2 id="aws">AWS</h2>
+<h3 id="aws-identity-model">AWS identity model</h3>
+<p>The bootstrap administrator runs
+<a href="https://github.com/versioneer-tech/provider-storage/blob/main/aws/dependencies/iam.sh"><code>iam.sh</code></a>
+with AWS administrator credentials. The script creates a controller runtime
+role and its inline policy.</p>
+<p>The provider can use one of these base controller identities:</p>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>Base controller identity</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>assume-role</code></td>
+<td>An existing workload identity, such as IRSA or EKS Pod Identity</td>
+</tr>
+<tr>
+<td><code>static-user</code></td>
+<td>A dedicated IAM user with a static access key</td>
+</tr>
+</tbody>
+</table>
+<p>The IAM user is a persistent controller credential user. It is not the
+bootstrap administrator. Its default path is
+<code>/provider-storage/controller/crossplane</code>.</p>
+<p>In both modes, the base identity assumes the controller runtime role. The
+runtime role creates S3 buckets, consumer users, access keys, and policies.</p>
+<h3 id="aws-permissions">AWS permissions</h3>
+<p>The bootstrap administrator must be able to inspect and manage the IAM role,
+trust policy, inline policy, and tags. In <code>static-user</code> mode, it must also
+be able to manage the dedicated controller credential user and its access key.
+Review the templates in
+<a href="https://github.com/versioneer-tech/provider-storage/tree/main/aws/dependencies/policies"><code>policies/</code></a>
+before <code>apply</code>.</p>
+<p>The base controller identity can only call <code>sts:AssumeRole</code> for the controller
+runtime role. The runtime role can:</p>
+<ul>
+<li>Manage users, access keys, and policies in the configured managed IAM paths.</li>
+<li>Manage S3 buckets and objects with the configured bucket prefix.</li>
+<li>Use the wider read and list actions that the provider needs.</li>
+</ul>
+<p>The runtime policy denies changes to the controller credential user. Managed
+users and policies use <code>/provider-storage/managed/</code>. The default bucket prefix
+is <code>aws-&lt;account-id&gt;</code>.</p>
+<h3 id="run-aws-bootstrap">Run AWS bootstrap</h3>
+<p>Follow the <a href="https://github.com/versioneer-tech/provider-storage/blob/main/aws/dependencies/README.md">AWS dependency README</a> for the
+required variables, both authentication modes, and the command sequence. Set
+the bucket prefix before <code>apply</code>; the runtime policy contains that prefix.</p>
+<h3 id="configure-the-aws-provider">Configure the AWS provider</h3>
+<p>Both modes set the controller runtime role in <code>assumeRoleChain</code>.
+<code>assume-role</code> uses a workload credential source. <code>static-user</code> uses the
+generated <code>aws-provider-creds</code> Secret.</p>
+<h3 id="inspect-aws">Inspect AWS</h3>
+<p>Use the same account, mode, prefix, names, paths, and credential-file value for
+all commands. <code>status</code> reports missing resources without changes. <code>verify</code>
+fails if the controller resources or credentials are not ready. See the
+<a href="https://github.com/versioneer-tech/provider-storage/blob/main/tests/integration/README.md#aws">integration test guide</a>
+for the full deployment and S3 test.</p>
+<h2 id="otc">OTC</h2>
+<h3 id="otc-identity-model">OTC identity model</h3>
+<p>The bootstrap administrator runs
+<a href="https://github.com/versioneer-tech/provider-storage/blob/main/otc/dependencies/iam.sh"><code>iam.sh</code></a>
+with an existing OTC administrator login. The script creates one programmatic
+controller user, one controller group, and one permanent AK/SK. Crossplane
+uses that controller credential through its <code>ProviderConfig</code>.</p>
+<p>The default user and group name is <code>provider-storage-controller-crossplane</code>.
+The IAM script does not adopt or delete resources that use older names.
+Consumer users start with <code>provider-storage-managed-</code>.</p>
+<h3 id="otc-permissions">OTC permissions</h3>
+<p>The bootstrap administrator must have <code>Security Administrator</code> at domain
+scope. The script re-scopes its OpenStack token to the target domain for the
+OTC IAM API.</p>
+<p>The controller group receives:</p>
+<ul>
+<li><code>Security Administrator</code> at domain scope, so the controller can create
+  consumer users and permanent credentials.</li>
+<li><code>OBS Administrator</code> for all existing and future projects, so the controller
+  can manage OBS resources.</li>
+</ul>
+<p>OTC cannot limit these system permissions to one bucket or bucket prefix. Use
+a dedicated domain for Provider Storage. An agency cannot replace the
+controller identity because OTC does not allow <code>Security Administrator</code> on an
+agency.</p>
+<h3 id="run-otc-bootstrap">Run OTC bootstrap</h3>
+<p>Follow the <a href="https://github.com/versioneer-tech/provider-storage/blob/main/otc/dependencies/README.md">OTC dependency README</a> for the
+required variables and command sequence. The regional project ID selects the
+provider project. It is not the scope of the <code>OBS Administrator</code> assignment.
+IAM changes can take 10 to 15 minutes to take effect.</p>
+<h3 id="configure-the-otc-provider">Configure the OTC provider</h3>
+<p>The <code>ProviderConfig</code> reads <code>otc-provider-creds</code>. After credential rotation,
+render and apply the Secret again.</p>
+<h3 id="inspect-otc">Inspect OTC</h3>
+<p><code>status</code> checks the group membership and both role assignments without
+changes. <code>verify</code> fails if the controller resources or credential are not
+ready. See the
+<a href="https://github.com/versioneer-tech/provider-storage/blob/main/tests/integration/README.md#otc">integration test guide</a>
+for the full deployment test.</p>
+<h2 id="ovhcloud">OVHcloud</h2>
+<h3 id="ovhcloud-identity-model">OVHcloud identity model</h3>
+<p>The bootstrap administrator runs
+<a href="https://github.com/versioneer-tech/provider-storage/blob/main/ovh/dependencies/iam.sh"><code>iam.sh</code></a>
+with an existing OVHcloud administrator session. The script creates an OAuth2
+controller service account and a project-scoped IAM policy. Crossplane uses
+the service account through its <code>ProviderConfig</code>.</p>
+<p>The service account and IAM policy names start with
+<code>provider-storage-controller-</code>.</p>
+<h3 id="ovhcloud-permissions">OVHcloud permissions</h3>
+<p>The bootstrap administrator must be able to:</p>
+<ul>
+<li>Read the target Public Cloud project.</li>
+<li>Create an OAuth2 service account.</li>
+<li>Create and update an IAM policy for that service account.</li>
+</ul>
+<p>The controller policy is limited to the exact target <code>publicCloudProject</code>.
+It lets the controller manage the project resources that the Composition
+needs, including Object Storage users, roles, user policies, S3 credentials,
+and regional storage. Run <code>status</code> to see the exact action list before
+<code>apply</code>.</p>
+<h3 id="run-ovhcloud-bootstrap">Run OVHcloud bootstrap</h3>
+<p>Follow the <a href="https://github.com/versioneer-tech/provider-storage/blob/main/ovh/dependencies/README.md">OVHcloud dependency README</a> for
+the CLI preparation, required variables, and command sequence. The OVHcloud
+API region is separate from the Object Storage region.</p>
+<h3 id="configure-the-ovhcloud-provider">Configure the OVHcloud provider</h3>
+<p>The <code>ProviderConfig</code> reads <code>ovh-provider-creds</code>. The EnvironmentConfig must
+contain the exact project ID and Object Storage settings.</p>
+<h3 id="inspect-ovhcloud">Inspect OVHcloud</h3>
+<p><code>status</code> reads the target project and matching IAM resources without changes.
+<code>verify</code> uses the controller credential to read the selected project and list
+its users. Share only redacted output. See the
+<a href="https://github.com/versioneer-tech/provider-storage/blob/main/tests/integration/README.md#ovhcloud">integration test guide</a>
+for the provider Secret and bucket test.</p>
+<h2 id="cloudferro">CloudFerro</h2>
+<h3 id="cloudferro-identity-model">CloudFerro identity model</h3>
+<p>The bootstrap administrator runs
+<a href="https://github.com/versioneer-tech/provider-storage/blob/main/cloudferro/dependencies/iam.sh"><code>iam.sh</code></a>
+with an existing OpenStack login. The script creates one shared controller
+user without a default project. It assigns that user to each selected project.
+Crossplane uses a project-scoped configuration for this controller user.</p>
+<p>The OpenStack project is the S3 access boundary. A user with S3 access in a
+project can access that project's containers. A bucket policy can share a
+bucket with another project's <code>root</code> ARN, but it cannot isolate users in the
+owner project.</p>
+<h3 id="cloudferro-permissions">CloudFerro permissions</h3>
+<p>The bootstrap administrator must be able to:</p>
+<ul>
+<li>List the projects that the configured name pattern selects.</li>
+<li>Create one user in the project domain.</li>
+<li>Assign the configured project role in every selected project.</li>
+<li>Re-scope its token to the domain and projects when its initial login is
+  project-scoped.</li>
+</ul>
+<p>Re-scoping does not add permissions. The bootstrap administrator must already
+have the required domain and project permissions.</p>
+<p>The controller user needs only the configured project role, which defaults to
+<code>member</code>. It must not have user-administration or role-administration
+permission. As a project member, it manages containers and creates an EC2/S3
+credential for itself. The Composition also manages bucket policies.</p>
+<h3 id="run-cloudferro-bootstrap">Run CloudFerro bootstrap</h3>
+<p>CloudFerro projects are billing resources and the access boundary for buckets.
+Create and activate all required projects in the
+<a href="https://creodias.docs.cloudferro.com/en/latest/accountmanagement/Accounts-and-Projects-Management.html">CREODIAS billing portal</a>
+before bootstrap.</p>
+<p>Follow the
+<a href="https://github.com/versioneer-tech/provider-storage/blob/main/cloudferro/dependencies/README.md">CloudFerro dependency README</a> for
+project preparation, required variables, and the command sequence. Limit the
+project pattern to the projects that the controller must manage. The script
+does not create projects or configure portal activation, wallets, or billing.</p>
+<h3 id="configure-the-cloudferro-provider">Configure the CloudFerro provider</h3>
+<p>Each <code>cloudferro-project-&lt;project-id&gt;</code> Secret contains the controller identity
+and one project scope. The Composition creates a separate OpenStack
+<code>ProviderConfig</code> for each <code>Storage</code>.</p>
+<p>Treat the project ID annotation as a privileged field. Restrict who can select
+a project and who can read its controller Secret.</p>
+<h3 id="inspect-cloudferro">Inspect CloudFerro</h3>
+<p><code>status</code> checks the bootstrap login, project access, and selected projects
+without changes. <code>verify</code> checks project-scoped controller authentication and
+Object Storage access. The first live Composition run must also prove that the
+controller can create an EC2 credential for itself.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2026, Versioneer
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["content.code.copy", "search.suggest", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>
