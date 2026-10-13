@@ -1,4 +1,4 @@
-# MinIO Composition Tests
+# MinIO Composition tests
 
 Run the shared render and golden-file test from the repository root:
 
@@ -6,5 +6,5 @@ Run the shared render and golden-file test from the repository root:
 tests/unit.bash minio
 ```
 
-For a live MinIO test in the dedicated Kind cluster, see
-[`tests/integration/README.md`](../../tests/integration/README.md).
+For a live MinIO test in the dedicated Kind cluster, see the
+[MinIO integration guide](../../tests/integration/README.md#minio).

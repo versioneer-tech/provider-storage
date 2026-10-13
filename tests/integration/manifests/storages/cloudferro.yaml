@@ -6,8 +6,10 @@ kind: Storage
 metadata:
   name: storage-cloudferro-it
   namespace: provider-storage-it
+  annotations:
+    storages.pkg.internal/cloudferro-project-id: __CLOUDFERRO_PROJECT_ID__
   labels:
-    storages.pkg.internal/backend: __CLOUDFERRO_SLOT__
+    storages.pkg.internal/backend: cloudferro
     storages.pkg.internal/discoverable: "true"
 spec:
   principal: provider-storage-cloudferro-it
@@ -40,8 +42,10 @@ kind: Storage
 metadata:
   name: storage-cloudferro-it2
   namespace: provider-storage-it
+  annotations:
+    storages.pkg.internal/cloudferro-project-id: __CLOUDFERRO_IT2_PROJECT_ID__
   labels:
-    storages.pkg.internal/backend: __CLOUDFERRO_IT2_SLOT__
+    storages.pkg.internal/backend: cloudferro
     storages.pkg.internal/discoverable: "true"
 spec:
   principal: provider-storage-cloudferro-it2

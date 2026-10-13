@@ -5,6 +5,7 @@ apiVersion: minio.crossplane.io/v1
 kind: ProviderConfig
 metadata:
   name: provider-minio
+  # Apply this manifest with --namespace <storage-namespace>.
 spec:
   credentials:
     apiSecretRef:
@@ -17,7 +18,7 @@ apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: ProviderConfig
 metadata:
   name: provider-kubernetes
-  # don't specify namespace
+  # Apply this manifest with --namespace <storage-namespace>.
 spec:
   credentials:
     source: InjectedIdentity

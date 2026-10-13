@@ -24,14 +24,20 @@ preflight_storage() {
       CROSSPLANE_OVH_PROJECT_PREFIX="$(ovh_project_prefix)"
       ;;
     cloudferro)
-      CROSSPLANE_CLOUDFERRO_SLOT="$(cloudferro_slot)"
-      CROSSPLANE_CLOUDFERRO_IT2_SLOT="$(cloudferro_it2_slot)"
-      CROSSPLANE_CLOUDFERRO_PROJECT_PREFIX="$(cloudferro_project_prefix)"
-      CROSSPLANE_CLOUDFERRO_IT2_PROJECT_PREFIX="$(cloudferro_project_prefix "${CROSSPLANE_CLOUDFERRO_IT2_SLOT}")"
-      if [[ "${CROSSPLANE_CLOUDFERRO_SLOT}" == "${CROSSPLANE_CLOUDFERRO_IT2_SLOT}" ]]; then
-        printf 'CloudFerro integration Storages must use different project slots.\n' >&2
+      CROSSPLANE_CLOUDFERRO_PROJECT_ID="$(cloudferro_project_id)"
+      CROSSPLANE_CLOUDFERRO_IT2_PROJECT_ID="$(cloudferro_it2_project_id)"
+      CROSSPLANE_CLOUDFERRO_PROJECT_PREFIX="$(cloudferro_project_prefix "${CROSSPLANE_CLOUDFERRO_PROJECT_ID}")"
+      CROSSPLANE_CLOUDFERRO_IT2_PROJECT_PREFIX="$(cloudferro_project_prefix "${CROSSPLANE_CLOUDFERRO_IT2_PROJECT_ID}")"
+      if [[ "${CROSSPLANE_CLOUDFERRO_PROJECT_ID}" == "${CROSSPLANE_CLOUDFERRO_IT2_PROJECT_ID}" ]]; then
+        printf 'CloudFerro integration Storages must use different project IDs.\n' >&2
         exit 1
       fi
+      for project_id in "${CROSSPLANE_CLOUDFERRO_PROJECT_ID}" "${CROSSPLANE_CLOUDFERRO_IT2_PROJECT_ID}"; do
+        if ! kube get "secret/cloudferro-project-${project_id}" --namespace "${INTEGRATION_NAMESPACE}" >/dev/null 2>&1; then
+          printf 'CloudFerro project Secret for %s is missing. Apply the manifests printed by cloudferro/dependencies/iam.sh render-secrets.\n' "${project_id}" >&2
+          exit 1
+        fi
+      done
       ;;
   esac
 }
@@ -68,9 +74,9 @@ apply_storage() {
     cloudferro)
       apply_template \
         "${MANIFEST_DIR}/storages/cloudferro.yaml" \
-        CLOUDFERRO_SLOT "${CROSSPLANE_CLOUDFERRO_SLOT}" \
+        CLOUDFERRO_PROJECT_ID "${CROSSPLANE_CLOUDFERRO_PROJECT_ID}" \
         CLOUDFERRO_PROJECT_PREFIX "${CROSSPLANE_CLOUDFERRO_PROJECT_PREFIX}" \
-        CLOUDFERRO_IT2_SLOT "${CROSSPLANE_CLOUDFERRO_IT2_SLOT}" \
+        CLOUDFERRO_IT2_PROJECT_ID "${CROSSPLANE_CLOUDFERRO_IT2_PROJECT_ID}" \
         CLOUDFERRO_IT2_PROJECT_PREFIX "${CROSSPLANE_CLOUDFERRO_IT2_PROJECT_PREFIX}"
       ;;
   esac

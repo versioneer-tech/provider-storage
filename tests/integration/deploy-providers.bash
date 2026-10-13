@@ -64,7 +64,7 @@ preflight_aws() {
   fi
   if ! kube get secret/aws-provider-creds --namespace "${INTEGRATION_NAMESPACE}" >/dev/null 2>&1; then
     printf '%s\n' \
-      "Secret ${INTEGRATION_NAMESPACE}/aws-provider-creds is missing. Create it with the kubectl command in tests/integration/README.md." >&2
+      "Secret ${INTEGRATION_NAMESPACE}/aws-provider-creds is missing. Apply the manifest printed by aws/dependencies/iam.sh." >&2
     exit 1
   fi
 }
@@ -80,7 +80,7 @@ preflight_otc() {
   fi
   if ! kube get secret/otc-provider-creds --namespace "${INTEGRATION_NAMESPACE}" >/dev/null 2>&1; then
     printf '%s\n' \
-      "Secret ${INTEGRATION_NAMESPACE}/otc-provider-creds is missing. Create it with the kubectl command in tests/integration/README.md." >&2
+      "Secret ${INTEGRATION_NAMESPACE}/otc-provider-creds is missing. Apply the manifest printed by otc/dependencies/iam.sh." >&2
     exit 1
   fi
 }
@@ -96,7 +96,19 @@ preflight_ovh() {
 }
 
 preflight_cloudferro() {
-  cloudferro_slot >/dev/null
+  local project_id
+  cloudferro_project_id >/dev/null
+  cloudferro_it2_project_id >/dev/null
+  for project_id in \
+    "${CROSSPLANE_CLOUDFERRO_PROJECT_ID}" \
+    "${CROSSPLANE_CLOUDFERRO_IT2_PROJECT_ID}"; do
+    if ! kube get "secret/cloudferro-project-${project_id}" \
+      --namespace "${INTEGRATION_NAMESPACE}" >/dev/null 2>&1; then
+      printf '%s\n' \
+        "Secret ${INTEGRATION_NAMESPACE}/cloudferro-project-${project_id} is missing. Apply the manifests printed by cloudferro/dependencies/iam.sh render-secrets." >&2
+      exit 1
+    fi
+  done
 }
 
 install_minio() {
@@ -177,8 +189,8 @@ install_cloudferro() {
     --for=condition=Healthy --timeout=10m
   kube apply --namespace "${INTEGRATION_NAMESPACE}" \
     -f "${REPO_ROOT}/cloudferro/dependencies/03-providerConfigs.yaml"
+  kube apply -f "${REPO_ROOT}/cloudferro/dependencies/04-environmentConfigs.yaml"
   kube apply -f "${REPO_ROOT}/cloudferro/composition.yaml"
-  log "Run cloudferro/dependencies/iam.sh apply to publish numbered project resources"
 }
 
 main() {

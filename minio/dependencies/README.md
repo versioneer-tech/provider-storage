@@ -1,37 +1,43 @@
-# Dependencies
+# MinIO dependencies
 
-These manifests declare the dependencies required for the **`storage-minio`** Composition.  
-They set up the Crossplane runtime (providers, configs, and permissions) that the Storage resources rely on.
+These manifests configure the providers used by the `storage-minio`
+Composition.
 
-## Runtime prerequisites
+Dedicated provider controllers in the cluster reconcile resources created by
+the Composition. Use a separate MinIO credential for the controller and give
+it only the permissions it needs. Keep the credential outside Git.
 
-- A Kubernetes cluster with Crossplane **v2.x** installed and healthy. The e2e tests use **v2.4.1**.
-- **MinIO** installed in the cluster. This Composition targets that runtime and was tested with the MinIO **Operator** (chart: `operator`, version: **7.1.1**). See the [MinIO Operator documentation](https://github.com/minio/operator).
+## Controller credential
 
-## Providers and Functions
+MinIO does not use a cloud IAM bootstrap script. Create a dedicated controller
+credential in MinIO and give it only the permissions needed to manage buckets,
+users, and policies. Store the access key and secret key in separate local
+files. Each file must contain only its credential value.
 
-This Composition expects the following Crossplane components to be installed (versions are examples — pin to the versions you have validated):
+## Deployment
 
-- **Providers**
-  - `provider-minio` (e.g., `xpkg.upbound.io/vshn/provider-minio:v0.4.5`)
-  - `provider-kubernetes` (e.g., `xpkg.upbound.io/crossplane-contrib/provider-kubernetes:v1.3.1`)
+Create the namespace and the controller Secret referenced by
+[`03-providerConfigs.yaml`](03-providerConfigs.yaml):
 
-- **Functions**
-  - `crossplane-contrib-function-python`  
-  - `crossplane-contrib-function-auto-ready`
+```bash
+kubectl create namespace minio
+kubectl create secret generic default-env-configuration \
+  --namespace minio \
+  --from-file=accesskey=<access-key-file> \
+  --from-file=secretkey=<secret-key-file>
+```
 
-  > Pin exact versions (or digests) and upgrade intentionally.
+If the namespace already exists, omit the first command.
 
-## MinIO notes
+Set the MinIO endpoint and lifecycle schedule in
+[`04-environmentConfigs.yaml`](04-environmentConfigs.yaml). If the endpoint,
+namespace, or Secret name is different, update
+[`03-providerConfigs.yaml`](03-providerConfigs.yaml) to match it.
 
-S3 buckets are managed via **MinIO** using `provider-minio`. You must supply:
-
-- A reachable MinIO endpoint and credentials (referenced by the **`ProviderConfig`**).
-- Backend defaults such as endpoint and lifecycle schedule in the **`EnvironmentConfig`** named `storage`.
-
-## Best practices
-
-- **Order matters**. Create dependencies in sequence so that later objects can reference earlier ones and no unnecessary XRDs are activated.
-- **Pin versions** of Providers/Functions by exact tag or digest and update them via PRs.
-- **Manage secrets** securely (e.g., Sealed Secrets, External Secrets). Do not inline credentials in Git.
-- **Health gates**: wait for `ProviderRevision` and `FunctionRevision` readiness before applying `ProviderConfig` / MRAP / XR.
+Apply [`03-providerConfigs.yaml`](03-providerConfigs.yaml) in every namespace
+that contains a MinIO `Storage` resource. The MinIO controller Secret can stay
+in the `minio` namespace because the ProviderConfig refers to it explicitly.
+The other dependency manifests are cluster-scoped. Apply the numbered
+manifests in order, then apply [`functions.yaml`](functions.yaml) and
+[`rbac.yaml`](rbac.yaml). Wait for all provider and function revisions to
+become ready.

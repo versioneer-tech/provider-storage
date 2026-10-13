@@ -60,9 +60,9 @@ verify_scenario ovh "${ovh_content}" \
   ovh-0123456789ab-it2-a
 
 cloudferro_content="$(render_template "${MANIFEST_DIR}/storages/cloudferro.yaml" \
-  CLOUDFERRO_SLOT cloudferro-0001 \
+  CLOUDFERRO_PROJECT_ID 0123456789abcdef0123456789abcdef \
   CLOUDFERRO_PROJECT_PREFIX 0123456789ab \
-  CLOUDFERRO_IT2_SLOT cloudferro-0002 \
+  CLOUDFERRO_IT2_PROJECT_ID fedcba9876543210fedcba9876543210 \
   CLOUDFERRO_IT2_PROJECT_PREFIX fedcba987654)"
 verify_scenario cloudferro "${cloudferro_content}" \
   cloudferro-0123456789ab-it-a \

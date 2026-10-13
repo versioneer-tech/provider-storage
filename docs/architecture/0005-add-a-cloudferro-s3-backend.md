@@ -1,4 +1,4 @@
-# ADR-005: Add a CloudFerro S3 Backend with Project Slots
+# ADR-005: Add a CloudFerro S3 Backend with Project Boundaries
 
 ## Status
 
@@ -10,65 +10,53 @@ Accepted
 
 ## Context
 
-Provider Storage needs separate S3 credentials and bucket access for teams on
-CloudFerro. CloudFerro uses OpenStack for project and credential management and
-Ceph for S3-compatible object storage. A Keystone EC2 credential belongs to a
-user and a project. Separate credentials can be revoked separately, but they
-do not give users separate bucket permissions within one project.
+CloudFerro uses OpenStack projects for identity and Ceph for S3-compatible
+object storage. A Keystone EC2 credential belongs to one user and one project.
+CloudFerro bucket policies identify another project as
+`arn:aws:iam::<PROJECT_ID>:root`.
 
-CloudFerro's S3 bucket policies identify a project as
-`arn:aws:iam::<PROJECT_ID>:root`. They grant selected access to a bucket to
-**other projects**. They cannot restrict one user in the bucket owner's project
-to one bucket while another user in that project uses a different bucket.
-CloudFerro states that users in the same project can access all containers in
-that project. This differs from OVHcloud, where a user S3 policy can restrict
-that user's bucket access.
+Users with S3 access in the same project can access that project's containers.
+Separate credentials can be revoked separately, but they do not isolate
+buckets between users in one project.
+
+Provider-openstack reads the project scope from its JSON authentication
+configuration. A ProviderConfig has no separate field that overrides the
+project in that configuration.
 
 ## Decision
 
-Use the **OpenStack project as the CloudFerro team and S3 authorization
-boundary**. Do not treat a consumer user, EC2 credential, or bucket policy as
-an isolation boundary between users in the same project.
+Use the OpenStack project as the CloudFerro team and S3 authorization
+boundary. Assign separate projects to teams that need isolation.
 
-Before Storage reconciliation, `cloudferro/dependencies/iam.sh apply` will
-discover the bootstrap user's existing projects and reconcile only the names
-that match a mandatory, configurable numbered pattern. It will create one
-controller user without a default project, assign that user project roles in
-every matching project, and prepare one project-scoped OpenStack
-`ProviderConfig` per slot in the target cluster and namespace. The bootstrap
-identity must be able to create the controller user and assign roles in the
-selected projects. For example, five matching projects produce one controller
-user and five ProviderConfigs. The ProviderConfigs reuse one provider-openstack
-controller installation.
+Before Storage reconciliation, `cloudferro/dependencies/iam.sh apply` selects
+existing projects by an anchored project-name pattern. It creates one
+controller user without a default project, assigns the configured member role
+in each selected project, and verifies project-scoped Object Storage access.
+The bootstrap administrator login must be able to list these projects, create
+the controller user in the domain, and assign the project role. The controller
+user needs only the configured project role.
+Project creation, portal activation, wallet configuration, and billing remain
+outside the script.
 
-Provider-openstack reads the project scope from the JSON authentication
-configuration. It does not have a separate project field in `ProviderConfig`.
-The bootstrap therefore publishes one shared Secret with one key per slot.
-Each key contains the same controller user ID and password with a different
-`tenant_id`. Each ProviderConfig selects its slot key and stores the project
-name, project ID, and controller user ID as annotations. The slot name stays
-the selector, and bootstrap checks these annotations and Secret keys before
-it reconciles or deletes an existing slot.
+`apply` writes one private local credential file that contains the shared
+controller identity and an array of selected project IDs. It updates the
+project array after all project checks pass. The `render-secrets` action reads
+only that file and prints one
+namespaced Secret manifest for each project. Its name is
+`cloudferro-project-<project-id>` and its key is `config`. The JSON value
+contains the controller credentials and the project ID as `tenant_id`. A
+static `storage` EnvironmentConfig contains only endpoint and region
+settings. This is the same default EnvironmentConfig name as the other
+backends.
 
-The bootstrap takes an anchored project-name pattern, a bootstrap OpenStack
-CLI profile or active `v3token` shell login, and a project role name or ID.
-The role defaults to `member` and can be overridden for deployments that use
-another name, such as `_member_`. It assigns this role to the shared controller
-user in each slot project. The controller does not receive `admin`: it creates
-EC2 credentials only for itself and manages containers in its selected
-project. The bootstrap verifies password authentication, the project token,
-and Object Storage access before publishing the slot. It also
-creates a matching cluster-scoped `EnvironmentConfig` and selectable
-Composition. CloudFerro's portal activation and billing remain separate.
-
-Each slot has a stable name such as `cloudferro-0001` and its own project ID.
-A `Storage` selects the CloudFerro Composition and names the slot with its
-backend label:
+A Storage selects the generic Composition and declares its project ID:
 
 ```yaml
 metadata:
   labels:
-    storages.pkg.internal/backend: cloudferro-0001
+    storages.pkg.internal/backend: cloudferro
+  annotations:
+    storages.pkg.internal/cloudferro-project-id: 0123456789abcdef0123456789abcdef
 spec:
   crossplane:
     compositionSelector:
@@ -76,71 +64,49 @@ spec:
         provider: cloudferro
 ```
 
-The Composition must use that slot's ProviderConfig for project-scoped bucket
-operations. `ContainerV1` has no project ID field, so its ProviderConfig sets
-the project scope. The four-digit suffix provides at most 10,000 distinct slot
-names.
-The OpenStack region and S3 signing region are separate settings. CREODIAS
-WAW3-2 uses `WAW3-2` for OpenStack and `RegionOne` for S3 clients.
-The Storage backend label must name a valid CloudFerro slot; reconciliation
-fails if they name different slots.
-The selected slot must belong to the Storage's team; platform controls must
-prevent a team from selecting another team's slot.
+The Composition creates one namespaced OpenStack ProviderConfig per Storage.
+It refers to the deterministic project Secret. All OpenStack managed resources
+for that Storage refer to the composed ProviderConfig. `ContainerV1` therefore
+uses the project from the Secret. `EC2CredentialV3` also uses the current auth
+scope; the Composition does not pass `projectId` or `userId`.
 
-The CloudFerro Composition will create buckets in the selected project through
-the OpenStack Object Storage `ContainerV1` resource. For each Storage and
-retained generation, it creates a project-scoped EC2 credential for the shared
-controller user and publishes the existing consumer Secret contract. Each EC2
-credential is a separate S3 keypair, not a separate Keystone principal. It can
-be rotated and revoked independently, but it inherits the project's access.
-The Composition does not create a consumer OpenStack user or role assignment.
+The Composition creates buckets with `ContainerV1` and one EC2 credential for
+each retained Storage credential generation. It publishes the standard
+consumer Secret. It does not create OpenStack users or role assignments.
 
-It uses S3 bucket policies only when a bucket owner grants access to a
-**different** project. Such a grant names the grantee project's `root` ARN and
-limits the actions and bucket or object resources. A pending request or `None`
-grant must not add a cross-project allow. A same-project grant cannot promise
-user-level `ReadOnly`, `WriteOnly`, or `None` access. The Composition uses the
-AWS S3 provider with a CloudFerro endpoint to manage `BucketPolicy` resources
-because `ContainerV1` does not expose bucket policies. It resolves the
-grantee's project ID from the discoverable Storage with the matching principal
-and its numbered slot.
+For an active cross-project grant, the Composition resolves one discoverable
+Storage with the matching principal. It reads that Storage's
+`storages.pkg.internal/cloudferro-project-id` annotation and creates an AWS S3
+BucketPolicy with the grantee project's `root` ARN. It does not use a peer
+ProviderConfig lookup. Pending requests and `None` grants do not add access.
+
+The project annotation is an authorization selector. Admission controls must
+limit which users and namespaces can set each project ID. Secret read access
+must be limited to provider workloads and trusted operators.
 
 ## Consequences
 
-- Every user with S3 access in one slot project can access that project's
-  buckets. Separate EC2 keys support rotation and revocation, not bucket
-  isolation. Separate teams need separate slots.
-- A slot can hold several `Storage` resources for one team, but their users
-  share the same project-level access. Slot assignment must be controlled
-  outside the consumer's editable bucket fields.
-- Compromise of the shared controller password affects every assigned slot.
-  Per-project ProviderConfigs scope normal reconciliation, but they do not
-  make the shared identity least-privilege across projects. Access to the
-  shared Secret and local identity file must be tightly restricted.
-- Project quotas, region activation, and billing configuration apply to each
-  slot. `iam.sh apply` must verify that a project is usable before it publishes
-  the slot. Project creation and activation take place outside this script.
-- Bootstrap deletion selects the same numbered projects, checks for active
-  `Storage` resources, and removes only the selected Secret keys, controller
-  role assignments, and managed cluster resources. It does not delete the
-  shared controller user, projects, buckets, or consumer resources.
-- Removing a bucket from `spec.buckets`, or removing its `Storage`, requests
-  bucket deletion under the default Crossplane management policy. The
-  Composition does not force deletion of objects in a non-empty bucket. A slot
-  must not be reassigned to another team until buckets, credentials, role
-  assignments, and cross-project grants are removed and their absence is
-  verified.
+- Every S3 user in one project can access that project's buckets. EC2 key
+  rotation and revocation do not provide user-level bucket isolation.
+- The runtime controller receives a project member role. It does not receive
+  user-administration or role-administration permission.
+- One shared controller user can serve many projects. Separate controller
+  users also work because every project Secret contains a complete identity.
+- Compromise of a shared controller password affects all projects assigned to
+  that user. Separate per-project Secrets reduce Kubernetes access scope but
+  do not change the OpenStack identity scope.
+- The Composition owns per-Storage ProviderConfigs. The IAM bootstrap owns
+  only OpenStack identities and role assignments. Operators apply the rendered
+  project Secrets and the static EnvironmentConfig.
+- The bootstrap script does not remove users, role assignments, or Secrets.
+  Operators must review dependent Storage resources before manual cleanup.
+- Removing a bucket requests deletion under Crossplane's default management
+  policy. The Composition does not force deletion of a non-empty bucket.
 
 ## Implementation checks
 
-Before this backend is offered, prove that `iam.sh apply` is idempotent, does
-not adopt an unrelated project, and can establish the required controller
-permissions. Verify that CloudFerro permits the managed user, role assignment,
-and self-service EC2 credential flow. The runtime identity must not mint EC2
-credentials for another user or an unassigned project. Confirm that the
-OpenStack container resource creates a bucket visible through CloudFerro S3,
-that EC2 credentials authenticate in their intended project, and that
-cross-project `ReadOnly`, `WriteOnly`, `ReadWrite`, and `None` grants allow and
-deny the expected S3 operations. Test same-project access explicitly to
-preserve the documented limitation. Keep credentials out of Git, logs, and
-resource specs.
+Test bootstrap idempotency, project binding, ownership checks, and credential
+recovery. Verify that the runtime user can create an EC2 credential for itself
+in the Secret's project but cannot administer users or roles. Test bucket
+creation, credential authentication, cross-project grants, `None` grants, and
+same-project access. Keep credentials out of Git, logs, and resource specs.

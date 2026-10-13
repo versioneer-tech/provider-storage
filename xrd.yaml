@@ -167,9 +167,8 @@ spec:
                         type: string
                         format: date-time
                         description: >
-                          RFC3339 timestamp indicating when the request was created.
-                          Used to track request lifecycle. Typically set by the
-                          controller.
+                          RFC3339 timestamp supplied by the caller to record when the
+                          request was created.
                     required:
                       - bucketName
                       - requestedAt
@@ -208,9 +207,8 @@ spec:
                         type: string
                         format: date-time
                         description: >
-                          RFC3339 timestamp indicating when the grant became active.
-                          Used to track grant lifecycle. Typically set by the
-                          controller.
+                          RFC3339 timestamp supplied by the caller to record when the
+                          grant or denial was created.
                     required:
                       - bucketName
                       - grantee

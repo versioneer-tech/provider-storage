@@ -123,7 +123,8 @@ promises.
 
 - Treat read access to a consumer Secret as access to its cloud permissions.
 - Enable Kubernetes Secret encryption at rest and use least-privilege RBAC.
-- Do not put credentials in Git, logs, status fields, or command output.
+- Do not put consumer credentials in Git, logs, status fields, or command
+  output.
 - Use an external secret manager when the deployment requires stronger
   controls than a Kubernetes Secret provides.
 - Scope consumer permissions to the declared buckets and grant modes.

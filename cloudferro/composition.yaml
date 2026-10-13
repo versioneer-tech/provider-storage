@@ -32,19 +32,20 @@ spec:
           def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
               xr = to_dict(req.observed.composite.resource)
               metadata = xr.get("metadata") or {}
-              slot = ((metadata.get("labels") or {}).get("storages.pkg.internal/backend") or "").strip()
-              if not slot.startswith("cloudferro-") or len(slot) != len("cloudferro-0001") or not slot[-4:].isdigit():
-                  response.fatal(rsp, "CloudFerro Storage backend label must name a valid project slot.")
+              backend = ((metadata.get("labels") or {}).get("storages.pkg.internal/backend") or "").strip()
+              if backend != "cloudferro":
+                  response.fatal(rsp, "CloudFerro Storage backend label must be cloudferro.")
                   return
               response.require_resources(
                   rsp,
                   name="storage-environment",
                   api_version="apiextensions.crossplane.io/v1beta1",
                   kind="EnvironmentConfig",
-                  match_name=f"storage-{slot}",
+                  match_name="storage",
               )
               environment = request.get_required_resource(req, "storage-environment") or {}
-              rsp.context.MergeFrom(resource.dict_to_struct({ENVIRONMENT_KEY: environment.get("data") or {}}))
+              data = environment.get("data") or {}
+              rsp.context.MergeFrom(resource.dict_to_struct({ENVIRONMENT_KEY: data}))
 
     - step: create-project-resources
       functionRef:
@@ -53,6 +54,7 @@ spec:
         apiVersion: python.fn.crossplane.io/v1beta1
         kind: Script
         script: |
+          import re
           from datetime import datetime, timedelta, timezone
 
           from crossplane.function import response
@@ -60,6 +62,7 @@ spec:
           from google.protobuf import json_format
 
           ENVIRONMENT_KEY = "apiextensions.crossplane.io/environment"
+          PROJECT_ID_ANNOTATION = "storages.pkg.internal/cloudferro-project-id"
           def to_dict(value):
               return {} if value is None else (value if isinstance(value, dict) else json_format.MessageToDict(value, preserving_proto_field_name=True))
 
@@ -86,7 +89,7 @@ spec:
                   return [""]
               return ["-" + date for date in dates]
 
-          def managed(rsp, key, api_version, kind, name, namespace, slot, for_provider, **fields):
+          def managed(rsp, key, api_version, kind, name, namespace, provider_config_name, for_provider, **fields):
               rsp.desired.resources[key].resource.update({
                   "apiVersion": api_version,
                   "kind": kind,
@@ -97,7 +100,7 @@ spec:
                   },
                   "spec": {
                       "forProvider": for_provider,
-                      "providerConfigRef": {"name": slot, "kind": "ProviderConfig"},
+                      "providerConfigRef": {"name": provider_config_name, "kind": "ProviderConfig"},
                       **fields,
                   },
               })
@@ -106,28 +109,43 @@ spec:
               xr = to_dict(req.observed.composite.resource)
               metadata = xr.get("metadata") or {}
               spec = xr.get("spec") or {}
-              namespace = (metadata.get("labels") or {}).get("crossplane.io/claim-namespace") or metadata.get("namespace") or "default"
+              namespace = metadata.get("namespace") or "default"
               principal = (spec.get("principal") or metadata.get("name") or "").strip()
-              slot = ((metadata.get("labels") or {}).get("storages.pkg.internal/backend") or "").strip()
+              backend = ((metadata.get("labels") or {}).get("storages.pkg.internal/backend") or "").strip()
+              project_id = ((metadata.get("annotations") or {}).get(PROJECT_ID_ANNOTATION) or "").strip()
               env = (to_dict(req.context).get(ENVIRONMENT_KEY) or {}).get("storage") or {}
-              project_id = (env.get("serviceName") or "").strip()
-              controller_user_id = (env.get("controllerUserId") or "").strip()
               region = (env.get("region") or "").strip()
               s3_region = (env.get("s3Region") or "").strip()
-              if (not principal or not project_id or len(project_id) != 32 or
-                      not controller_user_id or len(controller_user_id) != 32 or
+              if (not principal or not re.fullmatch(r"[0-9a-f]{32}", project_id) or
                       not region or not s3_region):
-                  response.fatal(rsp, "CloudFerro slot environment is incomplete.")
+                  response.fatal(rsp, "CloudFerro environment or project ID annotation is incomplete or invalid.")
                   return
-              selected_slot = (((spec.get("crossplane") or {}).get("compositionSelector") or {}).get("matchLabels") or {}).get("provider")
-              if (not slot.startswith("cloudferro-") or len(slot) != len("cloudferro-0001") or
-                      not slot[-4:].isdigit() or selected_slot != "cloudferro"):
-                  response.fatal(rsp, "CloudFerro Storage must select provider cloudferro and name a valid project slot in its backend label.")
+              selected_provider = (((spec.get("crossplane") or {}).get("compositionSelector") or {}).get("matchLabels") or {}).get("provider")
+              if backend != "cloudferro" or selected_provider != "cloudferro":
+                  response.fatal(rsp, "CloudFerro Storage must select provider cloudferro and use the cloudferro backend label.")
                   return
+
+              provider_config_name = f"cloudferro-{principal}"
+              provider_config_key = "provider-config-openstack"
+              rsp.desired.resources[provider_config_key].ready = fnv1.READY_TRUE
+              rsp.desired.resources[provider_config_key].resource.update({
+                  "apiVersion": "openstack.m.crossplane.io/v1beta1",
+                  "kind": "ProviderConfig",
+                  "metadata": {
+                      "name": provider_config_name,
+                      "namespace": namespace,
+                      "annotations": {"crossplane.io/composition-resource-name": provider_config_key},
+                  },
+                  "spec": {"credentials": {"source": "Secret", "secretRef": {
+                      "name": f"cloudferro-project-{project_id}",
+                      "namespace": namespace,
+                      "key": "config",
+                  }}},
+              })
 
               own_buckets = sorted({(b.get("bucketName") or "").strip() for b in (spec.get("buckets") or []) if (b.get("bucketName") or "").strip()})
               for bucket in own_buckets:
-                  managed(rsp, f"bucket-{bucket}", "objectstorage.openstack.m.crossplane.io/v1alpha1", "ContainerV1", bucket, namespace, slot, {
+                  managed(rsp, f"bucket-{bucket}", "objectstorage.openstack.m.crossplane.io/v1alpha1", "ContainerV1", bucket, namespace, provider_config_name, {
                       "name": bucket,
                       "region": region,
                       "forceDestroy": False,
@@ -135,9 +153,8 @@ spec:
 
               for suffix in rollover_suffixes(spec):
                   generation = f"{principal}{suffix}"
-                  managed(rsp, f"credentials-{generation}", "identity.openstack.m.crossplane.io/v1alpha1", "EC2CredentialV3", generation, namespace, slot, {
-                      "projectId": project_id,
-                      "userId": controller_user_id,
+                  managed(rsp, f"credentials-{generation}", "identity.openstack.m.crossplane.io/v1alpha1", "EC2CredentialV3", generation, namespace, provider_config_name, {
+                      "region": region,
                   }, writeConnectionSecretToRef={"name": f"{generation}-credentials"})
 
     - step: publish-current-secret
@@ -190,7 +207,7 @@ spec:
               xr = to_dict(req.observed.composite.resource)
               metadata = xr.get("metadata") or {}
               spec = xr.get("spec") or {}
-              namespace = (metadata.get("labels") or {}).get("crossplane.io/claim-namespace") or metadata.get("namespace") or "default"
+              namespace = metadata.get("namespace") or "default"
               principal = (spec.get("principal") or metadata.get("name") or "").strip()
               generation = f"{principal}{current_suffix(spec)}"
               env = (to_dict(req.context).get(ENVIRONMENT_KEY) or {}).get("storage") or {}
@@ -324,6 +341,7 @@ spec:
         kind: Script
         script: |
           import json
+          import re
           from datetime import datetime, timezone
 
           from crossplane.function import request, response
@@ -368,7 +386,7 @@ spec:
               xr = to_dict(req.observed.composite.resource)
               metadata = xr.get("metadata") or {}
               spec = xr.get("spec") or {}
-              namespace = (metadata.get("labels") or {}).get("crossplane.io/claim-namespace") or metadata.get("namespace") or "default"
+              namespace = metadata.get("namespace") or "default"
               principal = (spec.get("principal") or metadata.get("name") or "").strip()
               generation = f"{principal}{current_suffix(spec)}"
               own_buckets = {(item.get("bucketName") or "").strip()
@@ -393,7 +411,7 @@ spec:
                   return
 
               projects = {}
-              for index, grantee in enumerate(sorted({(grant.get("grantee") or "").strip() for grant in active})):
+              for grantee in sorted({(grant.get("grantee") or "").strip() for grant in active}):
                   matches = [peer for peer in peer_storages
                              if ((peer.get("spec") or {}).get("principal") or "").strip() == grantee]
                   if not matches:
@@ -402,23 +420,14 @@ spec:
                       response.fatal(rsp, f"CloudFerro grantee principal {grantee} must identify one discoverable Storage.")
                       return
                   peer = matches[0]
-                  slot = ((peer.get("metadata") or {}).get("labels") or {}).get("storages.pkg.internal/backend", "").strip()
-                  if not slot.startswith("cloudferro-") or len(slot) != len("cloudferro-0001") or not slot[-4:].isdigit():
-                      response.fatal(rsp, f"CloudFerro grantee principal {grantee} has no valid project slot label.")
+                  peer_metadata = peer.get("metadata") or {}
+                  backend = (peer_metadata.get("labels") or {}).get("storages.pkg.internal/backend", "").strip()
+                  if backend != "cloudferro":
+                      response.fatal(rsp, f"CloudFerro grantee principal {grantee} does not use the cloudferro backend.")
                       return
-                  env_key = f"cloudferro-grantee-environment-{index}"
-                  response.require_resources(
-                      rsp,
-                      name=env_key,
-                      api_version="apiextensions.crossplane.io/v1beta1",
-                      kind="EnvironmentConfig",
-                      match_name=f"storage-{slot}",
-                  )
-                  environment = request.get_required_resource(req, env_key)
-                  if not environment:
-                      return
-                  project_id = ((((environment.get("data") or {}).get("storage") or {}).get("serviceName")) or "").strip()
-                  if len(project_id) != 32 or any(char not in "0123456789abcdefABCDEF" for char in project_id):
+                  project_id = ((peer_metadata.get("annotations") or {}).get(
+                      "storages.pkg.internal/cloudferro-project-id") or "").strip()
+                  if not re.fullmatch(r"[0-9a-f]{32}", project_id):
                       response.fatal(rsp, f"CloudFerro grantee principal {grantee} has an invalid project ID.")
                       return
                   projects[grantee] = project_id
@@ -586,7 +595,7 @@ spec:
               ctx = to_dict(req.context)
               env = (ctx.get(ENVIRONMENT_KEY) or {})
               storage_env = (env.get("storage") or {})
-              ns = (meta.get("labels", {}) or {}).get("crossplane.io/claim-namespace") or meta.get("namespace") or "default"
+              ns = meta.get("namespace") or "default"
               principal = (spec.get("principal") or meta.get("name") or "<principal-missing>").strip()
 
               rules = []

@@ -1,265 +1,284 @@
-# Bootstrap Cloud IAM
+# Cloud IAM bootstrap
+
+This guide uses these terms:
+
+- **Bootstrap administrator:** The person who runs `iam.sh` with an existing
+  privileged login. Crossplane does not use this login.
+- **Controller identity:** The persistent machine identity that Crossplane
+  uses through a `ProviderConfig`.
+- **Consumer identity:** An identity that Provider Storage creates for access
+  to a bucket.
+
+Some existing resource names and command options contain `bootstrap`. Keep
+these names until a separate migration changes the cloud resources and their
+credentials. In this guide, such a persistent identity is a controller
+identity, even if its resource name contains `bootstrap`.
 
 !!! danger "Review before deployment"
 
-    Provider Storage needs permission to manage buckets, IAM users, policies,
+    Provider Storage needs permission to manage buckets, identities, policies,
     and access credentials. A cloud administrator must review the backend's
-    `iam.sh` and any policy files before running the bootstrap.
+    `iam.sh` and policy files before running the bootstrap.
 
-For AWS, OTC, and OVHcloud, run the bootstrap before deploying the backend's
-Crossplane providers and `ProviderConfig`. CloudFerro installs providers first
-because its bootstrap creates the slot ProviderConfigs in the cluster. The
-bootstrap identity is for the controller. It is separate from the consumer
-identities and credentials that Provider Storage creates.
+Run the IAM bootstrap before you render and apply its Kubernetes Secret
+manifest. No `iam.sh` accesses Kubernetes. For each backend that uses a static
+controller credential, `apply` writes a private local credential file.
+`render-secrets` reads only that file and prints the Secret manifest. Do not
+send this output to CI logs.
+
+| Backend | Default controller credential file |
+| --- | --- |
+| AWS | `~/.config/provider-storage/aws-creds.json` |
+| OTC | `~/.config/provider-storage/otc-creds.json` |
+| OVHcloud | `~/.config/provider-storage/ovh-creds.json` |
+| CloudFerro | `~/.config/provider-storage/cloudferro-creds.json` |
+
+Each backend-specific `CROSSPLANE_<CLOUD>_CREDENTIALS_FILE` variable can
+override its default.
+
+The managed-cloud scripts use the same command model:
+
+| Command | Behavior |
+| --- | --- |
+| `status` | Reads the cloud setup and local credential-file state. It does not change resources. |
+| `apply` | Creates or updates the controller resources. It writes the local credential file when the selected mode uses one. |
+| `verify` | Fails unless the required controller resources and credentials are ready. The exact live check depends on the backend. |
+| `render-secrets` | Reads only the local credential file and prints Kubernetes Secret manifests. It does not call the cloud API or Kubernetes. |
+
+OTC also provides `rotate-credential` to replace its controller AK/SK. Run
+`<cloud>/dependencies/iam.sh --help` for required variables and backend-specific
+options.
 
 !!! warning "Choose the bucket prefix during IAM bootstrap"
 
     Bucket names are user-facing. For AWS and OTC, the default prefixes are
-    `aws-<account-id>` and `otc-<domain-id>`. Configure any override before
-    bootstrap and reuse it for every `Storage` deployment. AWS enforces this
-    prefix in IAM. The OTC bootstrap assigns OBS Administrator to all existing
-    and future projects. The OTC prefix is a naming convention and does not
-    limit that permission.
+    `aws-<account-id>` and `otc-<domain-id>`. Configure an override before
+    bootstrap and use it for every `Storage` deployment. AWS enforces this
+    prefix in IAM. The OTC prefix is only a naming rule. It does not limit the
+    `OBS Administrator` permission.
 
 ## AWS
 
-The AWS bootstrap consists of
-[`iam.sh`](https://github.com/versioneer-tech/provider-storage/blob/main/aws/dependencies/iam.sh)
-and its
-[`policies/`](https://github.com/versioneer-tech/provider-storage/tree/main/aws/dependencies/policies).
-It creates the runtime role used by `provider-aws`. Choose how the provider
-gets the base identity that assumes this role:
+### AWS identity model
 
-| Mode | Base identity |
+The bootstrap administrator runs
+[`iam.sh`](https://github.com/versioneer-tech/provider-storage/blob/main/aws/dependencies/iam.sh)
+with AWS administrator credentials. The script creates a controller runtime
+role and its inline policy.
+
+The provider can use one of these base controller identities:
+
+| Mode | Base controller identity |
 | --- | --- |
 | `assume-role` | An existing workload identity, such as IRSA or EKS Pod Identity |
 | `bootstrap-user` | A dedicated IAM user with a static access key |
 
-Both modes require the runtime role ARN in
-`ProviderConfig.spec.assumeRoleChain`. The bootstrap user cannot manage
-storage resources directly. It can only assume the runtime role.
+`bootstrap-user` is a legacy option name. The IAM user is a persistent
+controller credential user. It is not the bootstrap administrator. Its
+default path is `/provider-storage/bootstrap/crossplane`.
 
-AWS groups resources with IAM paths. The default bootstrap user is
-`/provider-storage/bootstrap/crossplane`. Managed users and policies use the
-`/provider-storage/managed/` path. IAM policy names start with
-`provider-storage`.
+In both modes, the base identity assumes the controller runtime role. The
+runtime role creates S3 buckets, consumer users, access keys, and policies.
 
-The runtime policy lists the IAM actions used to manage users, access keys,
-and policies. It limits IAM changes to the managed paths and S3 access to
-buckets and objects with the configured prefix. The S3 statement uses `s3:*`
-on those resources. Some read and list actions use wider resource scopes.
-The policy denies changes to the bootstrap user. The bootstrap user's policy
-grants only `sts:AssumeRole` for the runtime role.
+### AWS permissions
 
-The default bucket prefix is `aws-<account-id>`. Choose the prefix when running
-the IAM bootstrap. The runtime policy embeds it, so every managed bucket must
-start with the same value. Set `CROSSPLANE_AWS_RESOURCE_PREFIX` during
-bootstrap when one account contains multiple installations, and reuse it for
-deployment.
+The bootstrap administrator must be able to inspect and manage the IAM role,
+trust policy, inline policy, and tags. In `bootstrap-user` mode, it must also
+be able to manage the dedicated controller credential user and its access key.
+Review the templates in
+[`policies/`](https://github.com/versioneer-tech/provider-storage/tree/main/aws/dependencies/policies)
+before `apply`.
 
-Use `aws/dependencies/iam.sh --help` for optional names and paths.
+The base controller identity can only call `sts:AssumeRole` for the controller
+runtime role. The runtime role can:
 
-### Use an existing workload identity
+- Manage users, access keys, and policies in the configured managed IAM paths.
+- Manage S3 buckets and objects with the configured bucket prefix.
+- Use the wider read and list actions that the provider needs.
 
-The trusted principal must already exist and must be available to
-`provider-aws`:
+The runtime policy denies changes to the controller credential user. Managed
+users and policies use `/provider-storage/managed/`. The default bucket prefix
+is `aws-<account-id>`.
 
-```bash
-export CROSSPLANE_AWS_ACCOUNT_ID=123456789012
-export CROSSPLANE_AWS_AUTH_MODE=assume-role
-export CROSSPLANE_AWS_TRUST_PRINCIPAL_ARN=arn:aws:iam::123456789012:role/crossplane-base
+### Run AWS bootstrap
 
-aws/dependencies/iam.sh apply
-```
+Follow the [AWS dependency README](https://github.com/versioneer-tech/provider-storage/blob/main/aws/dependencies/README.md) for the
+required variables, both authentication modes, and the command sequence. Set
+the bucket prefix before `apply`; the runtime policy contains that prefix.
 
-Give the trusted principal permission to assume the runtime role.
+### Configure the AWS provider
 
-### Use the bootstrap user
+Both modes set the controller runtime role in `assumeRoleChain`.
+`assume-role` uses a workload credential source. `bootstrap-user` uses the
+generated `aws-provider-creds` Secret.
 
-Use an absolute credentials-file path outside Git:
+### Inspect AWS
 
-```bash
-export CROSSPLANE_AWS_ACCOUNT_ID=123456789012
-export CROSSPLANE_AWS_AUTH_MODE=bootstrap-user
-export CROSSPLANE_AWS_CREDENTIALS_FILE=/secure/provider-storage.credentials
-
-aws/dependencies/iam.sh apply
-```
-
-The script writes the credentials file and prints the runtime role ARN. Store
-the file in a secret manager.
-
-### Configure `provider-aws`
-
-For both modes, put the printed runtime role ARN in
-[`aws/dependencies/03-providerConfigs.yaml`](https://github.com/versioneer-tech/provider-storage/blob/main/aws/dependencies/03-providerConfigs.yaml)
-and apply the `ProviderConfig` in each namespace that contains an AWS
-`Storage`.
-
-For `assume-role`, configure the workload credential source in that manifest.
-For `bootstrap-user`, create the Secret in each `Storage` namespace:
-
-```bash
-namespace=<storage-namespace>
-kubectl create namespace "${namespace}" --dry-run=client -o yaml | kubectl apply -f -
-kubectl create secret generic aws-provider-creds \
-  --namespace "${namespace}" \
-  --from-file=credentials="${CROSSPLANE_AWS_CREDENTIALS_FILE}" \
-  --dry-run=client -o yaml \
-| kubectl apply -f -
-```
-
-### Inspect
-
-Use the same account, mode, prefix, names, paths, and credentials-file value
-for all operations:
-
-```bash
-aws/dependencies/iam.sh status
-```
-
-For a complete Kind test sequence, including Secret creation, provider
-deployment, and an S3 round trip, see the
-[integration test guide](https://github.com/versioneer-tech/provider-storage/blob/main/tests/integration/README.md#aws).
+Use the same account, mode, prefix, names, paths, and credential-file value for
+all commands. `status` reports missing resources without changes. `verify`
+fails if the controller resources or credentials are not ready. See the
+[integration test guide](https://github.com/versioneer-tech/provider-storage/blob/main/tests/integration/README.md#aws)
+for the full deployment and S3 test.
 
 ## OTC
 
-The OTC provider uses one programmatic IAM user with a permanent access key.
-The bootstrap adds the user to one group and assigns two permissions to it:
+### OTC identity model
 
-- `Security Administrator` at domain scope, because the controller creates IAM
-  users and permanent credentials for them.
-- The system-defined `OBS Administrator` policy for all existing and future
-  projects.
+The bootstrap administrator runs
+[`iam.sh`](https://github.com/versioneer-tech/provider-storage/blob/main/otc/dependencies/iam.sh)
+with an existing OTC administrator login. The script creates one programmatic
+controller user, one controller group, and one permanent AK/SK. Crossplane
+uses that controller credential through its `ProviderConfig`.
 
-OTC exposes project and domain role assignment through user groups. This is
-why the bootstrap needs a group although the equivalent AWS setup does not.
-The default bootstrap user and group are both named
-`provider-storage-bootstrap-crossplane`. Composition-created users start with
-`provider-storage-managed-`.
+The current default user and group name is
+`provider-storage-bootstrap-crossplane`. This is a legacy resource name. Both
+resources belong to the persistent controller identity. Consumer users start
+with `provider-storage-managed-`.
 
-The system-defined OTC permissions cannot be limited to a bucket prefix or an
-individual bucket. `Security Administrator` can change IAM permissions in the
-domain, and `OBS Administrator` covers OBS resources across existing and future
-projects. Use a dedicated domain for Provider Storage. An agency cannot
-replace this controller identity because OTC does not permit
-`Security Administrator` on an agency.
+### OTC permissions
 
-The user that runs the bootstrap must already have `Security Administrator` at
-domain scope. The script re-scopes the active OpenStack token to the target
-domain because OTC IAM APIs require a domain-scoped token. Review
-[`iam.sh`](https://github.com/versioneer-tech/provider-storage/blob/main/otc/dependencies/iam.sh),
-then run:
+The bootstrap administrator must have `Security Administrator` at domain
+scope. The script re-scopes its OpenStack token to the target domain for the
+OTC IAM API.
 
-```bash
-export CROSSPLANE_OTC_DOMAIN_ID=0123456789abcdef0123456789abcdef
-export CROSSPLANE_OTC_PROJECT_ID=abcdef0123456789abcdef0123456789
-export CROSSPLANE_OTC_REGION=eu-nl
-export CROSSPLANE_OTC_CREDENTIALS_FILE=/secure/provider-otc.json
+The controller group receives:
 
-otc/dependencies/iam.sh apply
-```
+- `Security Administrator` at domain scope, so the controller can create
+  consumer users and permanent credentials.
+- `OBS Administrator` for all existing and future projects, so the controller
+  can manage OBS resources.
 
-The regional project ID is the provider project, not the OBS policy assignment
-scope. The script writes the provider JSON with mode `0600` and
-does not print its access key or secret key. Store this file in a secret
-manager.
+OTC cannot limit these system permissions to one bucket or bucket prefix. Use
+a dedicated domain for Provider Storage. An agency cannot replace the
+controller identity because OTC does not allow `Security Administrator` on an
+agency.
 
-Run `otc/dependencies/iam.sh status` to check group membership, Security
-Administrator, and the inherited OBS Administrator assignment. The bootstrap
-uses OTC's all-projects IAM endpoint. IAM changes can take 10 to 15 minutes to
-take effect.
+### Run OTC bootstrap
 
-The default bucket prefix is `otc-<domain-id>`. Choose any override through
-`CROSSPLANE_OTC_RESOURCE_PREFIX` when running the IAM bootstrap, then reuse it
-for every deployment. The prefix does not restrict OBS Administrator access.
+Follow the [OTC dependency README](https://github.com/versioneer-tech/provider-storage/blob/main/otc/dependencies/README.md) for the
+required variables and command sequence. The regional project ID selects the
+provider project. It is not the scope of the `OBS Administrator` assignment.
+IAM changes can take 10 to 15 minutes to take effect.
 
-Create the Secret used by `otc/dependencies/03-providerConfigs.yaml`:
+### Configure the OTC provider
 
-```bash
-namespace=<storage-namespace>
-kubectl create namespace "${namespace}" --dry-run=client -o yaml | kubectl apply -f -
-kubectl create secret generic otc-provider-creds \
-  --namespace "${namespace}" \
-  --from-file=credentials="${CROSSPLANE_OTC_CREDENTIALS_FILE}" \
-  --dry-run=client -o yaml \
-| kubectl apply -f -
-```
+The `ProviderConfig` reads `otc-provider-creds`. After credential rotation,
+render and apply the Secret again.
 
-Use `otc/dependencies/iam.sh rotate-credential` to replace the controller
-AK/SK without recreating its user or policies, then update the provider Secret.
+### Inspect OTC
 
-For the complete Kind test sequence, see the
-[OTC integration test guide](https://github.com/versioneer-tech/provider-storage/blob/main/tests/integration/README.md#otc).
+`status` checks the group membership and both role assignments without
+changes. `verify` fails if the controller resources or credential are not
+ready. See the
+[integration test guide](https://github.com/versioneer-tech/provider-storage/blob/main/tests/integration/README.md#otc)
+for the full deployment test.
 
 ## OVHcloud
 
-The OVHcloud controller identity is an OAuth2 service account with an IAM
-policy for the target `publicCloudProject`. The bootstrap script creates that
-identity and policy. The standard integration run tests the composed
-`Storage` and its buckets through Crossplane.
+### OVHcloud identity model
 
-Review [`iam.sh`](https://github.com/versioneer-tech/provider-storage/blob/main/ovh/dependencies/iam.sh)
-and its [README](https://github.com/versioneer-tech/provider-storage/blob/main/ovh/dependencies/README.md).
-Install the official [`ovhcloud` CLI](https://docs.ovhcloud.com/en/guides/manage-and-operate/cli/getting-started)
-and `jq`. Run `ovhcloud login` to start an administrator session and save
-it in `~/.ovh.conf`, the CLI's default login file. You can also use the
-CLI's supported `OVH_*` variables. Select the same OVH API region for the CLI
-and script. This API region is separate from the Object Storage region.
+The bootstrap administrator runs
+[`iam.sh`](https://github.com/versioneer-tech/provider-storage/blob/main/ovh/dependencies/iam.sh)
+with an existing OVHcloud administrator session. The script creates an OAuth2
+controller service account and a project-scoped IAM policy. Crossplane uses
+the service account through its `ProviderConfig`.
 
-Set the exact project ID. The private controller JSON defaults to
-`~/.ovh-provider-storage-<project-id>.json`, separate from `~/.ovh.conf`.
-Unset any old `CROSSPLANE_OVH_CREDENTIALS_FILE` value that points to the CLI
-login. Run `status` before and after `apply`, then repeat `apply` to check
-that it is idempotent:
+The current service account name starts with `provider-storage-bootstrap-`.
+This is a legacy resource name. The service account is the persistent
+controller identity. Its IAM policy name starts with
+`provider-storage-controller-`.
 
-```bash
-export CROSSPLANE_OVH_PROJECT_ID=0123456789abcdef0123456789abcdef
-export CROSSPLANE_OVH_API_REGION=EU
-unset CROSSPLANE_OVH_CREDENTIALS_FILE
+### OVHcloud permissions
 
-ovh/dependencies/iam.sh apply
-```
+The bootstrap administrator must be able to:
 
-`status` is read-only. `apply` writes `endpoint`, `client_id`, and
-`client_secret` as JSON with mode `0600`. Both commands print the credential
-file path, but not the secret.
-`verify` reads that file and reports access results without printing the
-credential. The script checks the exact target-project URN in the controller
-IAM policy and verifies that the controller can read the selected project and
-list its users. Send only redacted status and verification results to the team.
+- Read the target Public Cloud project.
+- Create an OAuth2 service account.
+- Create and update an IAM policy for that service account.
 
-The provider credential Secret handoff and one-Storage, two-bucket test are
-documented in the
-[integration test guide](https://github.com/versioneer-tech/provider-storage/blob/main/tests/integration/README.md#ovhcloud).
-Rotation, lifecycle, owner replacement, and cleanup behavior remain in the
-OVHcloud validation plan.
+The controller policy is limited to the exact target `publicCloudProject`.
+It lets the controller manage the project resources that the Composition
+needs, including Object Storage users, roles, user policies, S3 credentials,
+and regional storage. Run `status` to see the exact action list before
+`apply`.
+
+### Run OVHcloud bootstrap
+
+Follow the [OVHcloud dependency README](https://github.com/versioneer-tech/provider-storage/blob/main/ovh/dependencies/README.md) for
+the CLI preparation, required variables, and command sequence. The OVHcloud
+API region is separate from the Object Storage region.
+
+### Configure the OVHcloud provider
+
+The `ProviderConfig` reads `ovh-provider-creds`. The EnvironmentConfig must
+contain the exact project ID and Object Storage settings.
+
+### Inspect OVHcloud
+
+`status` reads the target project and matching IAM resources without changes.
+`verify` uses the controller credential to read the selected project and list
+its users. Share only redacted output. See the
+[integration test guide](https://github.com/versioneer-tech/provider-storage/blob/main/tests/integration/README.md#ovhcloud)
+for the provider Secret and bucket test.
 
 ## CloudFerro
 
-CloudFerro's S3 authorization boundary is the OpenStack project. A user in a
-project can reach that project's containers; bucket policies share with a
-different project's `root` ARN and do not restrict individual users. See the
-[CloudFerro bucket-sharing guide](https://docs.cloudferro.com/en/latest/s3/Bucket-sharing-using-s3-bucket-policy-on-CloudFerro-Cloud.html).
+### CloudFerro identity model
 
-Install the provider dependencies and `storage-cloudferro` Configuration
-before bootstrap. Then follow the
-[CloudFerro bootstrap guide](https://github.com/versioneer-tech/provider-storage/blob/main/cloudferro/dependencies/README.md).
-It gives the required login check, variables, and `status`, `apply`, and
-`verify` commands.
+The bootstrap administrator runs
+[`iam.sh`](https://github.com/versioneer-tech/provider-storage/blob/main/cloudferro/dependencies/iam.sh)
+with an existing OpenStack login. The script creates one shared controller
+user without a default project. It assigns that user to each selected project.
+Crossplane uses a project-scoped configuration for this controller user.
 
-The bootstrap selects enabled, existing projects with an anchored numbered
-name pattern. It creates one controller user, assigns it to each selected
-project, and publishes one project-scoped ProviderConfig per slot. Separate
-keys in one shared Secret hold the project scopes. The script does not create
-projects. Portal activation and wallet setup remain separate.
+The OpenStack project is the S3 access boundary. A user with S3 access in a
+project can access that project's containers. A bucket policy can share a
+bucket with another project's `root` ARN, but it cannot isolate users in the
+owner project.
 
-After all `Storage` resources using a selected slot are removed, `iam.sh delete`
-cleans that slot's shared Secret key, controller role assignments, and managed
-cluster resources. It uses the same project-name pattern and leaves the shared
-controller user, local identity file, and pre-existing projects intact.
+### CloudFerro permissions
 
-The first live Composition run must prove that the controller can create an
-EC2 credential for itself in the selected project. A cross-project test must
-also verify the AWS S3 `BucketPolicy` adapter with owner and grantee Storages
-in different numbered slots.
+The bootstrap administrator must be able to:
+
+- List the projects that the configured name pattern selects.
+- Create one user in the project domain.
+- Assign the configured project role in every selected project.
+- Re-scope its token to the domain and projects when its initial login is
+  project-scoped.
+
+Re-scoping does not add permissions. The bootstrap administrator must already
+have the required domain and project permissions.
+
+The controller user needs only the configured project role, which defaults to
+`member`. It must not have user-administration or role-administration
+permission. As a project member, it manages containers and creates an EC2/S3
+credential for itself. The Composition also manages bucket policies.
+
+### Run CloudFerro bootstrap
+
+CloudFerro projects are billing resources and the access boundary for buckets.
+Create and activate all required projects in the
+[CREODIAS billing portal](https://creodias.docs.cloudferro.com/en/latest/accountmanagement/Accounts-and-Projects-Management.html)
+before bootstrap.
+
+Follow the
+[CloudFerro dependency README](https://github.com/versioneer-tech/provider-storage/blob/main/cloudferro/dependencies/README.md) for
+project preparation, required variables, and the command sequence. Limit the
+project pattern to the projects that the controller must manage. The script
+does not create projects or configure portal activation, wallets, or billing.
+
+### Configure the CloudFerro provider
+
+Each `cloudferro-project-<project-id>` Secret contains the controller identity
+and one project scope. The Composition creates a separate OpenStack
+`ProviderConfig` for each `Storage`.
+
+Treat the project ID annotation as a privileged field. Restrict who can select
+a project and who can read its controller Secret.
+
+### Inspect CloudFerro
+
+`status` checks the bootstrap login, project access, and selected projects
+without changes. `verify` checks project-scoped controller authentication and
+Object Storage access. The first live Composition run must also prove that the
+controller can create an EC2 credential for itself.

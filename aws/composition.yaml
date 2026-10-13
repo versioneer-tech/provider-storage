@@ -73,7 +73,7 @@ spec:
               ctx = _to_dict(req.context)
               env = (ctx.get(ENVIRONMENT_KEY) or {})
               storage_env = (env.get("storage") or {})
-              ns   = (meta.get("labels", {}) or {}).get("crossplane.io/claim-namespace") or meta.get("namespace") or "default"
+              ns   = meta.get("namespace") or "default"
               region = (storage_env.get("region") or spec.get("region") or "eu-central-1").strip()
               for b in (spec.get("buckets") or []):
                   bucket = (b.get("bucketName") or "").strip()
@@ -116,7 +116,7 @@ spec:
               storage_env = (env.get("storage") or {})
               iam_env = (storage_env.get("iam") or {})
               policy_path = (iam_env.get("policyPath") or "/provider-storage/managed/").strip()
-              ns   = (meta.get("labels", {}) or {}).get("crossplane.io/claim-namespace") or meta.get("namespace") or "default"
+              ns   = meta.get("namespace") or "default"
               principal = (spec.get("principal") or meta.get("name") or "<principal>").strip()
               for b in (spec.get("buckets") or []):
                   bucket = (b.get("bucketName") or "").strip()
@@ -192,7 +192,7 @@ spec:
               storage_env = (env.get("storage") or {})
               iam_env = (storage_env.get("iam") or {})
               policy_path = (iam_env.get("policyPath") or "/provider-storage/managed/").strip()
-              ns   = (meta.get("labels", {}) or {}).get("crossplane.io/claim-namespace") or meta.get("namespace") or "default"
+              ns   = meta.get("namespace") or "default"
               for g in (spec.get("bucketAccessGrants") or []):
                   bucket  = (g.get("bucketName") or "").strip()
                   grantee = (g.get("grantee") or "").strip()
@@ -296,7 +296,7 @@ spec:
               storage_env = (env.get("storage") or {})
               iam_env = (storage_env.get("iam") or {})
               user_path = (iam_env.get("userPath") or "/provider-storage/managed/").strip()
-              ns = (meta.get("labels", {}) or {}).get("crossplane.io/claim-namespace") or meta.get("namespace") or "default"
+              ns = meta.get("namespace") or "default"
               principal = (spec.get("principal") or meta.get("name") or "<principal>").strip()
               provider_identity = (spec.get("providerIdentity") or principal).strip()
               interval, max_to_keep = _get_rollover(spec)
@@ -434,7 +434,7 @@ spec:
               xr = _to_dict(req.observed.composite.resource)
               meta = xr.get("metadata", {}) or {}
               spec = xr.get("spec", {}) or {}
-              ns = (meta.get("labels", {}) or {}).get("crossplane.io/claim-namespace") or meta.get("namespace") or "default"
+              ns = meta.get("namespace") or "default"
               principal = (spec.get("principal") or meta.get("name") or "<principal>").strip()
               provider_identity = (spec.get("providerIdentity") or principal).strip()
               # Peer Storage objects are loaded by a discoverable label so request resolution can inspect grants.
@@ -580,7 +580,7 @@ spec:
               xr = _to_dict(req.observed.composite.resource)
               meta = xr.get("metadata", {}) or {}
               spec = xr.get("spec", {}) or {}
-              ns = (meta.get("labels", {}) or {}).get("crossplane.io/claim-namespace") or meta.get("namespace") or "default"
+              ns = meta.get("namespace") or "default"
               principal = (spec.get("principal") or meta.get("name") or "<principal>").strip()
               provider_identity = (spec.get("providerIdentity") or principal).strip()
 
@@ -635,7 +635,7 @@ spec:
               ctx = _to_dict(req.context)
               env = (ctx.get(ENVIRONMENT_KEY) or {})
               storage_env = (env.get("storage") or {})
-              ns = (meta.get("labels", {}) or {}).get("crossplane.io/claim-namespace") or meta.get("namespace") or "default"
+              ns = meta.get("namespace") or "default"
               principal = (spec.get("principal") or meta.get("name") or "<principal-missing>").strip()
 
               observed_resources = getattr(req.observed, "resources", {}) or {}
@@ -799,7 +799,7 @@ spec:
               ctx = _to_dict(req.context)
               env = (ctx.get(ENVIRONMENT_KEY) or {})
               storage_env = (env.get("storage") or {})
-              ns = (meta.get("labels", {}) or {}).get("crossplane.io/claim-namespace") or meta.get("namespace") or "default"
+              ns = meta.get("namespace") or "default"
               principal = (spec.get("principal") or meta.get("name") or "<principal-missing>").strip()
 
               rules = []

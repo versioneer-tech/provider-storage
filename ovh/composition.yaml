@@ -151,7 +151,7 @@ spec:
               xr = to_dict(req.observed.composite.resource)
               metadata = xr.get("metadata") or {}
               spec = xr.get("spec") or {}
-              namespace = (metadata.get("labels") or {}).get("crossplane.io/claim-namespace") or metadata.get("namespace") or "default"
+              namespace = metadata.get("namespace") or "default"
               principal = (spec.get("principal") or metadata.get("name") or "").strip()
               identity = (spec.get("providerIdentity") or principal).strip()
               context = to_dict(req.context)
@@ -326,7 +326,7 @@ spec:
               xr = to_dict(req.observed.composite.resource)
               metadata = xr.get("metadata") or {}
               spec = xr.get("spec") or {}
-              namespace = (metadata.get("labels") or {}).get("crossplane.io/claim-namespace") or metadata.get("namespace") or "default"
+              namespace = metadata.get("namespace") or "default"
               principal = (spec.get("principal") or metadata.get("name") or "").strip()
               generation = f"{principal}{current_suffix(spec)}"
               context = to_dict(req.context)
@@ -478,7 +478,7 @@ spec:
               ctx = to_dict(req.context)
               env = (ctx.get(ENVIRONMENT_KEY) or {})
               storage_env = (env.get("storage") or {})
-              ns = (meta.get("labels", {}) or {}).get("crossplane.io/claim-namespace") or meta.get("namespace") or "default"
+              ns = meta.get("namespace") or "default"
               principal = (spec.get("principal") or meta.get("name") or "<principal-missing>").strip()
 
               rules = []

@@ -69,7 +69,7 @@ spec:
               xr = _to_dict(req.observed.composite.resource)
               meta = xr.get("metadata", {}) or {}
               spec = xr.get("spec", {}) or {}
-              ns = (meta.get("labels", {}) or {}).get("crossplane.io/claim-namespace") or meta.get("namespace") or "default"
+              ns = meta.get("namespace") or "default"
 
               for b in (spec.get("buckets") or []):
                   bucket = (b.get("bucketName") or "").strip()
@@ -121,7 +121,7 @@ spec:
               xr = _to_dict(req.observed.composite.resource)
               meta = xr.get("metadata", {}) or {}
               spec = xr.get("spec", {}) or {}
-              ns = (meta.get("labels", {}) or {}).get("crossplane.io/claim-namespace") or meta.get("namespace") or "default"
+              ns = meta.get("namespace") or "default"
               principal = (spec.get("principal") or meta.get("name") or "<principal-missing>").strip()
 
               for b in (spec.get("buckets") or []):
@@ -205,7 +205,7 @@ spec:
               xr = _to_dict(req.observed.composite.resource)
               meta = xr.get("metadata", {}) or {}
               spec = xr.get("spec", {}) or {}
-              ns = (meta.get("labels", {}) or {}).get("crossplane.io/claim-namespace") or meta.get("namespace") or "default"
+              ns = meta.get("namespace") or "default"
 
               for grant in (spec.get("bucketAccessGrants") or []):
                   bucket = (grant.get("bucketName") or "").strip()
@@ -332,7 +332,7 @@ spec:
               xr = _to_dict(req.observed.composite.resource)
               meta = xr.get("metadata", {}) or {}
               spec = xr.get("spec", {}) or {}
-              ns = (meta.get("labels", {}) or {}).get("crossplane.io/claim-namespace") or meta.get("namespace") or "default"
+              ns = meta.get("namespace") or "default"
 
               principal = (spec.get("principal") or meta.get("name") or "<principal-missing>").strip()
               provider_identity = (spec.get("providerIdentity") or principal).strip()
@@ -465,7 +465,7 @@ spec:
               ctx = _to_dict(req.context)
               env = (ctx.get(ENVIRONMENT_KEY) or {})
               storage_env = (env.get("storage") or {})
-              ns = (meta.get("labels", {}) or {}).get("crossplane.io/claim-namespace") or meta.get("namespace") or "default"
+              ns = meta.get("namespace") or "default"
               principal = (spec.get("principal") or meta.get("name") or "<principal-missing>").strip()
 
               observed_resources = getattr(req.observed, "resources", {}) or {}
@@ -626,7 +626,7 @@ spec:
               ctx = _to_dict(req.context)
               env = (ctx.get(ENVIRONMENT_KEY) or {})
               storage_env = (env.get("storage") or {})
-              ns = (meta.get("labels", {}) or {}).get("crossplane.io/claim-namespace") or meta.get("namespace") or "default"
+              ns = meta.get("namespace") or "default"
               principal = (spec.get("principal") or meta.get("name") or "<principal-missing>").strip()
 
               rules = []

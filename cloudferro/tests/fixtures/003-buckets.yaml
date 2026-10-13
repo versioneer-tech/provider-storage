@@ -1,14 +1,16 @@
 # Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
 # SPDX-License-Identifier: Apache-2.0
 
-# Jane creates no buckets in project slot cloudferro-0003 and records an
+# Jane creates no buckets in one CloudFerro project and records an
 # access request that has no cloud-side effect without an active grant.
 apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
   name: s-jane
+  annotations:
+    storages.pkg.internal/cloudferro-project-id: 0123456789abcdef0123456789abcdef
   labels:
-    storages.pkg.internal/backend: cloudferro-0003
+    storages.pkg.internal/backend: cloudferro
 spec:
   crossplane:
     compositionSelector:

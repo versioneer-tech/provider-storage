@@ -1,56 +1,31 @@
-# Storage Provider
+<h1><img src="docs/imgs/logo.png" height="48" alt="Versioneer logo" /> Provider Storage</h1>
 
-**Provider Storage is a PaaS-style building block for platform operators:** it turns one `Storage` claim into end-user object-storage buckets on the selected backend. Users get smooth self-service bucket provisioning. Operators keep visibility and control over provider credentials, backend choice, access policy, sharing, lifecycle rules, and credential rotation.
+[![Tests](https://github.com/versioneer-tech/provider-storage/actions/workflows/pr.yaml/badge.svg?branch=main&event=push)](https://github.com/versioneer-tech/provider-storage/actions/workflows/pr.yaml)
+[![Latest release](https://img.shields.io/github/v/release/versioneer-tech/provider-storage)](https://github.com/versioneer-tech/provider-storage/releases/latest)
+[![License](https://img.shields.io/github/license/versioneer-tech/provider-storage)](LICENSE)
 
-This package provides the **Storage** Composite Resource Definition (XRD) and ready-to-use Crossplane v2 Compositions for object-storage bucket provisioning.
+Provider Storage defines one namespaced Crossplane `Storage` API for S3
+buckets, consumer credentials, access grants, and lifecycle rules. Platform
+operators configure the storage backends. Users do not need to manage
+provider-specific identities or policies.
 
-## The Goal
+Supported backends are MinIO, AWS S3, Open Telekom Cloud (OTC), OVHcloud, and
+CloudFerro. See the
+[backend comparison](docs/how-to-guides/backend_differences.md) before you
+select a backend.
 
-Give platform operators one simple API for bucket self-service. Teams should not need to know backend-specific identity, policy, or credential details just to get a bucket.
+## Start here
 
-As the operator, you install the backend-specific configuration package, configure provider credentials, and decide which object-storage systems are available. A `Storage` claim can then create buckets, issue normalized S3 credentials, and describe access requests or grants.
+1. Follow the [installation guide](docs/how-to-guides/installation.md).
+2. For a managed cloud, review and run the backend IAM bootstrap before you
+   deploy its provider configuration. The bootstrap uses an administrator
+   login to prepare a separate Crossplane controller identity. See the
+   [cloud IAM guide](docs/how-to-guides/cloud-iam-bootstrap.md).
+3. Create a `Storage` resource in the same namespace as its namespaced
+   `ProviderConfig`.
 
-The API stays the same across all backends. Buckets, credentials, access requests, access grants, and lifecycle rules use the same concepts. Only the implementation behind the composition changes.
-
-See the [backend comparison](docs/how-to-guides/backend_differences.md) for the available implementations and their differences.
-
-Each `Storage` claim is the contract for one principal, usually a user, service account, team, or workspace. It records the buckets owned by that principal, which buckets are discoverable, which access was requested, which access was granted, and how credentials should rotate.
-
-Other platform building blocks and workloads can consume the generated Kubernetes Secret directly. For example, a Datalab can use the Secret to mount object-storage access into an end-user workspace.
-
-✨ For a full introduction, see the [documentation](https://versioneer-tech.github.io/provider-storage/).
-
-For unit and ephemeral Kind integration tests across the supported backends,
-see the [local setup guide](https://versioneer-tech.github.io/provider-storage/latest/how-to-guides/local_setup/).
-
-Before you deploy a managed cloud backend, an administrator must review its
-`<cloud>/dependencies/iam.sh` script and any policy templates as described in the
-[cloud IAM bootstrap guide](docs/how-to-guides/cloud-iam-bootstrap.md).
-
-## API Reference
-
-The published XRD with all fields is documented here:  
-👉 [API Reference Guide](https://versioneer-tech.github.io/provider-storage/latest/reference-guides/api/)
-
-## Install the Configuration Package
-
-Install the configuration package into your cluster. Providers and functions should typically be managed by your GitOps process.
-
-```yaml
-apiVersion: pkg.crossplane.io/v1
-kind: Configuration
-metadata:
-  name: storage
-spec:
-  package: ghcr.io/versioneer-tech/provider-storage/<backend>:<version>
-  skipDependencyResolution: true
-```
-
-## Storage Spec
-
-### Minimal example
-
-Just apply the following to your Kubernetes cluster:
+If MinIO is the only compatible Composition in the cluster, this example
+creates one bucket without an explicit selector:
 
 ```yaml
 apiVersion: pkg.internal/v1beta1
@@ -63,64 +38,39 @@ spec:
     - bucketName: wonderland
 ```
 
-This creates a bucket named **`wonderland`**, plus the backend-specific resources needed for access, such as users, credentials, and bucket policies.
+Provider Storage creates a consumer Secret named after `spec.principal` in
+the same namespace. See [Usage and concepts](docs/how-to-guides/usage_concepts.md)
+for access requests, grants, credential rollover, lifecycle rules, and
+verification commands. The [API reference](docs/reference-guides/api.md)
+lists all fields.
 
-A Kubernetes Secret is created in the same namespace. It exposes normalized S3 credentials for workloads and other platform building blocks:
+Backend-specific examples are in [`examples/overlays`](examples/overlays).
+If you install more than one backend Composition, see
+[Select a backend](docs/how-to-guides/usage_concepts.md#select-a-backend).
+
+## Backend setup
+
+| Backend | Dependency guide |
+| --- | --- |
+| MinIO | [MinIO dependencies](minio/dependencies/README.md) |
+| AWS | [AWS dependencies](aws/dependencies/README.md) |
+| OTC | [OTC dependencies](otc/dependencies/README.md) |
+| OVHcloud | [OVHcloud dependencies](ovh/dependencies/README.md) |
+| CloudFerro | [CloudFerro dependencies](cloudferro/dependencies/README.md) |
+
+## Tests
+
+Run the local validation suite from the repository root:
 
 ```bash
-aws s3 ls s3://wonderland
+tests/unit.bash
 ```
 
-### More examples
-
-See the [`examples`](examples/base) for complete scenarios, including:
-
-- Storage claims with multiple buckets
-- Access requests to other buckets (`bucketAccessRequests`)
-- Access grants for own buckets (`bucketAccessGrants`)
-- Bucket lifecycle rules (`lifecycleRules`)
-
-> Note: When multiple configuration packages are installed (for example, to provision both **MinIO** and **AWS**), the `Storage` claim must be labeled so it is matched with the correct provider.
-
-For example:
-
-```bash
-kubectl get storage -A -o name \
-| xargs -I{} kubectl patch {} --type='merge' \
-  -p '{"spec":{"crossplane":{"compositionSelector":{"matchLabels":{"provider":"minio"}}}}}'
-```
-
-For approval workflows you also need to add this label to the `Storage` resources:
-
-```yaml
-metadata:
-  labels:
-    storages.pkg.internal/discoverable: "true"
-```
-
-## Storage Credentials
-
-For each `Storage` resource, Provider Storage creates a Kubernetes Secret in the same namespace.
-The Secret is named after `spec.principal` and contains S3-compatible access credentials.
-
-Credentials can be rotated automatically when `spec.credentialsRollover` is configured. By default, automatic rollover is disabled.
-The Secret shape is provider-agnostic and consistently exposes:
-
-- `AWS_ACCESS_KEY_ID`  
-- `AWS_SECRET_ACCESS_KEY`
-
-When the selected storage environment defines connection metadata, the Secret also includes S3 client settings such as:
-
-- `AWS_ENDPOINT_URL`
-- `AWS_REGION`
-- `AWS_S3_FORCE_PATH_STYLE`
-
-Workloads and other compositions can mount or reference this Secret directly to authenticate against the provisioned bucket backend.
-
-Bucket lifecycle rules are documented in the
-[Usage & Concepts guide](https://versioneer-tech.github.io/provider-storage/latest/how-to-guides/usage_concepts/#lifecycle-rules).
+The suite checks IAM helper behavior, renders each Composition, compares
+golden files, validates schemas, and checks integration manifests. See the
+[local test guide](docs/how-to-guides/local_setup.md) before you run a live
+Kind or cloud integration test.
 
 ## License
 
-Apache 2.0 (Apache License Version 2.0, January 2004)  
-<https://www.apache.org/licenses/LICENSE-2.0>
+Apache License 2.0. See [LICENSE](LICENSE).

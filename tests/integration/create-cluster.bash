@@ -12,6 +12,10 @@ require_command docker
 require_command kind
 require_command kubectl
 
+prepare_namespace() {
+  kube apply -f "${MANIFEST_DIR}/namespaces.yaml"
+}
+
 if kind_cluster_exists; then
   if ! kube cluster-info >/dev/null 2>&1; then
     kind export kubeconfig --name "${KIND_CLUSTER_NAME}"
@@ -19,6 +23,7 @@ if kind_cluster_exists; then
   printf 'Reusing kind cluster %s with context %s.\n' \
     "${KIND_CLUSTER_NAME}" "${KUBECTL_CONTEXT}"
   kube cluster-info
+  prepare_namespace
   exit 0
 fi
 
@@ -28,6 +33,7 @@ kind create cluster \
   --config "${MANIFEST_DIR}/kind.yaml" \
   --wait 5m
 kube cluster-info
+prepare_namespace
 
 printf 'Remove this test cluster when the validation cycle is complete:\n'
 printf 'kind delete cluster --name %s\n' "${KIND_CLUSTER_NAME}"

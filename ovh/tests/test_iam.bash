@@ -184,7 +184,7 @@ grep -Fxq "Credentials file: $credentials_file (missing)" "$case_dir/stdout" ||
 
 new_case
 default_mode=true
-credentials_file="$case_dir/admin-home/.ovh-provider-storage-${target_id}.json"
+credentials_file="$case_dir/admin-home/.config/provider-storage/ovh-creds.json"
 expect_success status
 [[ ! -e $credentials_file ]] || fail 'status created the default credential file'
 expect_success apply
@@ -234,6 +234,24 @@ jq -e --arg id "$client_id" --arg secret "$client_secret" '
   (keys | sort) == ["client_id","client_secret","endpoint"] and
   .endpoint == "ovh-eu" and .client_id == $id and .client_secret == $secret
 ' "$credentials_file" >/dev/null || fail 'credential JSON is wrong'
+expect_success render-secrets
+grep -Fxq '  name: ovh-provider-creds' "$case_dir/stdout" ||
+  fail 'apply omitted the provider Secret manifest'
+grep -Fxq '  namespace: workspace' "$case_dir/stdout" ||
+  fail 'apply omitted the provider Secret namespace'
+encoded_credentials=$(jq -Rs '@base64' <"$credentials_file")
+grep -Fxq "  credentials: $encoded_credentials" "$case_dir/stdout" ||
+  fail 'apply printed the wrong provider Secret data'
+calls_before_render=$(wc -l <"$case_dir/state/calls")
+env -i PATH="$test_root/bin:/usr/bin:/bin" \
+  CROSSPLANE_OVH_CREDENTIALS_FILE="$credentials_file" \
+  CROSSPLANE_OVH_NAMESPACE=workspace \
+  bash "$script" render-secrets >"$case_dir/isolated-render.out" \
+  2>"$case_dir/isolated-render.err" || fail 'isolated render-secrets failed'
+[[ $(wc -l <"$case_dir/state/calls") == "$calls_before_render" ]] ||
+  fail 'render-secrets called the OVHcloud API'
+grep -Fxq '  name: ovh-provider-creds' "$case_dir/isolated-render.out" ||
+  fail 'isolated render-secrets omitted the provider Secret'
 if grep -Fq "$client_secret" "$case_dir/stdout" "$case_dir/stderr" "$case_dir/state/calls"; then
   fail 'apply exposed the client secret'
 fi

@@ -9,23 +9,34 @@ umask 077
 
 usage() {
   cat <<'EOF'
-Usage: ovh/dependencies/iam.sh <status|apply|verify>
+Usage: ovh/dependencies/iam.sh <status|apply|verify|render-secrets>
 
 Prepare a project-scoped OVHcloud controller service account. Review this
 script and ovh/dependencies/README.md before apply.
 
-Required environment:
+Commands:
+  status          Show the current setup. Does not change resources.
+  apply           Create or update resources and the credential file.
+  verify          Check that resources and credentials are ready.
+  render-secrets  Read only the credential file and print Secret manifests.
+
+Required environment for status, apply, and verify:
   CROSSPLANE_OVH_PROJECT_ID        Exact 32-character Public Cloud project ID.
 
 Optional environment:
   CROSSPLANE_OVH_API_REGION        EU, CA, or US (default EU).
   CROSSPLANE_OVH_CREDENTIALS_FILE  Override the controller JSON output path.
-                                   Default: ~/.ovh-provider-storage-<project-id>.json
+                                   Default: ~/.config/provider-storage/ovh-creds.json
+                                   Required by render-secrets; it is that
+                                   action's only cloud credential input.
+  CROSSPLANE_OVH_NAMESPACE         Namespace for the generated Secret manifest.
+                                   Default: workspace
 
 Install the official ovhcloud CLI and jq. By default, the CLI reads the
 administrator login from ~/.ovh.conf. The script writes a separate controller
 JSON file in your home directory; never set its path to ~/.ovh.conf. Run
-status before apply. No credential or client secret is printed.
+status before apply. The separate render-secrets action prints a Kubernetes
+Secret manifest. The script does not access Kubernetes.
 EOF
 }
 
@@ -35,17 +46,77 @@ die() {
 }
 
 case "${1:-}" in
-  -h|--help) usage; exit 0 ;;
-  status|apply|verify)
+  -h|--help|help|usage) usage; exit 0 ;;
+  status|apply|verify|render-secrets)
     if (($# != 1)); then usage >&2; exit 2; fi
     action=$1
     ;;
   *) usage >&2; exit 2 ;;
 esac
 
-for dependency in ovhcloud jq realpath stat mktemp; do
+dependencies=(jq realpath stat)
+if [[ $action != render-secrets ]]; then dependencies+=(ovhcloud mktemp); fi
+for dependency in "${dependencies[@]}"; do
   command -v "$dependency" >/dev/null 2>&1 || die "Install $dependency before running IAM bootstrap."
 done
+
+namespace=${CROSSPLANE_OVH_NAMESPACE:-workspace}
+[[ $namespace =~ ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$ ]] || die 'CROSSPLANE_OVH_NAMESPACE must be a valid Kubernetes namespace.'
+script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+repository_dir=$(realpath -- "$script_dir/../..")
+credentials_file=${CROSSPLANE_OVH_CREDENTIALS_FILE:-}
+if [[ -z $credentials_file ]]; then
+  [[ ${HOME:-} = /* ]] || die 'HOME must be an absolute path for the default OVHcloud credential file.'
+  credentials_file="$HOME/.config/provider-storage/ovh-creds.json"
+fi
+
+check_credentials_path() {
+  [[ $credentials_file = /* ]] || die 'CROSSPLANE_OVH_CREDENTIALS_FILE must be an absolute path.'
+  [[ $(basename -- "$credentials_file") != .ovh.conf ]] || die 'The controller JSON must not replace the CLI login. Unset CROSSPLANE_OVH_CREDENTIALS_FILE to use a separate default.'
+  [[ ! -L $credentials_file ]] || die 'The credential file must not be a symbolic link.'
+  local parent resolved
+  parent=$(dirname -- "$credentials_file")
+  [[ ! -e $parent || -d $parent ]] || die 'The credential-file parent path is not a directory.'
+  [[ -d $parent ]] || return 0
+  resolved="$(realpath -e -- "$parent")/$(basename -- "$credentials_file")"
+  [[ $resolved != "$repository_dir"/* ]] || die 'The credential file must be outside the Git repository.'
+  if [[ -e $credentials_file ]]; then
+    [[ -f $credentials_file ]] || die 'The credential path must be a regular file.'
+    [[ $(stat -c '%a:%u' -- "$credentials_file") == "600:$(id -u)" ]] || die 'The existing credential file must be owned by you and mode 0600.'
+  fi
+}
+
+prepare_credentials_directory() {
+  local parent
+  parent=$(dirname -- "$credentials_file")
+  if [[ ! -e $parent ]]; then
+    mkdir -p -m 700 -- "$parent" || die 'Could not create the OVHcloud credential directory.'
+  fi
+  [[ -d $parent ]] || die 'The OVHcloud credential parent path is not a directory.'
+}
+
+render_credentials_manifest() {
+  local encoded
+  encoded=$(jq -Rs '@base64' <"$credentials_file")
+  printf '\n%s\n' '# Kubernetes manifest follows. It contains controller credentials.'
+  printf '%s\n' '---' 'apiVersion: v1' 'kind: Secret' 'metadata:' \
+    '  name: ovh-provider-creds'
+  printf '  namespace: %s\n' "$namespace"
+  printf '%s\n' 'type: Opaque' 'data:'
+  printf '  credentials: %s\n' "$encoded"
+}
+
+if [[ $action == render-secrets ]]; then
+  check_credentials_path
+  [[ -f $credentials_file ]] || die 'Run apply before render-secrets.'
+  jq -e '
+    (.endpoint == "ovh-eu" or .endpoint == "ovh-ca" or .endpoint == "ovh-us") and
+    (.client_id | type == "string" and length > 0) and
+    (.client_secret | type == "string" and length > 0)
+  ' "$credentials_file" >/dev/null || die 'The credential file has the wrong format.'
+  render_credentials_manifest
+  exit 0
+fi
 
 project_id=${CROSSPLANE_OVH_PROJECT_ID:-}
 [[ $project_id =~ ^[0-9a-f]{32}$ ]] || die 'CROSSPLANE_OVH_PROJECT_ID must be an exact 32-character lowercase hexadecimal ID.'
@@ -55,31 +126,7 @@ endpoint="ovh-${api_region,,}"
 if [[ -n ${OVH_ENDPOINT:-} && ${OVH_ENDPOINT} != "$endpoint" ]]; then
   die "OVH_ENDPOINT must be $endpoint for this project."
 fi
-script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
-repository_dir=$(realpath -- "$script_dir/../..")
-if [[ -n ${CROSSPLANE_OVH_CREDENTIALS_FILE:-} ]]; then
-  credentials_file=$CROSSPLANE_OVH_CREDENTIALS_FILE
-else
-  [[ ${HOME:-} = /* && -d ${HOME:-} ]] || die 'HOME must be an existing absolute directory for the default controller credential file.'
-  credentials_file="$HOME/.ovh-provider-storage-${project_id}.json"
-fi
-recovery_file=
-
-check_credentials_path() {
-  [[ $credentials_file = /* ]] || die 'CROSSPLANE_OVH_CREDENTIALS_FILE must be an absolute path.'
-  [[ $(basename -- "$credentials_file") != .ovh.conf ]] || die 'The controller JSON must not replace the CLI login. Unset CROSSPLANE_OVH_CREDENTIALS_FILE to use a separate default.'
-  [[ ! -L $credentials_file ]] || die 'The credential file must not be a symbolic link.'
-  local parent resolved
-  parent=$(dirname -- "$credentials_file")
-  [[ -d $parent ]] || die 'The credential-file parent directory must exist.'
-  resolved="$(realpath -e -- "$parent")/$(basename -- "$credentials_file")"
-  [[ $resolved != "$repository_dir"/* ]] || die 'The credential file must be outside the Git repository.'
-  if [[ -e $credentials_file ]]; then
-    [[ -f $credentials_file ]] || die 'The credential path must be a regular file.'
-    [[ $(stat -c '%a:%u' -- "$credentials_file") == "600:$(id -u)" ]] || die 'The existing credential file must be owned by you and mode 0600.'
-  fi
-}
-
+if [[ $action == apply ]]; then prepare_credentials_directory; fi
 check_credentials_path
 recovery_file="${credentials_file}.recovery"
 [[ ! -L $recovery_file ]] || die 'The recovery path must not be a symbolic link.'
@@ -190,6 +237,12 @@ service_json() (
   unset OVH_APPLICATION_KEY OVH_APPLICATION_SECRET OVH_CONSUMER_KEY OVH_ACCESS_TOKEN
   ovhcloud "$@" -o json 2>/dev/null
 )
+
+case $action in
+  status) printf 'Checking OVHcloud IAM resources\n' ;;
+  apply) printf 'Creating or updating OVHcloud IAM resources\n' ;;
+  verify) printf 'Verifying OVHcloud IAM resources and credentials\n' ;;
+esac
 
 project=$(admin_json cloud project get "$project_id")
 jq -e --arg id "$project_id" '.id == $id' <<<"$project" >/dev/null || die 'The administrator session returned a different project.'

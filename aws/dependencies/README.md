@@ -1,49 +1,62 @@
-# Dependencies
+# AWS dependencies
 
-These manifests declare the dependencies required for the **`storage-aws`** Composition.  
-They set up the Crossplane runtime (providers, configs, and permissions) that the Storage resources rely on.
+These manifests configure the providers used by the `storage-aws`
+Composition.
 
-## Runtime prerequisites
+Dedicated provider controllers in the cluster reconcile resources created by
+the Composition. Give each `ProviderConfig` only the permissions it needs. Do
+not use unrestricted administrator credentials. Read the
+[AWS cloud IAM bootstrap guide](../../docs/how-to-guides/cloud-iam-bootstrap.md#aws)
+for the permission model and safety details.
 
-- A Kubernetes cluster with Crossplane **v2.x** installed and healthy. The e2e tests use **v2.4.1**.
+## IAM bootstrap
 
-## Providers and Functions
+AWS supports two controller authentication modes:
 
-This Composition expects the following Crossplane components to be installed (versions are examples — pin to the versions you have validated):
+- `assume-role` uses an existing workload identity.
+- `bootstrap-user` creates a static controller credential user. This legacy
+  option name does not refer to the bootstrap administrator.
 
-- **Providers**
-  - `provider-aws-s3` (e.g., `xpkg.upbound.io/upbound/provider-aws-s3:v2.7.2`)
-  - `provider-aws-iam` (e.g., `xpkg.upbound.io/upbound/provider-aws-iam:v2.7.2`)
-  - `provider-family-aws` (e.g., `xpkg.upbound.io/upbound/provider-family-aws:v2.7.2`)
-  - `provider-kubernetes` (e.g., `xpkg.upbound.io/crossplane-contrib/provider-kubernetes:v1.3.1`)
+Set `CROSSPLANE_AWS_AUTH_MODE`, `CROSSPLANE_AWS_ACCOUNT_ID`, and any optional
+resource prefix or IAM names. For `assume-role`, also set
+`CROSSPLANE_AWS_TRUST_PRINCIPAL_ARN`. Then run:
 
-- **Functions**
-  - `crossplane-contrib-function-python`  
-  - `crossplane-contrib-function-auto-ready`
+```bash
+aws/dependencies/iam.sh status
+aws/dependencies/iam.sh apply
+aws/dependencies/iam.sh verify
+```
 
-  > Pin exact versions (or digests) and upgrade intentionally.
+For `bootstrap-user`, keep the local credential file private and outside Git.
 
-## AWS notes
+## Deployment
 
-Before deployment, an AWS administrator must review and run [`iam.sh`](iam.sh)
-and its [policy templates](policies) as described in the
-[cloud IAM bootstrap guide](../../docs/how-to-guides/cloud-iam-bootstrap.md#aws).
+Both authentication modes use the controller runtime role. In
+[`03-providerConfigs.yaml`](03-providerConfigs.yaml), uncomment
+`assumeRoleChain` and set the role ARN printed by `iam.sh apply`.
 
-S3 buckets are managed via **AWS** using `provider-aws`. Both IAM modes require
-the runtime role ARN in the **`ProviderConfig`**. `bootstrap-user` also requires
-the generated credential file to be stored as a Kubernetes Secret;
-`assume-role` uses the configured source for its existing trusted identity.
-The runtime policy limits resource changes to the managed IAM paths and the
-configured S3 bucket prefix. The bootstrap user can only assume that role.
+Then configure the base controller identity:
 
-You must also supply:
+- For `assume-role`, replace the Secret credentials block with the source for
+  the existing workload identity, such as `IRSA` or `PodIdentity`. This mode
+  does not use `aws-provider-creds`.
+- For `bootstrap-user`, keep the Secret credentials block. Replace
+  `<storage-namespace>` with the namespace where `render-secrets` created
+  `aws-provider-creds`.
 
-- A reachable AWS endpoint.
-- Backend defaults such as region in the **`EnvironmentConfig`** named `storage`.
+For `bootstrap-user`, set `CROSSPLANE_AWS_NAMESPACE` to that namespace and
+create the controller Secret before you apply the `ProviderConfig`:
 
-## Best practices
+```bash
+aws/dependencies/iam.sh render-secrets |
+  kubectl apply -f -
+```
 
-- **Order matters**. Create dependencies in sequence so that later objects can reference earlier ones and no unnecessary XRDs are activated.
-- **Pin versions** of Providers/Functions by exact tag or digest and update them via PRs.
-- **Manage secrets** securely (e.g., Sealed Secrets, External Secrets). Do not inline credentials in Git.
-- **Health gates**: wait for `ProviderRevision` and `FunctionRevision` readiness before applying `ProviderConfig` / MRAP / XR.
+Set the AWS region in
+[`04-environmentConfigs.yaml`](04-environmentConfigs.yaml).
+
+Apply [`03-providerConfigs.yaml`](03-providerConfigs.yaml) in every namespace
+that contains an AWS `Storage` resource. The other dependency manifests are
+cluster-scoped. Apply the numbered manifests in order, then apply
+[`functions.yaml`](functions.yaml) and [`rbac.yaml`](rbac.yaml). Wait for all
+provider and function revisions to become ready.

@@ -1,4 +1,4 @@
-# Run Integration Tests
+# Local integration tests
 
 Provider Storage uses an ephemeral Kind cluster for local integration tests.
 The cluster name is `provider-storage-it`. Every script uses the explicit
@@ -20,8 +20,9 @@ After approval, run:
 tests/integration/create-cluster.bash
 ```
 
-The other scripts stop if this cluster is absent. They do not create it or use
-another current Kubernetes context.
+The command also creates the `provider-storage-it` namespace. The other
+scripts stop if this cluster is absent. They do not create it or use another
+current Kubernetes context.
 
 ## Test MinIO
 
@@ -35,27 +36,22 @@ The integration command deploys Crossplane, MinIO, the required providers,
 and one MinIO `Storage`. It waits for the resource and its credential Secret,
 then verifies an object round trip and lifecycle cleanup.
 
-## Test a Cloud Backend
+## Test a cloud backend
 
 Cloud tests use the same cluster. Before provider deployment:
 
 1. complete the backend procedure in the
    [cloud IAM bootstrap guide](cloud-iam-bootstrap.md);
-2. create the provider credential Secret with the direct kubectl command in
-   the integration README; and
+2. apply the provider credential Secret manifest printed by the IAM bootstrap;
+   and
 3. run the provider and verification scripts for the selected backend.
-
-CloudFerro uses a different order because its IAM bootstrap creates the slot
-ProviderConfigs. Follow the complete command sequence in the
-[integration test guide](https://github.com/versioneer-tech/provider-storage/blob/main/tests/integration/README.md#cloudferro).
 
 The backend commands, credential formats, and multi-backend workflow are in
 [`tests/integration/README.md`](https://github.com/versioneer-tech/provider-storage/blob/main/tests/integration/README.md).
 
-Run `tests/integration/run.bash ovh` for OVHcloud. It
-creates one `Storage` with two buckets and checks S3 access through the
-generated consumer Secret. Rotation, lifecycle, and orphan cleanup remain in
-the integration plan.
+Run `tests/integration/run.bash <backend>` after the controller Secrets and
+required variables are ready. The command deploys the providers and test
+Storages, then runs the backend access checks.
 
 List retained test resources by backend:
 

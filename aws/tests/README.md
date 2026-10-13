@@ -1,4 +1,4 @@
-# AWS Composition Tests
+# AWS Composition tests
 
 Run the shared render and golden-file test from the repository root:
 

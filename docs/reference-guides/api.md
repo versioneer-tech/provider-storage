@@ -1,4 +1,4 @@
-# Provider Storage API Reference
+# Provider Storage API reference
 
 The source of truth for the `Storage` API is the
 [`xrd.yaml`](https://github.com/versioneer-tech/provider-storage/blob/main/xrd.yaml)
@@ -13,20 +13,25 @@ apiVersion: pkg.internal/v1beta1
 kind: Storage
 ```
 
-### Required Fields
+### Identity
 
-- `spec.principal`: unique user or service principal.
-- `spec.buckets`: bucket definitions owned by the principal.
+- `spec.principal`: required logical user or service principal. Provider
+  Storage also uses it as the consumer Secret name.
+- `spec.providerIdentity`: optional short provider-native user name. It does
+  not change the principal or consumer Secret name.
 
 ### Buckets
 
 Each bucket entry is keyed by `bucketName`.
 
+`spec.buckets` is required but can be an empty list for a resource that only
+requests access.
+
 - `bucketName`: bucket name to create.
 - `discoverable`: optional boolean that advertises the bucket for access requests.
 - `lifecycleRules`: optional object cleanup or notification rules.
 
-### Lifecycle Rules
+### Lifecycle rules
 
 Lifecycle rules are configured under `spec.buckets[].lifecycleRules[]`.
 
@@ -37,7 +42,7 @@ Lifecycle rules are configured under `spec.buckets[].lifecycleRules[]`.
 
 Each rule must set exactly one of `minAge` or `at`.
 
-### Access Requests
+### Access requests
 
 `spec.bucketAccessRequests[]` declares outbound requests for buckets owned by
 other principals.
@@ -49,7 +54,7 @@ other principals.
 Requests do not carry a permission field. The effective permission is recorded
 only on the owner's matching `bucketAccessGrants[]` entry.
 
-### Access Grants
+### Access grants
 
 `spec.bucketAccessGrants[]` declares permissions granted by this principal.
 
@@ -58,9 +63,10 @@ only on the owner's matching `bucketAccessGrants[]` entry.
 - `permission`: `ReadWrite`, `ReadOnly`, `WriteOnly`, or `None`.
 - `grantedAt`: RFC3339 timestamp for the grant.
 
-### Credential Rollover
+### Credential rollover
 
 `spec.credentialsRollover` controls automatic credential rotation.
 
 - `interval`: `daily`, `weekly`, `monthly`, `quarterly`, `yearly`, or `none` (default).
-- `maxToKeep`: number of active credential generations to keep.
+- `maxToKeep`: number of active credential generations to keep, from 1
+  through 10. It must be 1 when `interval` is `none`.

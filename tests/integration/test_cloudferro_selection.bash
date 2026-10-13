@@ -25,14 +25,7 @@ set -euo pipefail
 shift 2
 case "$1" in
   cluster-info) ;;
-  get)
-    case "$2" in
-      environmentconfig/storage-cloudferro-0001) printf '%s' "$TEST_PROJECT_ID" ;;
-      environmentconfig/storage-cloudferro-0002) printf '%s' "$TEST_PROJECT_TWO_ID" ;;
-      storages.pkg.internal) ;;
-      *) exit 1 ;;
-    esac
-    ;;
+  get) ;;
   apply)
     [[ "$2" == -f && "$3" == - ]]
     cat >>"${TEST_APPLIED_FILE}"
@@ -43,10 +36,8 @@ EOF
 chmod +x "${test_dir}/bin/kind" "${test_dir}/bin/kubectl"
 
 export PATH="${test_dir}/bin:${PATH}"
-export CROSSPLANE_CLOUDFERRO_SLOT=cloudferro-0001
-export CROSSPLANE_CLOUDFERRO_IT2_SLOT=cloudferro-0002
-export TEST_PROJECT_ID="${project_id}"
-export TEST_PROJECT_TWO_ID="${project_two_id}"
+export CROSSPLANE_CLOUDFERRO_PROJECT_ID="${project_id}"
+export CROSSPLANE_CLOUDFERRO_IT2_PROJECT_ID="${project_two_id}"
 export TEST_APPLIED_FILE="${test_dir}/applied.yaml"
 
 bash "${integration_dir}/deploy-storages.bash" cloudferro >"${test_dir}/default.out"
@@ -60,30 +51,33 @@ grep -Fq "bucketName: cloudferro-${project_id:0:12}-it-c" "${TEST_APPLIED_FILE}"
 grep -Fq "bucketName: cloudferro-${project_id:0:12}-it-d" "${TEST_APPLIED_FILE}"
 grep -Fq 'principal: provider-storage-cloudferro-it2' "${TEST_APPLIED_FILE}"
 grep -Fq "bucketName: cloudferro-${project_two_id:0:12}-it2-a" "${TEST_APPLIED_FILE}"
+grep -Fq "storages.pkg.internal/cloudferro-project-id: ${project_id}" "${TEST_APPLIED_FILE}"
+grep -Fq "storages.pkg.internal/cloudferro-project-id: ${project_two_id}" "${TEST_APPLIED_FILE}"
+[[ $(grep -Fc 'storages.pkg.internal/backend: cloudferro' "${TEST_APPLIED_FILE}") == 2 ]]
 grep -Fq 'grantee: provider-storage-cloudferro-it2' "${TEST_APPLIED_FILE}"
 grep -Fq 'permission: ReadOnly' "${TEST_APPLIED_FILE}"
 grep -Fq 'permission: None' "${TEST_APPLIED_FILE}"
 
 : >"${TEST_APPLIED_FILE}"
-if CROSSPLANE_CLOUDFERRO_IT2_SLOT=invalid \
+if CROSSPLANE_CLOUDFERRO_IT2_PROJECT_ID=invalid \
   bash "${integration_dir}/deploy-storages.bash" cloudferro \
     >"${test_dir}/invalid.out" 2>&1; then
-  printf 'An invalid CloudFerro it2 slot was accepted.\n' >&2
+  printf 'An invalid CloudFerro second project ID was accepted.\n' >&2
   exit 1
 fi
-grep -Fq 'CROSSPLANE_CLOUDFERRO_IT2_SLOT must be cloudferro- plus four digits.' \
+grep -Fq 'CROSSPLANE_CLOUDFERRO_IT2_PROJECT_ID must be a 32-character lowercase hexadecimal ID.' \
   "${test_dir}/invalid.out"
 [[ ! -s "${TEST_APPLIED_FILE}" ]]
 
 : >"${TEST_APPLIED_FILE}"
-if CROSSPLANE_CLOUDFERRO_IT2_SLOT=cloudferro-0001 \
+if CROSSPLANE_CLOUDFERRO_IT2_PROJECT_ID="${project_id}" \
   bash "${integration_dir}/deploy-storages.bash" cloudferro \
-    >"${test_dir}/same-slot.out" 2>&1; then
-  printf 'CloudFerro integration accepted one project slot for both Storages.\n' >&2
+    >"${test_dir}/same-project.out" 2>&1; then
+  printf 'CloudFerro integration accepted one project for both Storages.\n' >&2
   exit 1
 fi
-grep -Fq 'CloudFerro integration Storages must use different project slots.' \
-  "${test_dir}/same-slot.out"
+grep -Fq 'CloudFerro integration Storages must use different project IDs.' \
+  "${test_dir}/same-project.out"
 [[ ! -s "${TEST_APPLIED_FILE}" ]]
 
 printf 'CloudFerro integration Storage selection passed.\n'

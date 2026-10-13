@@ -1,11 +1,11 @@
-# Provider Storage – Backend Differences
+# Provider Storage backend differences
 
 The `Storage` API defines the same buckets, credentials, access requests,
 grants, and lifecycle rules for every backend. Each Composition maps that API
 to its provider's bucket and access resources. The table below compares the
 available implementations.
 
-## Where Access Rules Live
+## Where access rules live
 
 | Backend | Bucket | Identity and credential | Access rule |
 | --- | --- | --- | --- |
@@ -17,7 +17,7 @@ available implementations.
 
 ### MinIO
 
-- **Bucket:** The Composition creates a MinIO `Bucket` for each claimed bucket.
+- **Bucket:** The Composition creates a MinIO `Bucket` for each configured bucket.
 - **Identity and credential:** It creates a `User` for each retained credential
   generation.
 - **Access rule:** It creates named `Policy` resources for owned buckets and
@@ -25,7 +25,7 @@ available implementations.
 
 ### AWS
 
-- **Bucket:** The Composition creates an S3 `Bucket` for each claimed bucket.
+- **Bucket:** The Composition creates an S3 `Bucket` for each configured bucket.
 - **Identity and credential:** It creates an IAM `User` and `AccessKey` for
   each retained credential generation.
 - **Access rule:** It creates IAM `Policy` resources for owned buckets and
@@ -39,7 +39,7 @@ available implementations.
 - **Identity and credential:** It creates an IAM `UserV3` and `CredentialV3`
   for each retained credential generation.
 - **Access rule:** It creates one OBS `BucketPolicy` for each bucket named in
-  the claim's buckets or grants.
+  the resource's buckets or grants.
   The policy contains the observed IDs of allowed users in `Principal`.
   The Composition must observe those IDs before it can build the policy.
 
@@ -59,20 +59,20 @@ available implementations.
 
 ### CloudFerro
 
-- **Bucket:** A slot-specific OpenStack ProviderConfig scopes each
-  `ContainerV1` to one project. The slot name is selected with
-  `spec.crossplane.compositionSelector.matchLabels.provider`, such as
-  `cloudferro-0001`.
+- **Bucket:** A composed OpenStack ProviderConfig scopes each `ContainerV1` to
+  the project in `storages.pkg.internal/cloudferro-project-id`. The backend
+  inventory label uses `cloudferro`. In a multi-backend cluster, the optional
+  Composition selector also uses `cloudferro`.
 - **Identity and credential:** One controller user receives the configured
   member role in every managed project. The Composition creates retained EC2
   credential generations for that user in the selected project.
 - **Access rule:** Users in one project can access its containers. For an
-  active grant, the Composition resolves the grantee Storage's project slot
-  and creates an AWS S3 `BucketPolicy` against the CloudFerro endpoint. The
-  policy grants the grantee project's `root` ARN. It cannot isolate users in
-  the owner project. Usage resources keep the EC2 credential, AWS provider
-  configuration, and AWS provider credential Secret until each bucket policy
-  is deleted.
+  active grant, the Composition reads the grantee Storage's project ID
+  annotation and creates an AWS S3 `BucketPolicy` against the CloudFerro
+  endpoint. The policy grants the grantee project's `root` ARN. It cannot
+  isolate users in the owner project. Supporting resources retain the EC2
+  credential and AWS provider configuration until each bucket policy is
+  deleted.
   See the
   [bucket-sharing guide](https://docs.cloudferro.com/en/latest/s3/Bucket-sharing-using-s3-bucket-policy-on-CloudFerro-Cloud.html).
 
@@ -82,13 +82,13 @@ Composition combines all bucket rules into that document. AWS also uses user
 policies, but needs explicit attachment resources. OTC places the consumer
 grant rules on each bucket.
 
-## From Request to Access
+## From request to access
 
 The requester records a target bucket in `bucketAccessRequests`. The bucket
 owner records its decision in `bucketAccessGrants`. These are fields on
-`Storage` claims; no backend creates a separate cloud request resource. The
+`Storage` resources; no backend creates a separate cloud request resource. The
 owner's grant selects `ReadOnly`, `WriteOnly`, `ReadWrite`, or `None`. The
-[permission guide](permissions.md) shows the claim fields and an example.
+[permission guide](permissions.md) shows the resource fields and an example.
 
 | Backend | Request pending, with no owner grant | Owner grants access | Owner sets `None` or removes the grant |
 | --- | --- | --- | --- |
@@ -118,18 +118,10 @@ These descriptions are the resources the Compositions request. Cloud-side
 enforcement and revocation are asynchronous and need positive and negative
 S3 tests.
 
-## Verification Status
-
-The common OVHcloud integration verification passes in DE. The primary
-principal completes an S3 write, list, read, and delete round trip in its four
-buckets. The secondary principal completes the same round trip in its own
-bucket. It has no access to the ungranted, denied, and pending buckets. It can
-read the bucket with a `ReadOnly` grant, but it cannot write to or delete from
-that bucket. Credential rotation, lifecycle rules, and full teardown still
-need separate live tests.
+## Deletion behavior
 
 All bucket resources use the default Crossplane management policy. Removing a
-bucket from `spec.buckets`, or removing its `Storage` claim, requests bucket
+bucket from `spec.buckets`, or removing its `Storage` resource, requests bucket
 deletion. Deletion behavior is provider-specific. A provider can reject the
 request when it cannot empty the bucket or when its cloud identity lacks the
 required delete permission.

@@ -21,6 +21,14 @@ require_command() {
   fi
 }
 
+validate_shell_syntax() {
+  local script
+  printf 'Validate shell script syntax\n'
+  while IFS= read -r script; do
+    bash -n "${REPO_ROOT}/${script}"
+  done < <(cd "${REPO_ROOT}" && rg --files -g '*.bash' -g '*.sh' | sort)
+}
+
 normalize_principal_generations() {
   local content="$1"
   local principal="$2"
@@ -77,6 +85,8 @@ validate_aws_iam_policy() {
   local policy="${REPO_ROOT}/aws/dependencies/policies/runtime-role-policy.json"
   local bootstrap_policy="${REPO_ROOT}/aws/dependencies/policies/bootstrap-user-policy.json"
   local script="${REPO_ROOT}/aws/dependencies/iam.sh"
+  local credentials="${TMP_DIR}/aws-provider.credentials"
+  local rendered_secret="${TMP_DIR}/aws-provider-secret.yaml"
 
   printf 'Validate AWS runtime IAM policy\n'
   bash -n "${script}"
@@ -84,7 +94,7 @@ validate_aws_iam_policy() {
     printf 'AWS IAM bootstrap accepted an unsupported delete command.\n' >&2
     return 1
   fi
-  grep -Fq 'Usage: aws/dependencies/iam.sh <apply|status>' \
+  grep -Fq 'Usage: aws/dependencies/iam.sh <status|apply|verify|render-secrets>' \
     "${TMP_DIR}/aws-delete.out"
   grep -Fq ': "${CROSSPLANE_AWS_RESOURCE_PREFIX:=aws-${CROSSPLANE_AWS_ACCOUNT_ID:-}}"' \
     "${script}"
@@ -114,6 +124,16 @@ validate_aws_iam_policy() {
     .Statement == [{Sid: "AssumeProviderStorageRuntimeRole", Effect: "Allow",
       Action: "sts:AssumeRole", Resource: "__RUNTIME_ROLE_ARN__"}]
   ' "${bootstrap_policy}" >/dev/null
+
+  jq -n '{access_key_id:"TESTACCESSKEY",secret_access_key:"test-secret-key"}' \
+    >"${credentials}"
+  chmod 600 "${credentials}"
+  env -i PATH=/usr/bin:/bin \
+    CROSSPLANE_AWS_CREDENTIALS_FILE="${credentials}" \
+    CROSSPLANE_AWS_NAMESPACE=workspace \
+    bash "${script}" render-secrets >"${rendered_secret}"
+  grep -Fxq '  name: aws-provider-creds' "${rendered_secret}"
+  grep -Fxq '  namespace: workspace' "${rendered_secret}"
 }
 
 validate_aws_secret_readiness() {
@@ -210,23 +230,25 @@ validate_cloudferro_composition() {
   local base="${TMP_DIR}/cloudferro-base.yaml"
   local credential="${TMP_DIR}/cloudferro-credential.yaml"
   local denied="${TMP_DIR}/cloudferro-grant-error.out"
-  local second="${TMP_DIR}/cloudferro-second-slot.yaml"
+  local second="${TMP_DIR}/cloudferro-second-project.yaml"
   local wrong_label="${TMP_DIR}/cloudferro-wrong-label.yaml"
-  local expected_user_id=778899aabbccddeeff00112233445566
 
-  printf 'Validate CloudFerro project slot, resource ordering, and consumer Secret\n'
+  printf 'Validate CloudFerro project binding, resource ordering, and consumer Secret\n'
   crossplane render "${input}" "${composition}" "${functions}" \
     --xrd="${REPO_ROOT}/xrd.yaml" \
     --crossplane-version="${CROSSPLANE_VERSION}" --timeout=5m \
     --required-resources "${required}" -x >"${base}"
   grep -Fq 'kind: ContainerV1' "${base}"
   grep -Fq 'kind: EC2CredentialV3' "${base}"
-  grep -Fq "userId: ${expected_user_id}" "${base}"
+  ! grep -Fq 'userId:' "${base}"
+  ! grep -Fq 'projectId:' "${base}"
   ! grep -Fq 'kind: UserV3' "${base}"
   ! grep -Fq 'kind: RoleAssignmentV3' "${base}"
   ! grep -Fq 'kind: CronJob' "${base}"
   ! grep -Fq 'kind: ConfigMap' "${base}"
-  grep -Fq 'name: cloudferro-0001' "${base}"
+  grep -Fq 'name: cloudferro-s-joe' "${base}"
+  grep -Fq 'name: cloudferro-project-0123456789abcdef0123456789abcdef' "${base}"
+  grep -Fq 'key: config' "${base}"
   grep -Fq 'kind: BucketPolicy' "${base}"
   grep -Fq 'arn:aws:iam::fedcba9876543210fedcba9876543210:root' "${base}"
   ! grep -Fq 'managementPolicies:' "${base}"
@@ -255,8 +277,9 @@ validate_cloudferro_composition() {
     --crossplane-version="${CROSSPLANE_VERSION}" --timeout=5m \
     --required-resources "${REPO_ROOT}/cloudferro/tests/required/002x-buckets.yaml" \
     -x >"${second}"
-  grep -Fq 'name: cloudferro-0002' "${second}"
-  ! grep -Fq 'name: cloudferro-0001' "${second}"
+  grep -Fq 'name: cloudferro-s-jeff' "${second}"
+  grep -Fq 'name: cloudferro-project-fedcba9876543210fedcba9876543210' "${second}"
+  ! grep -Fq 'name: cloudferro-s-joe' "${second}"
   grep -Fq 'kind: CronJob' "${second}"
   grep -Fq 'kind: ConfigMap' "${second}"
   grep -Fq 'RCLONE_CONFIG_STORAGE_REGION' "${second}"
@@ -264,16 +287,16 @@ validate_cloudferro_composition() {
   grep -Fq 'arn:aws:iam::0123456789abcdef0123456789abcdef:root' "${second}"
   validate_schemas cloudferro "${second}"
 
-  sed 's/storages.pkg.internal\/backend: cloudferro-0001/storages.pkg.internal\/backend: invalid/' \
+  sed 's/storages.pkg.internal\/backend: cloudferro/storages.pkg.internal\/backend: invalid/' \
     "${input}" >"${wrong_label}"
   if crossplane render "${wrong_label}" "${composition}" "${functions}" \
     --xrd="${REPO_ROOT}/xrd.yaml" \
     --crossplane-version="${CROSSPLANE_VERSION}" --timeout=5m \
     --required-resources "${required}" -x >"${denied}" 2>&1; then
-    printf 'CloudFerro accepted a backend label that disagrees with its slot selector.\n' >&2
+    printf 'CloudFerro accepted an invalid backend label.\n' >&2
     return 1
   fi
-  grep -Fq 'backend label must name a valid project slot' "${denied}"
+  grep -Fq 'backend label must be cloudferro' "${denied}"
 }
 
 validate_otc_iam_bootstrap() {
@@ -287,6 +310,8 @@ validate_otc_iam_bootstrap() {
   local domain_id=1234567890abcdef1234567890abcdef
   local group_id=11223344556677889900aabbccddeeff
   local policy_id=fedcba9876543210fedcba9876543210
+  local credentials="${TMP_DIR}/otc-provider.json"
+  local rendered_secret="${TMP_DIR}/otc-provider-secret.yaml"
 
   printf 'Validate OTC IAM bootstrap\n'
   bash -n "${script}"
@@ -296,7 +321,7 @@ validate_otc_iam_bootstrap() {
     printf 'OTC IAM bootstrap accepted an unsupported delete command.\n' >&2
     return 1
   fi
-  grep -Fq 'Usage: otc/dependencies/iam.sh <apply|status|rotate-credential>' \
+  grep -Fq 'Usage: otc/dependencies/iam.sh <status|apply|verify|render-secrets|rotate-credential>' \
     "${TMP_DIR}/otc-delete.out"
   grep -Fq 'iam_request GET "${IAM_V3_ROOT}/auth/domains" 200' "${script}"
   grep -Fq 'The administrator session requires Security Administrator at domain scope.' \
@@ -314,7 +339,21 @@ validate_otc_iam_bootstrap() {
   grep -Fq 'verify_obs_admin_assignment "${group_id}" "${policy_id}"' "${script}"
   grep -Fq 'ensure_group_inherited_role_assignment "${group_id}" "${policy_id}"' "${script}"
   ! grep -Fq 'POLICY_TEMPLATE' "${script}"
-  grep -Fq 'rotate-credential) rotate_credential' "${script}"
+  grep -Fq 'rotate-credential)' "${script}"
+  grep -Fq '      rotate_credential' "${script}"
+
+  jq -n --arg domain "${domain_id}" --arg project 00112233445566778899aabbccddeeff '
+    {access_key:"TESTACCESSKEY",secret_key:"test-secret-key",
+     auth_url:"https://iam.example.test/v3",domain_name:"example",
+     domain_id:$domain,tenant_id:$project}
+  ' >"${credentials}"
+  chmod 600 "${credentials}"
+  env -i PATH=/usr/bin:/bin \
+    CROSSPLANE_OTC_CREDENTIALS_FILE="${credentials}" \
+    CROSSPLANE_OTC_NAMESPACE=workspace \
+    bash "${script}" render-secrets >"${rendered_secret}"
+  grep -Fxq '  name: otc-provider-creds' "${rendered_secret}"
+  grep -Fxq '  namespace: workspace' "${rendered_secret}"
 
   sed '$d' "${script}" >"${source_only}"
   jq -n --arg global "${global_obs_role_id}" \
@@ -473,6 +512,9 @@ run_backend() {
 main() {
   require_command crossplane
   require_command dyff
+  require_command rg
+
+  validate_shell_syntax
 
   printf 'Validate OVHcloud IAM bootstrap\n'
   bash "${REPO_ROOT}/ovh/tests/test_iam.bash"
@@ -485,6 +527,9 @@ main() {
 
   printf 'Validate aligned integration Storage manifests\n'
   bash "${REPO_ROOT}/tests/integration/test_storage_manifests.bash"
+
+  printf 'Validate integration setup contract\n'
+  bash "${REPO_ROOT}/tests/integration/test_setup_contract.bash"
 
   local backend
   for backend in "${BACKENDS[@]}"; do

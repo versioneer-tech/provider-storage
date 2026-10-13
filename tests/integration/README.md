@@ -1,7 +1,11 @@
-# Provider Integration Tests
+# Provider integration tests
 
 All storage backends use the same test model and access checks. Only the
 provider bootstrap, bucket prefix, and provider-native identity differ.
+
+The bootstrap administrator runs `iam.sh` with an existing privileged login.
+Crossplane uses the separate controller identity. Each test `Storage` receives
+consumer credentials for bucket access.
 
 ## Common testing strategy for all clouds
 
@@ -113,6 +117,10 @@ approval, run:
 tests/integration/create-cluster.bash
 ```
 
+The command creates or reuses the cluster and applies the
+`provider-storage-it` namespace. You can then publish a controller Secret
+before provider deployment.
+
 Clear `KUBECONFIG` first if a cloud login script selected another cluster.
 Other integration scripts stop and print the cluster creation command if the
 cluster is absent.
@@ -146,40 +154,39 @@ default MinIO installation used by the test cluster. Access between the two
 
 #### Bootstrap AWS IAM
 
-For a Kind cluster, use the `bootstrap-user` mode. Its access key only allows
-`sts:AssumeRole`. The scoped runtime role holds the permissions used by the
-provider to manage buckets, policies, users, and access keys.
+For a Kind cluster, use the `bootstrap-user` mode. This is a legacy option name
+for a persistent controller credential user. Its access key only allows
+`sts:AssumeRole`. The controller runtime role holds the permissions used by
+the provider to manage buckets, policies, users, and access keys.
 
 The account ID creates the default `aws-<account-id>` bucket base. If you set
 `CROSSPLANE_AWS_RESOURCE_PREFIX`, choose its value before bootstrap and reuse
 it when you run the test. The bootstrap embeds this base in the runtime IAM
 policy.
 
-Use an AWS CLI session with administrator permissions. Review the script and
-policy files, then bootstrap IAM:
+Use an AWS CLI session for the bootstrap administrator. Review the script and
+policy files, then prepare the controller IAM resources:
 
 ```bash
 export CROSSPLANE_AWS_ACCOUNT_ID=<account-id>
 export CROSSPLANE_AWS_AUTH_MODE=bootstrap-user
-export CROSSPLANE_AWS_CREDENTIALS_FILE=/secure/provider-storage.credentials
+export CROSSPLANE_AWS_NAMESPACE=provider-storage-it
 
+aws/dependencies/iam.sh status
 aws/dependencies/iam.sh apply
+aws/dependencies/iam.sh verify
 ```
+
+The credential file defaults to
+`~/.config/provider-storage/aws-creds.json`.
 
 #### Publish the AWS controller credentials
 
-The script writes the bootstrap user's credentials. Create or update the
-Secret in the dedicated cluster without printing its content:
+Render the controller Secret and apply it to the dedicated cluster:
 
 ```bash
-kubectl --context kind-provider-storage-it \
-  apply -f tests/integration/manifests/namespaces.yaml
-kubectl --context kind-provider-storage-it \
-  create secret generic aws-provider-creds \
-  --namespace provider-storage-it \
-  --from-file="credentials=${CROSSPLANE_AWS_CREDENTIALS_FILE}" \
-  --dry-run=client -o yaml \
-| kubectl --context kind-provider-storage-it apply -f -
+aws/dependencies/iam.sh render-secrets |
+  kubectl --context kind-provider-storage-it apply -f -
 ```
 
 #### Run the AWS test
@@ -194,9 +201,9 @@ export CROSSPLANE_AWS_REGION=eu-central-1
 tests/integration/run.bash aws
 ```
 
-The Secret identifies the bootstrap user, but it does not tell Crossplane which
-role to assume. The integration script therefore writes a role ARN into the AWS
-`ProviderConfig`. It derives the default
+The Secret identifies the controller credential user, but it does not tell
+Crossplane which role to assume. The integration script therefore writes a
+role ARN into the AWS `ProviderConfig`. It derives the default
 `arn:aws:iam::<account-id>:role/provider-storage/crossplane` from
 `CROSSPLANE_AWS_ACCOUNT_ID`. Set `CROSSPLANE_AWS_RUNTIME_ROLE_ARN` to the ARN
 printed by `iam.sh` only if you used a custom role name or path.
@@ -209,23 +216,28 @@ the common access matrix to the selected bucket base.
 
 #### Bootstrap OTC IAM
 
-Use an OpenStack CLI session with OTC `Security Administrator` permission in a
-dedicated domain.
+Use an OpenStack CLI session for the bootstrap administrator. It needs OTC
+`Security Administrator` permission in a dedicated domain.
 
 The domain ID creates the default `otc-<domain-id>` bucket base. If you set
 `CROSSPLANE_OTC_RESOURCE_PREFIX`, choose its value before bootstrap and reuse
 it when you run the test. This reduces collisions in OBS's global namespace.
 
-Review the script, then bootstrap the controller identity:
+Review the script, then create the controller identity:
 
 ```bash
 export CROSSPLANE_OTC_DOMAIN_ID=<domain-id>
 export CROSSPLANE_OTC_PROJECT_ID=<project-id>
 export CROSSPLANE_OTC_REGION=eu-nl
-export CROSSPLANE_OTC_CREDENTIALS_FILE=/secure/provider-otc.json
+export CROSSPLANE_OTC_NAMESPACE=provider-storage-it
 
+otc/dependencies/iam.sh status
 otc/dependencies/iam.sh apply
+otc/dependencies/iam.sh verify
 ```
+
+The credential file defaults to
+`~/.config/provider-storage/otc-creds.json`.
 
 `CROSSPLANE_OTC_PROJECT_ID` is the regional project used by the provider.
 The bootstrap assigns the system-defined `OBS Administrator` policy to all
@@ -235,17 +247,11 @@ system-defined permissions cannot be limited to the test bucket prefix.
 
 #### Publish the OTC controller credentials
 
-Create or update the Secret in the dedicated cluster:
+Render the controller Secret and apply it:
 
 ```bash
-kubectl --context kind-provider-storage-it \
-  apply -f tests/integration/manifests/namespaces.yaml
-kubectl --context kind-provider-storage-it \
-  create secret generic otc-provider-creds \
-  --namespace provider-storage-it \
-  --from-file="credentials=${CROSSPLANE_OTC_CREDENTIALS_FILE}" \
-  --dry-run=client -o yaml \
-| kubectl --context kind-provider-storage-it apply -f -
+otc/dependencies/iam.sh render-secrets |
+  kubectl --context kind-provider-storage-it apply -f -
 ```
 
 #### Run the OTC test
@@ -269,39 +275,32 @@ bucket base.
 
 #### Bootstrap OVHcloud IAM
 
-Use an `ovhcloud` CLI administrator session for the target Public Cloud project
-in the selected API region. Review `ovh/dependencies/iam.sh`, then
-bootstrap the project-scoped controller identity:
+Use an `ovhcloud` CLI session for the bootstrap administrator in the target
+Public Cloud project and API region. Review `ovh/dependencies/iam.sh`, then
+create the project-scoped controller identity:
 
 ```bash
 export CROSSPLANE_OVH_PROJECT_ID=<project-id>
 export CROSSPLANE_OVH_API_REGION=EU
-unset CROSSPLANE_OVH_CREDENTIALS_FILE
+export CROSSPLANE_OVH_NAMESPACE=provider-storage-it
 
+ovh/dependencies/iam.sh status
 ovh/dependencies/iam.sh apply
 ovh/dependencies/iam.sh verify
 ```
 
 The API region is separate from the Object Storage region. The bootstrap writes
-controller credentials to `~/.ovh-provider-storage-<project-id>.json` by
+controller credentials to `~/.config/provider-storage/ovh-creds.json` by
 default. The administrator login remains in `~/.ovh.conf`. `verify` checks
 that the controller can read the selected project and list its users.
 
 #### Publish the OVHcloud controller credentials
 
-Create or update the Secret in the dedicated cluster without printing its
-content:
+Render the controller Secret and apply it:
 
 ```bash
-kubectl --context kind-provider-storage-it \
-  apply -f tests/integration/manifests/namespaces.yaml
-credential_file="${CROSSPLANE_OVH_CREDENTIALS_FILE:-${HOME}/.ovh-provider-storage-${CROSSPLANE_OVH_PROJECT_ID}.json}"
-kubectl --context kind-provider-storage-it \
-  create secret generic ovh-provider-creds \
-  --namespace provider-storage-it \
-  --from-file="credentials=${credential_file}" \
-  --dry-run=client -o yaml \
-| kubectl --context kind-provider-storage-it apply -f -
+ovh/dependencies/iam.sh render-secrets |
+  kubectl --context kind-provider-storage-it apply -f -
 ```
 
 If you replaced a Secret that an OVHcloud provider already used, restart the
@@ -338,40 +337,28 @@ The Composition creates stable owner users and separate credential users for
 
 Use an active project- or domain-scoped CREODIAS `v3token` shell login. The
 commands below target only the dedicated `kind-provider-storage-it` context.
+For a project-scoped login, the bootstrap re-scopes the token to the configured
+domain for user operations and to each selected project for role assignments.
+The login must already have the required roles at those scopes.
 
-#### 1. Check the login and install providers
+#### Bootstrap CloudFerro IAM
 
-Check the OpenStack login. Then install Crossplane, the XRD, and the shared
-provider dependencies:
-
-```bash
-cloudferro/dependencies/iam.sh check-login
-tests/integration/deploy-providers.bash cloudferro
-```
-
-#### 2. Set the bootstrap scope
-
-Replace the domain ID with the slot project domain reported by `check-login`.
-Replace the credentials directory with a private, absolute path outside this
-repository. Its parent directory must exist.
+Use the project domain from the active project-scoped login. For a
+domain-scoped login, use `OS_DOMAIN_ID` instead. The default credential path is
+`~/.config/provider-storage/cloudferro-creds.json`.
 
 ```bash
-export CROSSPLANE_CLOUDFERRO_PROJECT_PATTERN='^.+-([0-9]{4})$'
-export CROSSPLANE_CLOUDFERRO_DOMAIN_ID=0123456789abcdef0123456789abcdef
+export CROSSPLANE_CLOUDFERRO_PROJECT_PATTERN='^.+-[0-9]{4}$'
+export CROSSPLANE_CLOUDFERRO_DOMAIN_ID="${OS_PROJECT_DOMAIN_ID}"
 export CROSSPLANE_CLOUDFERRO_ADMIN_CLOUD=current
-export CROSSPLANE_CLOUDFERRO_AUTH_URL="$OS_AUTH_URL"
-export CROSSPLANE_CLOUDFERRO_REGION="$OS_REGION_NAME"
-export CROSSPLANE_CLOUDFERRO_S3_REGION=RegionOne
-export CROSSPLANE_CLOUDFERRO_S3_ENDPOINT=https://s3.waw3-2.cloudferro.com
-export CROSSPLANE_CLOUDFERRO_KUBE_CONTEXT=kind-provider-storage-it
+export CROSSPLANE_CLOUDFERRO_CONTROLLER_NAME=provider-storage-controller
+export CROSSPLANE_CLOUDFERRO_AUTH_URL="${OS_AUTH_URL}"
+export CROSSPLANE_CLOUDFERRO_REGION="${OS_REGION_NAME}"
 export CROSSPLANE_CLOUDFERRO_NAMESPACE=provider-storage-it
-export CROSSPLANE_CLOUDFERRO_CREDENTIALS_DIR=/secure/cloudferro-controller
 ```
-
-#### 3. Bootstrap the selected projects
 
 Inspect the selected projects. Continue only if `status` shows the expected
-names and IDs. Then create the shared controller user and publish the slots:
+names and IDs. Then create the shared controller user:
 
 ```bash
 cloudferro/dependencies/iam.sh status
@@ -379,21 +366,39 @@ cloudferro/dependencies/iam.sh apply
 cloudferro/dependencies/iam.sh verify
 ```
 
-The login needs permission to create a user in the project domain and assign
-the configured member role in each selected project. A project in the list is
-not proof of these permissions. See the
-[bootstrap guide](../../cloudferro/dependencies/README.md) for the role
-override, named OpenStack profiles, cleanup, and non-test installations.
+`apply` writes the shared identity and verified project list to
+`~/.config/provider-storage/cloudferro-creds.json` with mode `0600`.
 
-#### 4. Run the integration test
+#### Publish the CloudFerro controller credentials
 
-Select two published slots from different projects and run the test:
+`render-secrets` reads only the local credential file. It prints one project
+Secret manifest for each selected project. Apply the manifests to the
+dedicated cluster:
 
 ```bash
-export CROSSPLANE_CLOUDFERRO_SLOT=cloudferro-0001
-export CROSSPLANE_CLOUDFERRO_IT2_SLOT=cloudferro-0002
+cloudferro/dependencies/iam.sh render-secrets |
+  kubectl --context kind-provider-storage-it apply -f -
+```
+
+The bootstrap administrator login needs permission to create a user in the
+project domain and assign the configured member role in each selected project.
+A project in the list is not proof of these permissions. See the
+[dependency guide](../../cloudferro/dependencies/README.md) and run
+`cloudferro/dependencies/iam.sh --help` for non-test setup and optional role
+or profile values.
+
+#### Run the CloudFerro test
+
+Select two different bootstrapped project IDs and run the test:
+
+```bash
+export CROSSPLANE_CLOUDFERRO_PROJECT_ID=0123456789abcdef0123456789abcdef
+export CROSSPLANE_CLOUDFERRO_IT2_PROJECT_ID=fedcba9876543210fedcba9876543210
 tests/integration/run.bash cloudferro
 ```
+
+The provider deployment verifies that both project Secrets exist and applies
+the common `storage` EnvironmentConfig.
 
 The test creates one Storage with four buckets in the first project and one
 Storage with one bucket in the second project. It verifies each Storage's own

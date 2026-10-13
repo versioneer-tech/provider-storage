@@ -9,6 +9,7 @@ set -euo pipefail
 : "${CROSSPLANE_OTC_RESOURCE_PREFIX:=otc-${CROSSPLANE_OTC_DOMAIN_ID:-}}"
 : "${CROSSPLANE_OTC_USER_NAME:=provider-storage-bootstrap-crossplane}"
 : "${CROSSPLANE_OTC_GROUP_NAME:=provider-storage-bootstrap-crossplane}"
+: "${CROSSPLANE_OTC_NAMESPACE:=workspace}"
 
 readonly USER_DESCRIPTION="Provider Storage controller for ${CROSSPLANE_OTC_RESOURCE_PREFIX}. Managed by otc/dependencies/iam.sh."
 readonly GROUP_DESCRIPTION="Provider Storage controller permissions for ${CROSSPLANE_OTC_RESOURCE_PREFIX}. Managed by otc/dependencies/iam.sh."
@@ -27,22 +28,32 @@ IAM_STATUS=""
 
 usage() {
   cat <<'EOF'
-Usage: otc/dependencies/iam.sh <apply|status|rotate-credential>
+Usage: otc/dependencies/iam.sh <status|apply|verify|render-secrets|rotate-credential>
 
 Bootstrap the OTC IAM resources that Provider Storage needs before deployment.
 Run apply before you deploy the OTC provider components or ProviderConfig.
 Review this script before running it.
 
-Required environment:
+Commands:
+  status             Show the current setup. Does not change resources.
+  apply              Create or update resources and the credential file.
+  verify             Check that resources and credentials are ready.
+  render-secrets     Read only the credential file and print Secret manifests.
+  rotate-credential  Replace the controller access key and credential file.
+
+Required environment for status, apply, and verify:
   CROSSPLANE_OTC_DOMAIN_ID
       Exact 32-character target OTC domain ID.
   CROSSPLANE_OTC_PROJECT_ID
       Exact 32-character regional project ID used by the OTC provider.
-  CROSSPLANE_OTC_CREDENTIALS_FILE
-      Absolute output path for the provider credential JSON. Required by apply
-      and rotate-credential.
 
 Optional environment:
+  CROSSPLANE_OTC_CREDENTIALS_FILE
+      Absolute output path for the provider credential JSON (default:
+      ~/.config/provider-storage/otc-creds.json). This is the only cloud
+      credential input used by render-secrets.
+  CROSSPLANE_OTC_NAMESPACE
+      Namespace for the generated Secret manifest (default: workspace).
   CROSSPLANE_OTC_REGION
       OTC region (default: eu-nl).
   CROSSPLANE_OTC_AUTH_URL
@@ -60,9 +71,9 @@ Optional environment:
       script re-scopes an existing token to the target domain for IAM calls.
 
 The script creates one programmatic controller user and one permission group.
-It writes the user's permanent AK/SK only to
-CROSSPLANE_OTC_CREDENTIALS_FILE with mode 0600. It never prints the token, AK,
-or SK.
+It writes the user's permanent AK/SK to CROSSPLANE_OTC_CREDENTIALS_FILE with
+mode 0600. The separate render-secrets action prints a Kubernetes Secret
+manifest. The script does not access Kubernetes.
 
 OTC requires the Security Administrator system role to manage permanent
 credentials for other IAM users. The script assigns that role at domain scope
@@ -77,6 +88,11 @@ fail() {
   printf 'Error: %s\n' "$*" >&2
   exit 1
 }
+
+if [[ -z ${CROSSPLANE_OTC_CREDENTIALS_FILE:-} ]]; then
+  [[ ${HOME:-} == /* ]] || fail "HOME must be an absolute path for the default OTC credential file."
+  CROSSPLANE_OTC_CREDENTIALS_FILE="${HOME}/.config/provider-storage/otc-creds.json"
+fi
 
 require_command() {
   command -v "$1" >/dev/null 2>&1 || fail "Missing required command: $1"
@@ -99,8 +115,41 @@ validate_credentials_path() {
   if [[ -e "${path}" && ! -f "${path}" ]]; then
     fail "CROSSPLANE_OTC_CREDENTIALS_FILE must be a regular file when it exists."
   fi
-  [[ -d "$(dirname -- "${path}")" ]] \
-    || fail "The CROSSPLANE_OTC_CREDENTIALS_FILE parent directory does not exist."
+  [[ ! -e "$(dirname -- "${path}")" || -d "$(dirname -- "${path}")" ]] \
+    || fail "The CROSSPLANE_OTC_CREDENTIALS_FILE parent path is not a directory."
+  if [[ -e "${path}" ]]; then
+    [[ "$(stat -c '%a:%u' -- "${path}")" == "600:$(id -u)" ]] \
+      || fail "The existing OTC credential file must be owned by you and mode 0600."
+  fi
+}
+
+prepare_credentials_directory() {
+  local parent
+  parent="$(dirname -- "${CROSSPLANE_OTC_CREDENTIALS_FILE}")"
+  if [[ ! -e "${parent}" ]]; then
+    mkdir -p -m 0700 -- "${parent}" \
+      || fail "Could not create the OTC credential directory."
+  fi
+  [[ -d "${parent}" ]] || fail "The OTC credential parent path is not a directory."
+}
+
+validate_render_inputs() {
+  [[ -n "${CROSSPLANE_OTC_CREDENTIALS_FILE:-}" ]] \
+    || fail "CROSSPLANE_OTC_CREDENTIALS_FILE is required for render-secrets."
+  [[ "${CROSSPLANE_OTC_NAMESPACE}" =~ ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$ ]] \
+    || fail "CROSSPLANE_OTC_NAMESPACE must be a valid Kubernetes namespace."
+  validate_credentials_path
+  [[ -f "${CROSSPLANE_OTC_CREDENTIALS_FILE}" ]] \
+    || fail "CROSSPLANE_OTC_CREDENTIALS_FILE must contain an existing credential file."
+  jq -e '
+    (.access_key | type == "string" and length > 0) and
+    (.secret_key | type == "string" and length > 0) and
+    (.auth_url | type == "string" and test("^https://")) and
+    (.domain_name | type == "string" and length > 0) and
+    (.domain_id | type == "string" and test("^[0-9a-f]{32}$")) and
+    (.tenant_id | type == "string" and test("^[0-9a-f]{32}$"))
+  ' "${CROSSPLANE_OTC_CREDENTIALS_FILE}" >/dev/null \
+    || fail "CROSSPLANE_OTC_CREDENTIALS_FILE has an invalid OTC credential format."
 }
 
 validate_inputs() {
@@ -117,11 +166,20 @@ validate_inputs() {
     || fail "CROSSPLANE_OTC_RESOURCE_PREFIX must be 3-50 lowercase letters, digits, or hyphens."
   validate_name CROSSPLANE_OTC_USER_NAME "${CROSSPLANE_OTC_USER_NAME}"
   validate_name CROSSPLANE_OTC_GROUP_NAME "${CROSSPLANE_OTC_GROUP_NAME}"
-  if [[ ("${action}" == apply || "${action}" == rotate-credential) && \
-        -z "${CROSSPLANE_OTC_CREDENTIALS_FILE:-}" ]]; then
-    fail "CROSSPLANE_OTC_CREDENTIALS_FILE is required for ${action}."
-  fi
+  [[ "${CROSSPLANE_OTC_NAMESPACE}" =~ ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$ ]] \
+    || fail "CROSSPLANE_OTC_NAMESPACE must be a valid Kubernetes namespace."
   validate_credentials_path
+}
+
+render_credentials_manifest() {
+  local encoded
+  encoded="$(jq -Rs '@base64' <"${CROSSPLANE_OTC_CREDENTIALS_FILE}")"
+  printf '\n%s\n' '# Kubernetes manifest follows. It contains controller credentials.'
+  printf '%s\n' '---' 'apiVersion: v1' 'kind: Secret' 'metadata:' \
+    '  name: otc-provider-creds'
+  printf '  namespace: %s\n' "${CROSSPLANE_OTC_NAMESPACE}"
+  printf '%s\n' 'type: Opaque' 'data:'
+  printf '  credentials: %s\n' "${encoded}"
 }
 
 init_session() {
@@ -442,7 +500,6 @@ verify_credentials_file() {
      .domain_id == $domain_id and .tenant_id == $project_id' \
     "${CROSSPLANE_OTC_CREDENTIALS_FILE}" >/dev/null \
     || fail "CROSSPLANE_OTC_CREDENTIALS_FILE does not match the existing controller credential."
-  chmod 0600 "${CROSSPLANE_OTC_CREDENTIALS_FILE}"
 }
 
 write_credentials_file() (
@@ -554,7 +611,7 @@ rotate_controller_credential() {
 
   iam_request DELETE \
     "${IAM_V30_ROOT}/OS-CREDENTIAL/credentials/${old_access_key}" '204 200'
-  printf 'Rotated the controller credential. Update the Kubernetes provider Secret.\n'
+  printf 'Rotated the controller credential.\n'
   printf 'Credentials file: %s\n' "${CROSSPLANE_OTC_CREDENTIALS_FILE}"
 }
 
@@ -638,6 +695,41 @@ show_status() {
   return 0
 }
 
+verify_resources() {
+  local user_id group_id policy_id security_role_id total owned access_key
+
+  user_id="$(owned_user_id)"
+  group_id="$(owned_group_id)"
+  [[ -n "${user_id}" ]] || fail "The OTC controller user is absent."
+  [[ -n "${group_id}" ]] || fail "The OTC controller group is absent."
+  policy_id="$(obs_admin_policy_id)"
+  security_role_id="$(security_admin_role_id)"
+  [[ "$(membership_state "${group_id}" "${user_id}")" == member ]] \
+    || fail "The controller user is not a member of its group."
+  [[ "$(group_domain_assignment_state "${group_id}" "${security_role_id}")" == assigned ]] \
+    || fail "Security Administrator is not assigned to the controller group."
+  verify_obs_admin_assignment "${group_id}" "${policy_id}"
+
+  list_credentials "${user_id}"
+  total="$(jq '.credentials | length' "${IAM_RESPONSE}")"
+  owned="$(jq --arg description "${CREDENTIAL_DESCRIPTION}" \
+    '[.credentials[] | select(.description == $description)] | length' \
+    "${IAM_RESPONSE}")"
+  ((total == 1 && owned == 1)) \
+    || fail "The controller user must have exactly one managed credential and no other credentials."
+  jq -e --arg description "${CREDENTIAL_DESCRIPTION}" \
+    '.credentials[] | select(.description == $description) |
+     .status == "active"' "${IAM_RESPONSE}" >/dev/null \
+    || fail "The existing controller credential is not active."
+  access_key="$(jq -r --arg description "${CREDENTIAL_DESCRIPTION}" \
+    '.credentials[] | select(.description == $description) | .access' \
+    "${IAM_RESPONSE}")"
+  [[ "${access_key}" =~ ^[A-Za-z0-9]{16,128}$ ]] \
+    || fail "The existing controller credential has an invalid access key ID."
+  verify_credentials_file "${access_key}"
+  printf 'OTC Provider Storage bootstrap verified.\n'
+}
+
 rotate_credential() {
   local user_id group_id policy_id security_role_id
 
@@ -659,29 +751,53 @@ rotate_credential() {
 main() {
   local action="${1:-}"
   case "${action}" in
-    -h|--help|help)
+    -h|--help|help|usage)
       usage
       return
       ;;
-    apply|status|rotate-credential) ;;
+    status|apply|verify|render-secrets|rotate-credential) ;;
     *)
       usage >&2
       exit 2
       ;;
   esac
 
+  require_command jq
+  if [[ "${action}" == render-secrets ]]; then
+    require_command stat
+    validate_render_inputs
+    render_credentials_manifest
+    return
+  fi
+  if [[ "${action}" == apply ]]; then
+    prepare_credentials_directory
+  fi
+  require_command stat
+  validate_inputs "${action}"
   require_command openstack
   require_command curl
-  require_command jq
-  validate_inputs "${action}"
   trap cleanup EXIT
+  printf 'Checking the OTC administrator session\n'
   init_session
   verify_target
 
   case "${action}" in
-    apply) apply_resources ;;
-    status) show_status ;;
-    rotate-credential) rotate_credential ;;
+    apply)
+      printf 'Creating or updating OTC IAM resources\n'
+      apply_resources
+      ;;
+    status)
+      printf 'Checking OTC IAM resources\n'
+      show_status
+      ;;
+    verify)
+      printf 'Verifying OTC IAM resources and credentials\n'
+      verify_resources
+      ;;
+    rotate-credential)
+      printf 'Replacing the OTC controller credential\n'
+      rotate_credential
+      ;;
   esac
 }
 

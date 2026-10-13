@@ -1,44 +1,46 @@
-# Dependencies
+# OTC dependencies
 
-These manifests declare the dependencies required for the **`storage-otc`** Composition.
-They set up the Crossplane runtime (providers, configs, and permissions) that the Storage resources rely on.
+These manifests configure the providers used by the `storage-otc`
+Composition.
 
-## Runtime prerequisites
+Dedicated provider controllers in the cluster reconcile resources created by
+the Composition. Give each `ProviderConfig` only the permissions it needs. Do
+not use unrestricted administrator credentials. Read the
+[OTC cloud IAM bootstrap guide](../../docs/how-to-guides/cloud-iam-bootstrap.md#otc)
+for the permission model and safety details.
 
-- A Kubernetes cluster with Crossplane **v2.x** installed and healthy. The e2e tests use **v2.4.1**.
+## IAM bootstrap
 
-## Providers and Functions
+Set `CROSSPLANE_OTC_DOMAIN_ID`, `CROSSPLANE_OTC_PROJECT_ID`, the region, the
+target namespace, and any optional resource prefix or IAM names. Use the
+bootstrap administrator login, then run:
 
-This Composition expects the following Crossplane components to be installed (versions are examples — pin to the versions you have validated):
+```bash
+otc/dependencies/iam.sh status
+otc/dependencies/iam.sh apply
+otc/dependencies/iam.sh verify
+```
 
-- **Providers**
-  - `provider-opentelekomcloud` (e.g., `xpkg.upbound.io/opentelekomcloud/provider-opentelekomcloud:v1.0.0`)
-  - `provider-kubernetes` (e.g., `xpkg.upbound.io/crossplane-contrib/provider-kubernetes:v1.3.1`)
+Keep the local credential file private and outside Git.
 
-- **Functions**
-  - `crossplane-contrib-function-python`
-  - `crossplane-contrib-function-auto-ready`
+## Deployment
 
-  > Pin exact versions (or digests) and upgrade intentionally.
+In [`03-providerConfigs.yaml`](03-providerConfigs.yaml), set the namespace that
+contains `otc-provider-creds`. Set the OBS endpoint and region in
+[`04-environmentConfigs.yaml`](04-environmentConfigs.yaml).
 
-## OTC notes
+Set `CROSSPLANE_OTC_NAMESPACE` to that namespace and create the controller
+Secret before you apply the `ProviderConfig`:
 
-Before deployment, an OTC administrator must review and run [`iam.sh`](iam.sh).
-See the
-[cloud IAM bootstrap guide](../../docs/how-to-guides/cloud-iam-bootstrap.md#otc).
+```bash
+otc/dependencies/iam.sh render-secrets |
+  kubectl apply -f -
+```
 
-S3-compatible buckets are managed via **OTC OBS** using `provider-otc`. You must supply:
+After `rotate-credential`, run this command again to update the Secret.
 
-- OTC credentials referenced by the **`ProviderConfig`**.
-- Backend defaults such as OBS endpoint and region in the **`EnvironmentConfig`** named `storage`.
-
-The controller group has `Security Administrator` in the dedicated domain and
-`OBS Administrator` for all existing and future projects. OTC's system-defined
-permissions cannot be limited to a bucket prefix.
-
-## Best practices
-
-- **Order matters**. Create dependencies in sequence so that later objects can reference earlier ones and no unnecessary XRDs are activated.
-- **Pin versions** of Providers/Functions by exact tag or digest and update them via PRs.
-- **Manage secrets** securely (e.g., Sealed Secrets, External Secrets). Do not inline credentials in Git.
-- **Health gates**: wait for `ProviderRevision` and `FunctionRevision` readiness before applying `ProviderConfig` / MRAP / XR.
+Apply [`03-providerConfigs.yaml`](03-providerConfigs.yaml) in every namespace
+that contains an OTC `Storage` resource. The other dependency manifests are
+cluster-scoped. Apply the numbered manifests in order, then apply
+[`functions.yaml`](functions.yaml) and [`rbac.yaml`](rbac.yaml). Wait for all
+provider and function revisions to become ready.

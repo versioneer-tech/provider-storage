@@ -17,19 +17,26 @@ POLICY_DIR="${SCRIPT_DIR}/policies"
 : "${CROSSPLANE_AWS_USER_POLICY_NAME:=${CROSSPLANE_AWS_POLICY_NAME}-assume-role}"
 : "${CROSSPLANE_AWS_MANAGED_USER_PATH:=/provider-storage/managed/}"
 : "${CROSSPLANE_AWS_MANAGED_POLICY_PATH:=/provider-storage/managed/}"
+: "${CROSSPLANE_AWS_NAMESPACE:=workspace}"
 
 ROLE_PURPOSE="runtime-controller"
 USER_PURPOSE="bootstrap-source"
 
 usage() {
   cat <<'EOF'
-Usage: aws/dependencies/iam.sh <apply|status>
+Usage: aws/dependencies/iam.sh <status|apply|verify|render-secrets>
 
 Bootstrap the AWS IAM resources that Provider Storage needs before deployment.
 Run apply before you deploy the AWS provider components or ProviderConfig.
 Review this script and the JSON files in aws/dependencies/policies before you run it.
 
-Required environment:
+Commands:
+  status          Show the current setup. Does not change resources.
+  apply           Create or update resources and the credential file.
+  verify          Check that resources and credentials are ready.
+  render-secrets  Read only the credential file and print Secret manifests.
+
+Required environment for status, apply, and verify:
   CROSSPLANE_AWS_ACCOUNT_ID
       Exact 12-digit target AWS account ID.
 
@@ -40,7 +47,7 @@ Authentication modes:
       default mode.
   bootstrap-user
       Create a dedicated IAM user with only sts:AssumeRole permission and one
-      access key. CROSSPLANE_AWS_CREDENTIALS_FILE is required by apply.
+      access key. Apply writes it to the configured credential file.
 
 Optional environment:
   CROSSPLANE_AWS_AUTH_MODE
@@ -48,8 +55,11 @@ Optional environment:
   CROSSPLANE_AWS_TRUST_PRINCIPAL_ARN
       Existing principal for assume-role mode.
   CROSSPLANE_AWS_CREDENTIALS_FILE
-      Absolute output path for the bootstrap-user AWS credentials file. Never
-      place it in Git.
+      Absolute output path for the bootstrap-user AWS credentials file
+      (default: ~/.config/provider-storage/aws-creds.json). Never place it in Git.
+      This is the only cloud credential input used by render-secrets.
+  CROSSPLANE_AWS_NAMESPACE
+      Namespace for the generated Secret manifest (default: workspace).
   CROSSPLANE_AWS_RESOURCE_PREFIX
       Prefix allowed for Provider Storage buckets (default:
       aws-<account-id>). Set an explicit installation-specific value during
@@ -74,11 +84,12 @@ Optional environment:
   AWS_PROFILE, AWS_REGION
       Standard AWS CLI selection variables.
 
-The script never prints credentials. In bootstrap-user mode it writes the new
-access key only to CROSSPLANE_AWS_CREDENTIALS_FILE with mode 0600. Use a
-dedicated account where possible and apply organization guardrails. An
-assume-role mode principal still needs permission to call sts:AssumeRole for
-the resulting runtime role.
+In bootstrap-user mode, apply writes the new access key to
+CROSSPLANE_AWS_CREDENTIALS_FILE with mode 0600. The separate render-secrets
+action prints a Kubernetes Secret manifest. The script does not access
+Kubernetes. Use a dedicated account where possible and apply organization
+guardrails. An assume-role mode principal still needs permission to call
+sts:AssumeRole for the resulting runtime role.
 EOF
 }
 
@@ -86,6 +97,11 @@ fail() {
   printf 'Error: %s\n' "$*" >&2
   exit 1
 }
+
+if [[ -z ${CROSSPLANE_AWS_CREDENTIALS_FILE:-} ]]; then
+  [[ ${HOME:-} == /* ]] || fail "HOME must be an absolute path for the default AWS credential file."
+  CROSSPLANE_AWS_CREDENTIALS_FILE="${HOME}/.config/provider-storage/aws-creds.json"
+fi
 
 require_command() {
   command -v "$1" >/dev/null 2>&1 || fail "Missing required command: $1"
@@ -105,8 +121,38 @@ validate_credentials_path() {
   if [[ -e "${path}" && ! -f "${path}" ]]; then
     fail "CROSSPLANE_AWS_CREDENTIALS_FILE must be a regular file when it exists."
   fi
-  [[ -d "$(dirname -- "${path}")" ]] \
-    || fail "The CROSSPLANE_AWS_CREDENTIALS_FILE parent directory does not exist."
+  [[ ! -e "$(dirname -- "${path}")" || -d "$(dirname -- "${path}")" ]] \
+    || fail "The CROSSPLANE_AWS_CREDENTIALS_FILE parent path is not a directory."
+  if [[ -e "${path}" ]]; then
+    [[ "$(stat -c '%a:%u' -- "${path}")" == "600:$(id -u)" ]] \
+      || fail "The existing AWS credential file must be owned by you and mode 0600."
+  fi
+}
+
+prepare_credentials_directory() {
+  local parent
+  parent="$(dirname -- "${CROSSPLANE_AWS_CREDENTIALS_FILE}")"
+  if [[ ! -e "${parent}" ]]; then
+    mkdir -p -m 0700 -- "${parent}" \
+      || fail "Could not create the AWS credential directory."
+  fi
+  [[ -d "${parent}" ]] || fail "The AWS credential parent path is not a directory."
+}
+
+validate_render_inputs() {
+  [[ -n "${CROSSPLANE_AWS_CREDENTIALS_FILE:-}" ]] \
+    || fail "CROSSPLANE_AWS_CREDENTIALS_FILE is required for render-secrets."
+  [[ "${CROSSPLANE_AWS_NAMESPACE}" =~ ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$ ]] \
+    || fail "CROSSPLANE_AWS_NAMESPACE must be a valid Kubernetes namespace."
+  validate_credentials_path
+  [[ -f "${CROSSPLANE_AWS_CREDENTIALS_FILE}" ]] \
+    || fail "CROSSPLANE_AWS_CREDENTIALS_FILE must contain an existing credential file."
+  jq -e '
+    (keys | sort) == ["access_key_id","secret_access_key"] and
+    (.access_key_id | type == "string" and length > 0) and
+    (.secret_access_key | type == "string" and length > 0)
+  ' "${CROSSPLANE_AWS_CREDENTIALS_FILE}" >/dev/null \
+    || fail "CROSSPLANE_AWS_CREDENTIALS_FILE has an invalid AWS credential format."
 }
 
 validate_iam_path() {
@@ -140,15 +186,28 @@ validate_inputs() {
     || fail "CROSSPLANE_AWS_MANAGED_USER_PATH must not be the account root path."
   [[ "${CROSSPLANE_AWS_MANAGED_POLICY_PATH}" != "/" ]] \
     || fail "CROSSPLANE_AWS_MANAGED_POLICY_PATH must not be the account root path."
+  [[ "${CROSSPLANE_AWS_NAMESPACE}" =~ ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$ ]] \
+    || fail "CROSSPLANE_AWS_NAMESPACE must be a valid Kubernetes namespace."
   [[ "${CROSSPLANE_AWS_USER_PATH}${CROSSPLANE_AWS_USER_NAME}" != "${CROSSPLANE_AWS_MANAGED_USER_PATH}"* ]] \
     || fail "The bootstrap user must be outside CROSSPLANE_AWS_MANAGED_USER_PATH."
 
   if [[ "${CROSSPLANE_AWS_AUTH_MODE}" == "bootstrap-user" ]]; then
-    if [[ "${action}" == "apply" && -z "${CROSSPLANE_AWS_CREDENTIALS_FILE:-}" ]]; then
-      fail "CROSSPLANE_AWS_CREDENTIALS_FILE is required for bootstrap-user apply."
-    fi
     validate_credentials_path
   fi
+}
+
+render_credentials_manifest() {
+  local encoded
+  encoded="$(jq -r '
+    "[default]\naws_access_key_id = \(.access_key_id)\naws_secret_access_key = \(.secret_access_key)" |
+    @base64
+  ' "${CROSSPLANE_AWS_CREDENTIALS_FILE}")"
+  printf '\n%s\n' '# Kubernetes manifest follows. It contains controller credentials.'
+  printf '%s\n' '---' 'apiVersion: v1' 'kind: Secret' 'metadata:' \
+    '  name: aws-provider-creds'
+  printf '  namespace: %s\n' "${CROSSPLANE_AWS_NAMESPACE}"
+  printf '%s\n' 'type: Opaque' 'data:'
+  printf '  credentials: %s\n' "${encoded}"
 }
 
 verify_account() {
@@ -335,8 +394,10 @@ write_credentials_file() (
   umask 077
   temp_path="$(mktemp "${parent}/.provider-storage-credentials.XXXXXX")"
   trap 'rm -f "${temp_path}"' EXIT
-  printf '[default]\naws_access_key_id = %s\naws_secret_access_key = %s\n' \
-    "${access_key_id}" "${secret_access_key}" >"${temp_path}"
+  jq -n --arg access_key_id "${access_key_id}" \
+    --arg secret_access_key "${secret_access_key}" \
+    '{access_key_id:$access_key_id,secret_access_key:$secret_access_key}' \
+    >"${temp_path}"
   chmod 0600 "${temp_path}"
   mv -f -- "${temp_path}" "${destination}"
   trap - EXIT
@@ -363,8 +424,10 @@ ensure_bootstrap_access_key() {
     access_key_id="${access_key_ids[0]}"
     [[ -f "${CROSSPLANE_AWS_CREDENTIALS_FILE}" ]] \
       || fail "The existing access key secret cannot be recovered; restore the credentials file before apply."
-    grep -Fq -- "aws_access_key_id = ${access_key_id}" \
-      "${CROSSPLANE_AWS_CREDENTIALS_FILE}" \
+    jq -e --arg access_key_id "${access_key_id}" \
+      '.access_key_id == $access_key_id and
+       (.secret_access_key | type == "string" and length > 0)' \
+      "${CROSSPLANE_AWS_CREDENTIALS_FILE}" >/dev/null \
       || fail "CROSSPLANE_AWS_CREDENTIALS_FILE does not match the existing access key."
     chmod 0600 "${CROSSPLANE_AWS_CREDENTIALS_FILE}"
     printf 'Bootstrap access key already exists; credentials file was preserved.\n'
@@ -555,37 +618,95 @@ show_bootstrap_user_status() {
   fi
 }
 
+verify_resources() {
+  local partition="$1" key_output access_key_id
+  local -a access_key_ids=()
+
+  role_exists || fail "AWS Provider Storage role ${CROSSPLANE_AWS_ROLE_NAME} is absent."
+  verify_role_ownership "${partition}"
+  aws_cli iam get-role-policy \
+    --role-name "${CROSSPLANE_AWS_ROLE_NAME}" \
+    --policy-name "${CROSSPLANE_AWS_POLICY_NAME}" \
+    >/dev/null
+
+  if [[ "${CROSSPLANE_AWS_AUTH_MODE}" == bootstrap-user ]]; then
+    user_exists || fail "Bootstrap user ${CROSSPLANE_AWS_USER_NAME} is absent."
+    verify_bootstrap_user_identity "${partition}"
+    aws_cli iam get-user-policy \
+      --user-name "${CROSSPLANE_AWS_USER_NAME}" \
+      --policy-name "${CROSSPLANE_AWS_USER_POLICY_NAME}" \
+      >/dev/null
+    key_output="$(list_bootstrap_access_keys)"
+    read -r -a access_key_ids <<<"${key_output}" || true
+    ((${#access_key_ids[@]} == 1)) \
+      || fail "Bootstrap user must have exactly one access key."
+    access_key_id="${access_key_ids[0]}"
+    [[ -f "${CROSSPLANE_AWS_CREDENTIALS_FILE}" ]] \
+      || fail "The bootstrap-user credential file is missing."
+    jq -e --arg access_key_id "${access_key_id}" \
+      '.access_key_id == $access_key_id and
+       (.secret_access_key | type == "string" and length > 0)' \
+      "${CROSSPLANE_AWS_CREDENTIALS_FILE}" >/dev/null \
+      || fail "CROSSPLANE_AWS_CREDENTIALS_FILE does not match the existing access key."
+  fi
+
+  printf 'AWS Provider Storage bootstrap verified.\n'
+}
+
 main() {
   local action="${1:-}" partition
   case "${action}" in
-    -h|--help|help)
+    -h|--help|help|usage)
       usage
       return
       ;;
-    apply|status) ;;
+    status|apply|verify|render-secrets) ;;
     *)
       usage >&2
       exit 2
       ;;
   esac
 
-  require_command aws
+  if [[ "${action}" == render-secrets ]]; then
+    require_command jq
+    require_command stat
+    validate_render_inputs
+    render_credentials_manifest
+    return
+  fi
+
+  if [[ "${CROSSPLANE_AWS_AUTH_MODE}" == bootstrap-user ]]; then
+    require_command jq
+    require_command stat
+    if [[ "${action}" == apply ]]; then
+      prepare_credentials_directory
+    fi
+  fi
   validate_inputs "${action}"
+  require_command aws
 
   case "${action}" in
     apply)
+      printf 'Creating or updating AWS IAM resources\n'
       validate_policy_templates
       verify_account
       partition="$(current_partition)"
       apply_role
       ;;
     status)
+      printf 'Checking AWS IAM resources\n'
       verify_account
       partition="$(current_partition)"
       show_role_status "${partition}"
       if [[ "${CROSSPLANE_AWS_AUTH_MODE}" == "bootstrap-user" ]]; then
         show_bootstrap_user_status "${partition}"
       fi
+      ;;
+    verify)
+      printf 'Verifying AWS IAM resources and credentials\n'
+      verify_account
+      partition="$(current_partition)"
+      verify_resources "${partition}"
       ;;
   esac
 }

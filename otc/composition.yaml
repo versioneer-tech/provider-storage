@@ -124,7 +124,7 @@ spec:
               spec = xr.get("spec", {}) or {}
               principal = (spec.get("principal") or meta.get("name") or "").strip()
               provider_identity = (spec.get("providerIdentity") or principal).strip()
-              ns = (meta.get("labels", {}) or {}).get("crossplane.io/claim-namespace") or meta.get("namespace") or "default"
+              ns = meta.get("namespace") or "default"
               if not principal:
                   return
 
@@ -232,7 +232,7 @@ spec:
               xr = to_dict(req.observed.composite.resource)
               meta = xr.get("metadata", {}) or {}
               spec = xr.get("spec", {}) or {}
-              ns = (meta.get("labels", {}) or {}).get("crossplane.io/claim-namespace") or meta.get("namespace") or "default"
+              ns = meta.get("namespace") or "default"
               principal = (spec.get("principal") or meta.get("name") or "").strip()
               if not principal:
                   return
@@ -345,7 +345,7 @@ spec:
               ctx = to_dict(req.context)
               env = (ctx.get(ENVIRONMENT_KEY) or {})
               storage_env = (env.get("storage") or {})
-              ns = (meta.get("labels", {}) or {}).get("crossplane.io/claim-namespace") or meta.get("namespace") or "default"
+              ns = meta.get("namespace") or "default"
               region = (storage_env.get("region") or spec.get("region") or "eu-nl").strip()
               for b in (spec.get("buckets") or []):
                   bucket = (b.get("bucketName") or "").strip()
@@ -467,7 +467,7 @@ spec:
               xr = to_dict(req.observed.composite.resource)
               meta = xr.get("metadata", {}) or {}
               spec = xr.get("spec", {}) or {}
-              ns = (meta.get("labels", {}) or {}).get("crossplane.io/claim-namespace") or meta.get("namespace") or "default"
+              ns = meta.get("namespace") or "default"
               principal = (spec.get("principal") or meta.get("name") or "").strip()
               if not principal:
                   return
@@ -573,7 +573,7 @@ spec:
               xr = to_dict(req.observed.composite.resource)
               meta = xr.get("metadata", {}) or {}
               spec = xr.get("spec", {}) or {}
-              ns = (meta.get("labels", {}) or {}).get("crossplane.io/claim-namespace") or meta.get("namespace") or "default"
+              ns = meta.get("namespace") or "default"
               principal = (spec.get("principal") or meta.get("name") or "").strip()
               if not principal:
                   return
@@ -755,7 +755,7 @@ spec:
               ctx = to_dict(req.context)
               env = (ctx.get(ENVIRONMENT_KEY) or {})
               storage_env = (env.get("storage") or {})
-              ns = (meta.get("labels", {}) or {}).get("crossplane.io/claim-namespace") or meta.get("namespace") or "default"
+              ns = meta.get("namespace") or "default"
               principal = (spec.get("principal") or meta.get("name") or "").strip()
               if not principal:
                   return
@@ -918,7 +918,7 @@ spec:
               ctx = to_dict(req.context)
               env = (ctx.get(ENVIRONMENT_KEY) or {})
               storage_env = (env.get("storage") or {})
-              ns = (meta.get("labels", {}) or {}).get("crossplane.io/claim-namespace") or meta.get("namespace") or "default"
+              ns = meta.get("namespace") or "default"
               principal = (spec.get("principal") or meta.get("name") or "<principal-missing>").strip()
 
               rules = []

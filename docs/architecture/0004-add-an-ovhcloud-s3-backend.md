@@ -17,10 +17,12 @@ controller identity with permission to manage these resources.
 
 ## Decision
 
-Bootstrap a dedicated OVHcloud IAM service account for the controller. Scope
-its policy to the target Public Cloud project and grant the actions needed to
-manage project users, their S3 credentials and policies, and regional buckets.
-The controller does not need permission to create IAM service accounts or IAM
+During bootstrap, an administrator creates a dedicated OVHcloud IAM service
+account for the controller. The bootstrap administrator can read the project
+and create the service account and its IAM policy. Scope the controller policy
+to the target Public Cloud project and grant the actions needed to manage
+project users, their S3 credentials and policies, and regional buckets. The
+controller does not need permission to create IAM service accounts or IAM
 policies. Store its credentials in the provider Secret.
 
 Use the OVHcloud Composition to create the buckets and the OpenStack users
@@ -38,7 +40,7 @@ The controller service account is distinct from the OpenStack users it
 creates. The service account's IAM policy controls what Crossplane can manage
 in the project; each user's S3 policy controls access to buckets and objects.
 
-Removing a bucket from `spec.buckets`, or removing its `Storage` claim,
+Removing a bucket from `spec.buckets`, or removing its `Storage` resource,
 requests bucket deletion. OVHcloud rejects deletion while the bucket contains
 data. S3 policy changes can take time to affect access, so revocation is not
 immediate.

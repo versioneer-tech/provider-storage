@@ -1,143 +1,47 @@
-# Welcome to Provider Storage
+# Provider Storage
 
-**Provider Storage is a PaaS-style building block for platform operators:** it turns one `Storage` claim into end-user object-storage buckets on the selected backend. Users get smooth self-service bucket provisioning. Operators keep visibility and control over provider credentials, backend choice, access policy, sharing, lifecycle rules, and credential rotation.
+Provider Storage defines one namespaced Crossplane `Storage` API for S3
+buckets, consumer credentials, access grants, and lifecycle rules. Platform
+operators configure the storage backends. Users do not need to manage
+provider-specific identities or policies.
 
-Provider Storage is built on [Crossplane](https://crossplane.io). It provides a tenant-facing `Storage` API and backend-specific Compositions. See the [backend comparison](how-to-guides/backend_differences.md) for the available implementations.
+## Responsibility boundary
 
-The API stays the same across all backends. Buckets, credentials, access requests, access grants, and lifecycle rules use the same concepts. Only the implementation behind the composition changes.
+Platform operators:
+
+- install the selected backend package and its dependencies;
+- configure the controller identity and backend settings;
+- control who can select a backend, environment, or CloudFerro project; and
+- monitor the generated provider resources and credentials.
+
+Users and higher-level platform services create `Storage` resources. Each
+resource represents one principal and can define owned buckets, requests for
+other buckets, grants to other principals, credential rollover, and lifecycle
+rules.
+
+Crossplane creates the backend-specific resources and publishes a normalized
+consumer Secret in the same namespace as the `Storage` resource. Provider
+controller credentials are separate and must never be copied to this consumer
+Secret.
 
 !!! warning "Bootstrap cloud IAM before deployment"
 
-    Before you deploy cloud provider components, an administrator must follow
-    the backend's initial IAM procedure. Review its
-    `<cloud>/dependencies/iam.sh` script and any policy templates before you run an
-    implemented bootstrap. Read the
-    [cloud IAM bootstrap guide](how-to-guides/cloud-iam-bootstrap.md).
+    Before you deploy a managed cloud backend, a bootstrap administrator must
+    review and run its `<cloud>/dependencies/iam.sh` script. Crossplane uses
+    the separate controller identity that this procedure prepares. Read the
+    [cloud IAM guide](how-to-guides/cloud-iam-bootstrap.md).
 
-## Operator Contract
+## Documentation path
 
-For an operator, a `Storage` claim is the contract for one principal and its object-storage access:
+1. Compare the supported implementations in
+   [Backend differences](how-to-guides/backend_differences.md).
+2. Install the selected backend with the
+   [Installation guide](how-to-guides/installation.md).
+3. Create and inspect resources with
+   [Usage and concepts](how-to-guides/usage_concepts.md).
+4. Configure sharing with the
+   [Permission model](how-to-guides/permissions.md).
+5. Use the [API reference](reference-guides/api.md) for field details.
 
-- You install the backend package you want to offer.
-- You configure provider credentials and backend settings in the target namespace.
-- Users or higher-level platform services submit `Storage` claims for buckets, access requests, and access grants.
-- Crossplane creates the backend-specific resources: buckets, users or IAM identities, policies, access keys, and a normalized Kubernetes Secret.
-- The resulting resources stay visible to the operator, so access, sharing, lifecycle rules, and credential rotation remain under platform control.
-
-This is the main design point: users get simple bucket self-service, while operators keep responsibility for the storage systems, provider credentials, access model, and lifecycle policy.
-
-At its core, Provider Storage provides:
-
-- A **Storage Composite Resource Definition (XRD)**
-- **Compositions** to provision buckets, manage access, and reconcile credentials
-- Support for **cross-user sharing** and collaboration
-- **Bucket lifecycle rules** for object cleanup by prefix and age
-- A normalized Secret shape with `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and backend connection settings when configured
-
-Other platform building blocks and workloads can consume the generated Secret directly. For example, a Datalab can use it to mount object-storage access into an end-user workspace.
-
----
-
-## Features
-
-- **Backend support**
-  Provision S3-compatible buckets on the selected backend.
-- **Clean abstraction**
-  Use the same bucket, access, credential, and lifecycle concepts across all backends.
-- **Cross-user sharing**
-  Let owners grant or deny bucket access across users or teams.
-- **Kubernetes-native secrets**
-  Create S3-compatible credentials as Kubernetes Secrets.
-- **Operator control**
-  Keep provider credentials, policies, lifecycle rules, and credential rotation visible.
-
----
-
-## Installation
-
-To install the configuration package into your Crossplane-enabled Kubernetes environment, use a backend-specific package. For MinIO:
-
-```yaml
-apiVersion: pkg.crossplane.io/v1
-kind: Configuration
-metadata:
-  name: storage-minio
-spec:
-  package: ghcr.io/versioneer-tech/provider-storage/minio:<!version!>
-  skipDependencyResolution: true
-```
-
----
-
-## Quickstart
-
-### Minimal Example
-
-```yaml
-apiVersion: pkg.internal/v1beta1
-kind: Storage
-metadata:
-  name: team-wonderland
-spec:
-  principal: alice
-  buckets:
-    - bucketName: wonderland
-```
-
-This creates a bucket named **`wonderland`**, plus the backend-specific resources needed for `alice` to access it.
-
-!!! note
-
-    All configuration packages derived from `provider-storage` expose the same `Storage` Composite Resource Definition (XRD). If multiple providers are installed, each `Storage` claim **must be labeled** to ensure it binds to the desired provider.
-
----
-
-For each `Storage` resource, a Secret is created in the same namespace. The Secret is named after `spec.principal` and contains credentials for the selected backend.
-
-The consumer Secret contains `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
-It also contains `AWS_ENDPOINT_URL`, `AWS_REGION`, and
-`AWS_S3_FORCE_PATH_STYLE` when supplied by the selected storage environment.
-
-Use these secrets in your workloads to connect directly to the provisioned storage with standard S3 tooling, for example:
-
-```bash
-aws s3 ls s3://wonderland
-```
-
----
-
-### More Examples
-
-Check the [examples folder](https://github.com/versioneer-tech/provider-storage/tree/main/examples/base) in the GitHub repository for complete scenarios, including:
-
-- Storage claims with multiple buckets
-- Cross-team access requests and grants
-
-### Lifecycle Rules
-
-Lifecycle rules are defined per bucket under `spec.buckets[].lifecycleRules`.
-
-```yaml
-spec:
-  buckets:
-    - bucketName: s-jeff-shared
-      discoverable: true
-      lifecycleRules:
-        - target: tmp/*
-          mode: Delete
-          minAge: 12h
-        - target: scratch/*
-          mode: Notify
-          minAge: 1w
-```
-
-`Delete` removes matching objects when the time condition is met. `Notify` logs
-matching objects when the time condition is met and does not change objects.
-
-Supported `minAge` suffixes:
-
-- `s` seconds
-- `m` minutes
-- `h` hours
-- `d` days
-- `w` weeks
+For repository development and live validation, use the
+[local test guide](how-to-guides/local_setup.md).

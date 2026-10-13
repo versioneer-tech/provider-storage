@@ -128,50 +128,30 @@ ovh_storage_region() {
   esac
 }
 
-validate_cloudferro_slot() {
+validate_cloudferro_project_id() {
   local name="$1" value="$2"
-  if [[ ! "${value}" =~ ^cloudferro-[0-9]{4}$ ]]; then
-    printf '%s must be cloudferro- plus four digits.\n' "${name}" >&2
+  if [[ ! "${value}" =~ ^[0-9a-f]{32}$ ]]; then
+    printf '%s must be a 32-character lowercase hexadecimal ID.\n' "${name}" >&2
     exit 1
   fi
-}
-
-cloudferro_slot() {
-  local value="${CROSSPLANE_CLOUDFERRO_SLOT:-cloudferro-0001}"
-  validate_cloudferro_slot CROSSPLANE_CLOUDFERRO_SLOT "${value}"
-  printf '%s\n' "${value}"
-}
-
-cloudferro_it2_slot() {
-  local value="${CROSSPLANE_CLOUDFERRO_IT2_SLOT:-cloudferro-0002}"
-  validate_cloudferro_slot CROSSPLANE_CLOUDFERRO_IT2_SLOT "${value}"
-  printf '%s\n' "${value}"
 }
 
 cloudferro_project_id() {
-  local slot project
-  if (($#)); then
-    slot="$1"
-    validate_cloudferro_slot CloudFerro-slot "${slot}"
-  else
-    slot="$(cloudferro_slot)"
-  fi
-  if ! project="$(kube get "environmentconfig/storage-${slot}" \
-    -o jsonpath='{.data.storage.serviceName}' 2>/dev/null)"; then
-    printf 'CloudFerro slot %s is missing. Run cloudferro/dependencies/iam.sh apply first.\n' \
-      "${slot}" >&2
-    exit 1
-  fi
-  if [[ ! "${project}" =~ ^[0-9a-f]{32}$ ]]; then
-    printf 'CloudFerro slot %s has no valid project ID.\n' "${slot}" >&2
-    exit 1
-  fi
-  printf '%s\n' "${project}"
+  local value="${CROSSPLANE_CLOUDFERRO_PROJECT_ID:-}"
+  validate_cloudferro_project_id CROSSPLANE_CLOUDFERRO_PROJECT_ID "${value}"
+  printf '%s\n' "${value}"
+}
+
+cloudferro_it2_project_id() {
+  local value="${CROSSPLANE_CLOUDFERRO_IT2_PROJECT_ID:-}"
+  validate_cloudferro_project_id CROSSPLANE_CLOUDFERRO_IT2_PROJECT_ID "${value}"
+  printf '%s\n' "${value}"
 }
 
 cloudferro_project_prefix() {
-  local project
-  project="$(cloudferro_project_id "$@")"
+  local project="${1:-}"
+  if [[ -z "${project}" ]]; then project="$(cloudferro_project_id)"; fi
+  validate_cloudferro_project_id CloudFerro-project-ID "${project}"
   printf '%s\n' "${project:0:12}"
 }
 

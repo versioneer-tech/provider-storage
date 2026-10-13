@@ -40,7 +40,7 @@ second_bucket_name() {
       ;;
     cloudferro)
       printf 'cloudferro-%s-it2-a\n' \
-        "$(cloudferro_project_prefix "$(cloudferro_it2_slot)")"
+        "$(cloudferro_project_prefix "$(cloudferro_it2_project_id)")"
       ;;
   esac
 }
@@ -101,7 +101,7 @@ validate_backend_configuration() {
       ;;
     cloudferro)
       cloudferro_project_prefix >/dev/null
-      cloudferro_project_prefix "$(cloudferro_it2_slot)" >/dev/null
+      cloudferro_project_prefix "$(cloudferro_it2_project_id)" >/dev/null
       ;;
   esac
 }
