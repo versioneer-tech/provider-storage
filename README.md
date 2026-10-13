@@ -64,8 +64,9 @@ Run the local validation suite from the repository root:
 tests/unit.bash
 ```
 
-The suite checks IAM helper behavior, renders each Composition, compares
-golden files, validates schemas, and checks integration manifests. See the
+The suite checks the rendered IAM credentials, renders each Composition,
+compares golden files, validates the rendered resources against schemas, and
+checks the integration Storage manifest contracts. See the
 [local test guide](docs/how-to-guides/local_setup.md) before you run a live
 Kind or cloud integration test.
 

@@ -191,25 +191,38 @@ if [[ xyz =~ $project_pattern ]]; then :; elif (( $? == 2 )); then die 'The proj
 work_dir=$(mktemp -d /tmp/provider-storage-cloudferro.XXXXXXXX)
 trap 'rm -rf -- "$work_dir"' EXIT
 
-# A named profile isolates its credentials. The explicit current mode uses the
-# operator's shell token, including an optional project or domain rescope.
+# A named profile isolates its source credentials. Before IAM operations, the
+# script replaces either source login with one verified domain-scoped token.
 openstack_profile() (
-  local profile=$1 target_project='' target_domain=''
+  local profile=$1 target_domain=''
   local -a arguments=()
   shift
   cd -- "$work_dir"
   unset OS_DEBUG
+  if [[ -n ${bootstrap_domain_token:-} ]]; then
+    unset OS_CLOUD OS_CLIENT_CONFIG_FILE OS_AUTH_TOKEN OS_ENDPOINT
+    unset OS_USERNAME OS_PASSWORD OS_USER_ID OS_USER_DOMAIN_ID OS_USER_DOMAIN_NAME
+    unset OS_PROJECT_ID OS_PROJECT_NAME OS_PROJECT_DOMAIN_ID OS_PROJECT_DOMAIN_NAME
+    unset OS_DOMAIN_NAME OS_APPLICATION_CREDENTIAL_ID OS_APPLICATION_CREDENTIAL_SECRET
+    export OS_AUTH_URL=$auth_url
+    export OS_AUTH_TYPE=v3token
+    export OS_TOKEN=$bootstrap_domain_token
+    export OS_DOMAIN_ID=$domain_id
+    export OS_REGION_NAME=$region
+    if [[ ${OPENSTACK_PASSWORD_PROMPT:-} == 1 ]]; then
+      python3 "$script_dir/password_prompt.py" "$work_dir/controller-password" \
+        openstack "${@}"
+    else
+      openstack "${@}"
+    fi
+    exit
+  fi
   if [[ $profile == current ]]; then
     unset OS_CLOUD OS_CLIENT_CONFIG_FILE OS_AUTH_TOKEN OS_ENDPOINT
     unset OS_USERNAME OS_PASSWORD OS_USER_ID OS_USER_DOMAIN_ID OS_USER_DOMAIN_NAME
     unset OS_APPLICATION_CREDENTIAL_ID OS_APPLICATION_CREDENTIAL_SECRET
     while (($#)); do
       case $1 in
-        --os-project-id)
-          shift
-          (($#)) || die 'A project scope is missing its ID.'
-          target_project=$1
-          ;;
         --os-domain-id)
           shift
           (($#)) || die 'A domain scope is missing its ID.'
@@ -219,13 +232,7 @@ openstack_profile() (
       esac
       shift
     done
-    [[ -z $target_project || -z $target_domain ]] \
-      || die 'Project and domain scope cannot be requested together.'
-    if [[ -n $target_project ]]; then
-      [[ $target_project =~ ^[a-fA-F0-9]{32}$ ]] || die 'The target project ID is invalid.'
-      unset OS_DOMAIN_ID OS_DOMAIN_NAME OS_PROJECT_NAME OS_PROJECT_DOMAIN_ID OS_PROJECT_DOMAIN_NAME
-      export OS_PROJECT_ID=$target_project
-    elif [[ -n $target_domain ]]; then
+    if [[ -n $target_domain ]]; then
       [[ $target_domain =~ ^[a-fA-F0-9]{32}$ ]] || die 'The target domain ID is invalid.'
       unset OS_PROJECT_ID OS_PROJECT_NAME OS_PROJECT_DOMAIN_ID OS_PROJECT_DOMAIN_NAME OS_DOMAIN_NAME
       export OS_DOMAIN_ID=$target_domain
@@ -279,16 +286,6 @@ admin_json() {
     die "Bootstrap OpenStack ${1:-request} failed. Check the token or profile and domain permissions."
   fi
   printf '%s\n' "$result"
-}
-
-project_admin() {
-  local project_id=$1
-  shift
-  if [[ $admin_cloud == current && ${login_scope:-} == project ]]; then
-    openstack_profile "$admin_cloud" --os-project-id "$project_id" "$@"
-  else
-    openstack_profile "$admin_cloud" "$@"
-  fi
 }
 
 check_identity_file() {
@@ -449,7 +446,7 @@ ensure_user() {
 ensure_role() {
   local project_id=$1 user_id=$2 error_file
   error_file="$work_dir/role-add.stderr"
-  if ! project_admin "$project_id" role add --user "$user_id" \
+  if ! domain_admin role add --user "$user_id" \
       --project "$project_id" "$project_role" >/dev/null 2>"$error_file"; then
     if grep -Eqi '(^|[^0-9])403([^0-9]|$)|forbidden|not authorized|identity:create_grant|policy does not allow' "$error_file"; then
       die "OpenStack denied project role assignment (HTTP 403). The bootstrap login needs identity:create_grant permission on project $project_id."
@@ -489,6 +486,27 @@ if [[ $admin_cloud == current ]]; then
     printf 'Active login: user_id=%s domain_id=%s OpenStack_region=%s\n' \
       "$login_user" "$login_scope_id" "$OS_REGION_NAME"
   fi
+fi
+printf 'Issuing a domain-scoped OpenStack bootstrap token\n'
+bootstrap_domain_token=$(openstack_profile "$admin_cloud" --os-domain-id "$domain_id" \
+  token issue -f value -c id 2>/dev/null) \
+  || die "Could not issue a token scoped to domain $domain_id."
+[[ -n $bootstrap_domain_token && $bootstrap_domain_token != *$'\n'* &&
+   $bootstrap_domain_token != *$'\r'* ]] \
+  || die 'The domain-scoped OpenStack token is empty or invalid.'
+domain_token_details=$(openstack_profile "$admin_cloud" token issue -f json 2>/dev/null) \
+  || die 'The domain-scoped OpenStack token could not be verified.'
+domain_token_user=$(jq -er '.user_id | select(type == "string")' \
+  <<<"$domain_token_details") || die 'The domain-scoped OpenStack token has no user ID.'
+domain_token_domain=$(jq -er '.domain_id | select(type == "string")' \
+  <<<"$domain_token_details") || die 'The OpenStack bootstrap token is not domain-scoped.'
+domain_token_project=$(jq -r '.project_id // empty' <<<"$domain_token_details")
+[[ $domain_token_user =~ ^[a-fA-F0-9]{32}$ &&
+   $domain_token_domain == "$domain_id" && -z $domain_token_project ]] \
+  || die 'The OpenStack bootstrap token has the wrong user, domain, or project scope.'
+if [[ $admin_cloud == current ]]; then
+  [[ $domain_token_user == "$login_user" ]] \
+    || die 'Domain re-scoping changed the OpenStack bootstrap user.'
 fi
 printf 'Discovering matching OpenStack projects\n'
 projects=$(admin_json project list --long)

@@ -20,7 +20,9 @@ Each project is also the access boundary for its buckets. Create every project
 that Provider Storage needs before bootstrap, and assign one project to each
 team that needs isolated bucket access.
 
-Use a project- or domain-scoped `v3token` login, and limit
+Use a project- or domain-scoped `v3token` login. The script derives and
+verifies a domain-scoped token for project discovery, user operations, and
+project role grants. Limit
 `CROSSPLANE_CLOUDFERRO_PROJECT_PATTERN` to the projects that the controller
 must manage. Set the domain, authentication URL, region, controller name, and
 target namespace. Then run:

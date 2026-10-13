@@ -17,14 +17,33 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  unit_and_minio_integration:
+  composition:
+    name: Composition (${{ matrix.backend }})
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 20
     permissions:
       contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        backend:
+          - minio
+          - aws
+          - otc
+          - ovh
+          - cloudferro
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
+
+      - name: Cache Crossplane packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/provider-storage/crossplane
+          key: >-
+            crossplane-v2.4.1-${{ runner.os }}-${{ matrix.backend }}-${{
+            hashFiles('xrd.yaml', '*/dependencies/02-providers.yaml',
+            '*/dependencies/functions.yaml') }}
 
       - name: Install test CLIs
         run: |
@@ -36,9 +55,24 @@ jobs:
           sudo install crossplane /usr/local/bin/crossplane
           go install github.com/homeport/dyff/cmd/dyff@v1.12.0
           sudo install "$(go env GOPATH)/bin/dyff" /usr/local/bin/dyff
+          curl --fail --silent --show-error --location \
+            https://github.com/mikefarah/yq/releases/download/v4.54.1/yq_linux_amd64 \
+            --output /tmp/yq
+          sudo install /tmp/yq /usr/local/bin/yq
 
-      - name: Run Composition unit tests
-        run: tests/unit.bash
+      - name: Run Composition tests
+        run: tests/unit.bash "${{ matrix.backend }}"
+
+  minio_integration:
+    name: MinIO integration
+    needs: composition
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
 
       - name: Create Kind cluster
         uses: helm/kind-action@v1

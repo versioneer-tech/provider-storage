@@ -242,11 +242,12 @@ The bootstrap administrator must be able to:
 - List the projects that the configured name pattern selects.
 - Create one user in the project domain.
 - Assign the configured project role in every selected project.
-- Re-scope its token to the domain and projects when its initial login is
-  project-scoped.
+- Re-scope its token to the configured domain.
 
 Re-scoping does not add permissions. The bootstrap administrator must already
-have the required domain and project permissions.
+have the required domain and project permissions. The script verifies the
+domain scope before it performs project discovery, user operations, or role
+grants.
 
 The controller user needs only the configured project role, which defaults to
 `member`. It must not have user-administration or role-administration

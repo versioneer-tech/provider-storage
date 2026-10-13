@@ -6,8 +6,8 @@ The cluster name is `provider-storage-it`. Every script uses the explicit
 
 ## Prerequisites
 
-Install Docker, Kind, kubectl, Helm, Crossplane CLI, and dyff. Run the full
-unit suite before integration:
+Install Docker, Kind, kubectl, Helm, Crossplane CLI, dyff, yq, and jq. Run the
+full unit suite before integration:
 
 ```bash
 tests/unit.bash

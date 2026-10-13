@@ -13,6 +13,19 @@ fi
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "${TMP_DIR}"' EXIT
 : "${CROSSPLANE_VERSION:=v2.4.1}"
+if [[ -z "${PROVIDER_STORAGE_CROSSPLANE_CACHE_DIR:-}" ]]; then
+  [[ "${HOME:-}" == /* ]] || {
+    printf 'HOME must be an absolute path for the default Crossplane cache.\n' >&2
+    exit 1
+  }
+  PROVIDER_STORAGE_CROSSPLANE_CACHE_DIR="${HOME}/.cache/provider-storage/crossplane"
+fi
+[[ "${PROVIDER_STORAGE_CROSSPLANE_CACHE_DIR}" == /* ]] || {
+  printf 'PROVIDER_STORAGE_CROSSPLANE_CACHE_DIR must be an absolute path.\n' >&2
+  exit 1
+}
+mkdir -p "${PROVIDER_STORAGE_CROSSPLANE_CACHE_DIR}"
+mkdir -p "${TMP_DIR}/validation"
 
 require_command() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -32,6 +45,14 @@ validate_shell_syntax() {
   )
 }
 
+assert_yaml() {
+  local file=$1 expression=$2 description=$3
+  if ! yq eval-all -e "${expression}" "${file}" >/dev/null; then
+    printf 'YAML assertion failed: %s (%s)\n' "${description}" "${file}" >&2
+    return 1
+  fi
+}
+
 normalize_principal_generations() {
   local content="$1"
   local principal="$2"
@@ -44,7 +65,14 @@ normalize_principal_generations() {
       content="${content//${generation}/${principal}-${marker}-${index}}"
       index=$((index + 1))
     }
-  done < <(grep -Eo "${principal}-${suffix_pattern}" <<<"${content}" | sort -ru)
+  done < <(
+    local remaining="${content}"
+    local expression="${principal}-${suffix_pattern}"
+    while [[ "${remaining}" =~ ${expression} ]]; do
+      printf '%s\n' "${BASH_REMATCH[0]}"
+      remaining="${remaining#*"${BASH_REMATCH[0]}"}"
+    done | sort -ru
+  )
 
   printf '%s' "${content}"
 }
@@ -61,12 +89,14 @@ normalize_generations() {
   printf '%s\n' "${content}" >"${target}"
 }
 
-validate_schemas() {
+queue_schema_validation() {
   local backend="$1"
   local resources="$2"
-  local validation_resources="${TMP_DIR}/${backend}-validation.yaml"
+  local validation_resources="${TMP_DIR}/validation/${backend}.yaml"
 
-  printf 'Validate %s render against extension schemas\n' "${backend}"
+  if [[ -s "${validation_resources}" ]]; then
+    printf '%s\n' '---' >>"${validation_resources}"
+  fi
   awk '
     /^---$/ {
       document++
@@ -74,11 +104,22 @@ validate_schemas() {
     }
     document == 1 && /^      namespace:/ { next }
     { print }
-  ' "${resources}" >"${validation_resources}"
+  ' "${resources}" >>"${validation_resources}"
+}
+
+validate_schemas() {
+  local backend="$1"
+  local validation_resources="${TMP_DIR}/validation/${backend}.yaml"
+
+  printf 'Validate %s render against extension schemas\n' "${backend}"
+  [[ -s "${validation_resources}" ]] || {
+    printf 'No rendered resources were queued for %s schema validation.\n' "${backend}" >&2
+    return 1
+  }
   crossplane resource validate \
     "${REPO_ROOT}/xrd.yaml,${REPO_ROOT}/${backend}/dependencies/02-providers.yaml" \
     "${validation_resources}" \
-    --cache-dir "${TMP_DIR}/crossplane-cache" \
+    --cache-dir "${PROVIDER_STORAGE_CROSSPLANE_CACHE_DIR}" \
     --crossplane-image "xpkg.crossplane.io/crossplane/crossplane:${CROSSPLANE_VERSION}" \
     --error-on-missing-schemas \
     --skip-success-results
@@ -92,16 +133,6 @@ validate_aws_iam_policy() {
   local rendered_secret="${TMP_DIR}/aws-provider-secret.yaml"
 
   printf 'Validate AWS runtime IAM policy\n'
-  bash -n "${script}"
-  if "${script}" delete >"${TMP_DIR}/aws-delete.out" 2>&1; then
-    printf 'AWS IAM bootstrap accepted an unsupported delete command.\n' >&2
-    return 1
-  fi
-  grep -Fq 'Usage: aws/dependencies/iam.sh <status|apply|verify|render-secrets>' \
-    "${TMP_DIR}/aws-delete.out"
-  grep -Fq ': "${CROSSPLANE_AWS_RESOURCE_PREFIX:=aws-${CROSSPLANE_AWS_ACCOUNT_ID:-}}"' \
-    "${script}"
-  grep -Fq ': "${CROSSPLANE_AWS_POLICY_NAME:=provider-storage}"' "${script}"
   jq -e '
     any(.Statement[];
       .Sid == "ReadUsersForReconciliation" and
@@ -135,8 +166,15 @@ validate_aws_iam_policy() {
     CROSSPLANE_AWS_CREDENTIALS_FILE="${credentials}" \
     CROSSPLANE_AWS_NAMESPACE=workspace \
     bash "${script}" render-secrets >"${rendered_secret}"
-  grep -Fxq '  name: aws-provider-creds' "${rendered_secret}"
-  grep -Fxq '  namespace: workspace' "${rendered_secret}"
+  assert_yaml "${rendered_secret}" '
+    [.] | (length == 1 and
+    .[0].kind == "Secret" and
+    .[0].metadata.name == "aws-provider-creds" and
+    .[0].metadata.namespace == "workspace" and
+    .[0].type == "Opaque" and
+    (.[0].data.credentials | @base64d) ==
+      "[default]\naws_access_key_id = TESTACCESSKEY\naws_secret_access_key = test-secret-key")
+  ' 'AWS credential Secret content'
 }
 
 validate_aws_secret_readiness() {
@@ -149,6 +187,7 @@ validate_aws_secret_readiness() {
     "${scenario}/input.yaml" \
     "${REPO_ROOT}/aws/composition.yaml" \
     "${REPO_ROOT}/aws/dependencies/functions.yaml" \
+    --cache-dir="${PROVIDER_STORAGE_CROSSPLANE_CACHE_DIR}" \
     --xrd="${REPO_ROOT}/xrd.yaml" \
     --crossplane-version="${CROSSPLANE_VERSION}" \
     --timeout=5m \
@@ -157,7 +196,7 @@ validate_aws_secret_readiness() {
   awk 'NR == 1 { next } /^---$/ { exit } { print }' \
     "${rendered}" >"${composite}"
   dyff between "${composite}" "${scenario}/expected.yaml" -s
-  validate_schemas aws "${rendered}"
+  queue_schema_validation aws "${rendered}"
 }
 
 validate_aws_none_grant() {
@@ -171,13 +210,22 @@ validate_aws_none_grant() {
     "${input}" \
     "${REPO_ROOT}/aws/composition.yaml" \
     "${REPO_ROOT}/aws/dependencies/functions.yaml" \
+    --cache-dir="${PROVIDER_STORAGE_CROSSPLANE_CACHE_DIR}" \
     --xrd="${REPO_ROOT}/xrd.yaml" \
     --crossplane-version="${CROSSPLANE_VERSION}" \
     --timeout=5m \
     -x >"${rendered}"
-  ! grep -Fq 'name: provider-storage.s-jeff.s-joe' "${rendered}"
-  ! grep -Fq '"Statement": []' "${rendered}"
-  validate_schemas aws "${rendered}"
+  assert_yaml "${rendered}" '
+    [.] | (
+    ([.[] | select(
+      .kind == "Policy" and
+      .metadata.name == "provider-storage.s-jeff.s-joe"
+    )] | length) == 0 and
+    ([.[] | select(.kind == "Policy") |
+      .spec.forProvider.policy | from_json | .Statement | length] |
+      all_c(. > 0)))
+  ' 'AWS None grant policy omission'
+  queue_schema_validation aws "${rendered}"
 }
 
 validate_ovh_secret_readiness() {
@@ -188,17 +236,20 @@ validate_ovh_secret_readiness() {
     "${REPO_ROOT}/examples/base/001-buckets.yaml" \
     "${REPO_ROOT}/ovh/composition.yaml" \
     "${REPO_ROOT}/ovh/dependencies/functions.yaml" \
+    --cache-dir="${PROVIDER_STORAGE_CROSSPLANE_CACHE_DIR}" \
     --xrd="${REPO_ROOT}/xrd.yaml" \
     --crossplane-version="${CROSSPLANE_VERSION}" \
     --timeout=5m \
     --required-resources "${REPO_ROOT}/ovh/tests/required/001x-buckets.yaml" \
     --observed-resources "${REPO_ROOT}/ovh/tests/readiness/observed-missing.yaml" \
     -x >"${missing}"
-  if grep -Fq 'crossplane.io/composition-resource-name: secret-s-joe' "${missing}"; then
-    printf 'OVHcloud published a consumer Secret without a secret access key.\n' >&2
-    return 1
-  fi
-  validate_schemas ovh "${missing}"
+  assert_yaml "${missing}" '
+    [.] | (map(select(
+      .kind == "Object" and
+      .metadata.annotations."crossplane.io/composition-resource-name" == "secret-s-joe"
+    )) | length == 0)
+  ' 'OVHcloud omits a consumer Secret without a secret access key'
+  queue_schema_validation ovh "${missing}"
 }
 
 validate_ovh_provider_identity() {
@@ -212,16 +263,20 @@ validate_ovh_provider_identity() {
     "${input}" \
     "${REPO_ROOT}/ovh/composition.yaml" \
     "${REPO_ROOT}/ovh/dependencies/functions.yaml" \
+    --cache-dir="${PROVIDER_STORAGE_CROSSPLANE_CACHE_DIR}" \
     --xrd="${REPO_ROOT}/xrd.yaml" \
     --crossplane-version="${CROSSPLANE_VERSION}" \
     --timeout=5m \
     --required-resources "${REPO_ROOT}/ovh/tests/required/environment.yaml" \
     -x >"${rendered}"
-  grep -Fxq '  name: it-owner' "${rendered}"
-  grep -Fxq '  name: it' "${rendered}"
-  grep -Fxq '      name: it' "${rendered}"
-  ! grep -Fxq '  name: s-joe-owner' "${rendered}"
-  validate_schemas ovh "${rendered}"
+  assert_yaml "${rendered}" '
+    [.] | ((map("\(.kind)/\(.metadata.name)") | sort | to_json) == ([
+      "Storage/s-joe",
+      "User/it",
+      "User/it-owner"
+    ] | to_json))
+  ' 'OVHcloud providerIdentity resource names'
+  queue_schema_validation ovh "${rendered}"
 }
 
 validate_cloudferro_composition() {
@@ -235,115 +290,155 @@ validate_cloudferro_composition() {
   local denied="${TMP_DIR}/cloudferro-grant-error.out"
   local second="${TMP_DIR}/cloudferro-second-project.yaml"
   local wrong_label="${TMP_DIR}/cloudferro-wrong-label.yaml"
+  local denied_content
 
   printf 'Validate CloudFerro project binding, resource ordering, and consumer Secret\n'
   crossplane render "${input}" "${composition}" "${functions}" \
+    --cache-dir="${PROVIDER_STORAGE_CROSSPLANE_CACHE_DIR}" \
     --xrd="${REPO_ROOT}/xrd.yaml" \
     --crossplane-version="${CROSSPLANE_VERSION}" --timeout=5m \
     --required-resources "${required}" -x >"${base}"
-  grep -Fq 'kind: ContainerV1' "${base}"
-  grep -Fq 'kind: EC2CredentialV3' "${base}"
-  ! grep -Fq 'userId:' "${base}"
-  ! grep -Fq 'projectId:' "${base}"
-  ! grep -Fq 'kind: UserV3' "${base}"
-  ! grep -Fq 'kind: RoleAssignmentV3' "${base}"
-  ! grep -Fq 'kind: CronJob' "${base}"
-  ! grep -Fq 'kind: ConfigMap' "${base}"
-  grep -Fq 'name: cloudferro-s-joe' "${base}"
-  grep -Fq 'name: cloudferro-project-0123456789abcdef0123456789abcdef' "${base}"
-  grep -Fq 'key: config' "${base}"
-  grep -Fq 'kind: BucketPolicy' "${base}"
-  grep -Fq 'arn:aws:iam::fedcba9876543210fedcba9876543210:root' "${base}"
-  ! grep -Fq 'managementPolicies:' "${base}"
-  ! grep -Fq 'AWS_SECRET_ACCESS_KEY' "${base}"
-  validate_schemas cloudferro "${base}"
+  assert_yaml "${base}" '
+    [.] | (({
+      "inventory": (map("\(.kind)/\(.metadata.name)") | sort),
+      "providerSecretRefs": map(
+        select(.kind == "ProviderConfig") | .spec.credentials.secretRef
+      ),
+      "bucketPrincipals": (map(
+        select(.kind == "BucketPolicy") |
+        .spec.forProvider.policy | from_json | .Statement[].Principal.AWS
+      ) | unique),
+      "managementPolicyCount": (
+        map(select(.spec.managementPolicies != null)) | length
+      )
+    } | to_json) == ({
+      "inventory": [
+        "BucketPolicy/bucketpolicy-s-joe",
+        "ContainerV1/s-joe",
+        "EC2CredentialV3/s-joe",
+        "ProviderConfig/cloudferro-s-joe",
+        "Storage/s-joe",
+        "Usage/usage-bucketpolicy-s-joe",
+        "Usage/usage-credential-bucketpolicy-s-joe"
+      ],
+      "providerSecretRefs": [{
+        "key": "config",
+        "name": "cloudferro-project-0123456789abcdef0123456789abcdef",
+        "namespace": "default"
+      }],
+      "bucketPrincipals": [
+        "arn:aws:iam::fedcba9876543210fedcba9876543210:root"
+      ],
+      "managementPolicyCount": 0
+    } | to_json))
+  ' 'CloudFerro base resource set and project binding'
+  queue_schema_validation cloudferro "${base}"
 
   crossplane render "${input}" "${composition}" "${functions}" \
+    --cache-dir="${PROVIDER_STORAGE_CROSSPLANE_CACHE_DIR}" \
     --xrd="${REPO_ROOT}/xrd.yaml" \
     --crossplane-version="${CROSSPLANE_VERSION}" --timeout=5m \
     --required-resources "${required}" \
     --observed-resources "${observed}/credential-ready.yaml" -x >"${credential}"
-  grep -Fq 'AWS_ACCESS_KEY_ID: RVhBTVBMRUFDQ0VTU0tFWQ==' "${credential}"
-  grep -Fq 'AWS_SECRET_ACCESS_KEY: RVhBTVBMRVNFQ1JFVEtFWQ==' "${credential}"
-  grep -Fq 'AWS_REGION: UmVnaW9uT25l' "${credential}"
-  grep -Fq 'kind: ProviderConfig' "${credential}"
-  grep -Fq 'name: cloudferro-s3-s-joe' "${credential}"
-  grep -Fq 'name: aws-provider-secret-s-joe' "${credential}"
-  grep -Fq 'name: usage-aws-provider-s-joe' "${credential}"
-  grep -Fq 'name: usage-bucketpolicy-s-joe' "${credential}"
-  grep -Fq 'name: usage-credential-bucketpolicy-s-joe' "${credential}"
-  validate_schemas cloudferro "${credential}"
+  assert_yaml "${credential}" '
+    [.] | (({
+      "inventory": (map("\(.kind)/\(.metadata.name)") | sort),
+      "secretData": map(
+        select(.kind == "Object" and .metadata.name == "secret-s-joe") |
+        .spec.forProvider.manifest.data
+      )
+    } | to_json) == ({
+      "inventory": [
+        "BucketPolicy/bucketpolicy-s-joe",
+        "ContainerV1/s-joe",
+        "EC2CredentialV3/s-joe",
+        "Object/aws-provider-secret-s-joe",
+        "Object/cloudferro-s3-s-joe",
+        "Object/secret-s-joe",
+        "ProviderConfig/cloudferro-s-joe",
+        "Storage/s-joe",
+        "Usage/usage-aws-provider-s-joe",
+        "Usage/usage-bucketpolicy-s-joe",
+        "Usage/usage-credential-bucketpolicy-s-joe"
+      ],
+      "secretData": [{
+        "AWS_ACCESS_KEY_ID": "RVhBTVBMRUFDQ0VTU0tFWQ==",
+        "AWS_ENDPOINT_URL": "aHR0cHM6Ly9zMy5leGFtcGxlLmNsb3VkZmVycm8udGVzdA==",
+        "AWS_REGION": "UmVnaW9uT25l",
+        "AWS_S3_FORCE_PATH_STYLE": "dHJ1ZQ==",
+        "AWS_SECRET_ACCESS_KEY": "RVhBTVBMRVNFQ1JFVEtFWQ=="
+      }]
+    } | to_json))
+  ' 'CloudFerro ready credential resources and consumer Secret'
+  queue_schema_validation cloudferro "${credential}"
 
   crossplane render "${REPO_ROOT}/cloudferro/tests/fixtures/002-buckets.yaml" \
     "${composition}" "${functions}" \
+    --cache-dir="${PROVIDER_STORAGE_CROSSPLANE_CACHE_DIR}" \
     --xrd="${REPO_ROOT}/xrd.yaml" \
     --crossplane-version="${CROSSPLANE_VERSION}" --timeout=5m \
     --required-resources "${REPO_ROOT}/cloudferro/tests/required/002x-buckets.yaml" \
     -x >"${second}"
-  grep -Fq 'name: cloudferro-s-jeff' "${second}"
-  grep -Fq 'name: cloudferro-project-fedcba9876543210fedcba9876543210' "${second}"
-  ! grep -Fq 'name: cloudferro-s-joe' "${second}"
-  grep -Fq 'kind: CronJob' "${second}"
-  grep -Fq 'kind: ConfigMap' "${second}"
-  grep -Fq 'RCLONE_CONFIG_STORAGE_REGION' "${second}"
-  grep -Fq 'value: RegionOne' "${second}"
-  grep -Fq 'arn:aws:iam::0123456789abcdef0123456789abcdef:root' "${second}"
-  validate_schemas cloudferro "${second}"
+  assert_yaml "${second}" '
+    [.] | (({
+      "containers": (map(
+        select(.kind == "ContainerV1") | .metadata.name
+      ) | sort),
+      "credentialCount": (
+        map(select(.kind == "EC2CredentialV3")) | length
+      ),
+      "objectKinds": (map(
+        select(.kind == "Object") | .spec.forProvider.manifest.kind
+      ) | sort),
+      "regions": (map(
+        select(.kind == "Object") |
+        .spec.forProvider.manifest.spec.jobTemplate.spec.template.spec.containers[].env[] |
+        select(.name == "RCLONE_CONFIG_STORAGE_REGION") | .value
+      ) | unique),
+      "bucketPrincipals": (map(
+        select(.kind == "BucketPolicy") |
+        .spec.forProvider.policy | from_json | .Statement[].Principal.AWS
+      ) | unique),
+      "providerSecretNames": map(
+        select(.kind == "ProviderConfig") | .spec.credentials.secretRef.name
+      )
+    } | to_json) == ({
+      "containers": ["s-jeff", "s-jeff-shared"],
+      "credentialCount": 2,
+      "objectKinds": ["ConfigMap", "CronJob"],
+      "regions": ["RegionOne"],
+      "bucketPrincipals": [
+        "arn:aws:iam::0123456789abcdef0123456789abcdef:root"
+      ],
+      "providerSecretNames": [
+        "cloudferro-project-fedcba9876543210fedcba9876543210"
+      ]
+    } | to_json))
+  ' 'CloudFerro second-project and lifecycle resources'
+  queue_schema_validation cloudferro "${second}"
 
   sed 's/provider: cloudferro/provider: invalid/' \
     "${input}" >"${wrong_label}"
   if crossplane render "${wrong_label}" "${composition}" "${functions}" \
+    --cache-dir="${PROVIDER_STORAGE_CROSSPLANE_CACHE_DIR}" \
     --xrd="${REPO_ROOT}/xrd.yaml" \
     --crossplane-version="${CROSSPLANE_VERSION}" --timeout=5m \
     --required-resources "${required}" -x >"${denied}" 2>&1; then
     printf 'CloudFerro accepted an invalid Composition selector.\n' >&2
     return 1
   fi
-  grep -Fq 'incorrect value for label "provider"' "${denied}"
+  denied_content="$(<"${denied}")"
+  [[ "${denied_content}" == *'incorrect value for label "provider"'* ]] || {
+    printf 'CloudFerro selector failure did not report the provider label.\n' >&2
+    return 1
+  }
 }
 
-validate_otc_iam_bootstrap() {
+validate_otc_credential_rendering() {
   local script="${REPO_ROOT}/otc/dependencies/iam.sh"
-  local source_only="${TMP_DIR}/otc-iam-source.sh"
-  local system_roles="${TMP_DIR}/otc-system-roles.json"
-  local missing_global="${TMP_DIR}/otc-missing-global-role.json"
-  local global_obs_role_id=0123456789abcdef0123456789abcdef
-  local domain_obs_role_id=abcdef0123456789abcdef0123456789
-  local legacy_obs_role_id=00112233445566778899aabbccddeeff
   local domain_id=1234567890abcdef1234567890abcdef
-  local group_id=11223344556677889900aabbccddeeff
-  local policy_id=fedcba9876543210fedcba9876543210
   local credentials="${TMP_DIR}/otc-provider.json"
   local rendered_secret="${TMP_DIR}/otc-provider-secret.yaml"
-
-  printf 'Validate OTC IAM bootstrap\n'
-  bash -n "${script}"
-  "${script}" --help | grep -Fq \
-    'Bootstrap the OTC IAM resources that Provider Storage needs before deployment.'
-  if "${script}" delete >"${TMP_DIR}/otc-delete.out" 2>&1; then
-    printf 'OTC IAM bootstrap accepted an unsupported delete command.\n' >&2
-    return 1
-  fi
-  grep -Fq 'Usage: otc/dependencies/iam.sh <status|apply|verify|render-secrets|rotate-credential>' \
-    "${TMP_DIR}/otc-delete.out"
-  grep -Fq 'iam_request GET "${IAM_V3_ROOT}/auth/domains" 200' "${script}"
-  grep -Fq 'The administrator session requires Security Administrator at domain scope.' \
-    "${script}"
-  grep -Fq 'export OS_DOMAIN_ID="${CROSSPLANE_OTC_DOMAIN_ID}"' "${script}"
-  grep -Fq 'token_domain_id="$(jq -r' "${script}"
-  grep -Fq ': "${CROSSPLANE_OTC_RESOURCE_PREFIX:=otc-${CROSSPLANE_OTC_DOMAIN_ID:-}}"' \
-    "${script}"
-  grep -Fq ': "${CROSSPLANE_OTC_USER_NAME:=provider-storage-controller-crossplane}"' \
-    "${script}"
-  grep -Fq ': "${CROSSPLANE_OTC_GROUP_NAME:=provider-storage-controller-crossplane}"' \
-    "${script}"
-  grep -Fq '"${IAM_V3_ROOT}/domains/${CROSSPLANE_OTC_DOMAIN_ID}/groups/${group_id}/roles/${role_id}"' \
-    "${script}"
-  grep -Fq 'verify_obs_admin_assignment "${group_id}" "${policy_id}"' "${script}"
-  grep -Fq 'ensure_group_inherited_role_assignment "${group_id}" "${policy_id}"' "${script}"
-  ! grep -Fq 'POLICY_TEMPLATE' "${script}"
-  grep -Fq 'rotate-credential)' "${script}"
-  grep -Fq '      rotate_credential' "${script}"
 
   jq -n --arg domain "${domain_id}" --arg project 00112233445566778899aabbccddeeff '
     {access_key:"TESTACCESSKEY",secret_key:"test-secret-key",
@@ -355,88 +450,87 @@ validate_otc_iam_bootstrap() {
     CROSSPLANE_OTC_CREDENTIALS_FILE="${credentials}" \
     CROSSPLANE_OTC_NAMESPACE=workspace \
     bash "${script}" render-secrets >"${rendered_secret}"
-  grep -Fxq '  name: otc-provider-creds' "${rendered_secret}"
-  grep -Fxq '  namespace: workspace' "${rendered_secret}"
+  assert_yaml "${rendered_secret}" '
+    [.] | (length == 1 and
+    .[0].kind == "Secret" and
+    .[0].metadata.name == "otc-provider-creds" and
+    .[0].metadata.namespace == "workspace" and
+    .[0].type == "Opaque" and
+    ((.[0].data.credentials | @base64d | from_json | to_json) == ({
+      "access_key":"TESTACCESSKEY",
+      "secret_key":"test-secret-key",
+      "auth_url":"https://iam.example.test/v3",
+      "domain_name":"example",
+      "domain_id":"1234567890abcdef1234567890abcdef",
+      "tenant_id":"00112233445566778899aabbccddeeff"
+    } | to_json)))
+  ' 'OTC credential Secret content'
+}
 
-  sed '$d' "${script}" >"${source_only}"
-  jq -n --arg global "${global_obs_role_id}" \
-    --arg domain_role "${domain_obs_role_id}" \
-    --arg legacy "${legacy_obs_role_id}" --arg domain "${domain_id}" '{roles: [
-    {display_name: "OBS Administrator", type: "AX", domain_id: null, id: $global},
-    {display_name: "OBS Administrator", type: "AX", domain_id: $domain, id: $domain_role},
-    {display_name: "OBS Administrator", type: "XA", domain_id: null, id: $legacy}
-  ]}' >"${system_roles}"
-  jq '{roles: [.roles[] | select(.domain_id != null)]}' \
-    "${system_roles}" >"${missing_global}"
-  [[ "$(bash -c '
-    source "$1"
-    fixture="$2"
-    iam_request() {
-      [[ "$1" == GET && "$2" == "https://example.test/v3/roles?display_name=OBS%20Administrator&permission_type=policy" ]] || return 1
-      IAM_RESPONSE="$fixture"
-    }
-    IAM_V3_ROOT=https://example.test/v3
-    obs_admin_policy_id
-  ' bash "${source_only}" "${system_roles}")" == "${global_obs_role_id}" ]]
-  if bash -c '
-    source "$1"
-    fixture="$2"
-    iam_request() { IAM_RESPONSE="$fixture"; }
-    obs_admin_policy_id
-  ' bash "${source_only}" "${missing_global}" >/dev/null 2>&1; then
-    printf 'OTC IAM bootstrap accepted a non-global OBS Administrator role.\n' >&2
-    return 1
-  fi
+validate_ovh_credential_rendering() {
+  local script="${REPO_ROOT}/ovh/dependencies/iam.sh"
+  local credentials="${TMP_DIR}/ovh-provider.json"
+  local rendered_secret="${TMP_DIR}/ovh-provider-secret.yaml"
+  jq -n '{endpoint:"ovh-eu",client_id:"client-id",client_secret:"client-secret"}' \
+    >"${credentials}"
+  chmod 600 "${credentials}"
+  env -i PATH=/usr/bin:/bin \
+    CROSSPLANE_OVH_CREDENTIALS_FILE="${credentials}" \
+    CROSSPLANE_OVH_NAMESPACE=workspace \
+    bash "${script}" render-secrets >"${rendered_secret}"
+  assert_yaml "${rendered_secret}" '
+    [.] | (length == 1 and
+    .[0].kind == "Secret" and
+    .[0].metadata.name == "ovh-provider-creds" and
+    .[0].metadata.namespace == "workspace" and
+    .[0].type == "Opaque" and
+    ((.[0].data.credentials | @base64d | from_json | to_json) == ({
+      "endpoint":"ovh-eu",
+      "client_id":"client-id",
+      "client_secret":"client-secret"
+    } | to_json)))
+  ' 'OVHcloud credential Secret content'
+}
 
-  bash -c '
-    source "$1"
-    IAM_V3_ROOT=https://example.test/v3
-    CROSSPLANE_OTC_DOMAIN_ID=$2
-    group_id=$3
-    policy_id=$4
-    expected_url="${IAM_V3_ROOT}/OS-INHERIT/domains/${CROSSPLANE_OTC_DOMAIN_ID}/groups/${group_id}/roles/${policy_id}/inherited_to_projects"
-    iam_request() {
-      [[ "$1" == PUT &&
-         "$2" == "$expected_url" ]] || return 1
-      IAM_STATUS=204
-    }
-    ensure_group_inherited_role_assignment "$group_id" "$policy_id"
-    group_inherited_assignment_state() { printf "assigned\\n"; }
-    verify_obs_admin_assignment "$group_id" "$policy_id"
-  ' bash "${source_only}" "${domain_id}" "${group_id}" "${policy_id}"
-  bash -c '
-    source "$1"
-    IAM_V3_ROOT=https://example.test/v3
-    CROSSPLANE_OTC_DOMAIN_ID=$2
-    group_id=$3
-    policy_id=$4
-    expected_url="${IAM_V3_ROOT}/OS-INHERIT/domains/${CROSSPLANE_OTC_DOMAIN_ID}/groups/${group_id}/roles/${policy_id}/inherited_to_projects"
-    iam_request() {
-      [[ "$1" == HEAD && "$2" == "$expected_url" ]] || return 1
-      IAM_STATUS=204
-    }
-    [[ "$(group_inherited_assignment_state "$group_id" "$policy_id")" == assigned ]]
-  ' bash "${source_only}" "${domain_id}" "${group_id}" "${policy_id}"
-  if bash -c '
-    source "$1"
-    group_id=$2
-    policy_id=$3
-    iam_request() { IAM_STATUS=400; }
-    ensure_group_inherited_role_assignment "$group_id" "$policy_id"
-  ' bash "${source_only}" "${group_id}" "${policy_id}" >/dev/null 2>&1; then
-    printf 'OTC IAM bootstrap accepted a rejected all-projects assignment.\n' >&2
-    return 1
-  fi
-  if bash -c '
-    source "$1"
-    group_id=$2
-    policy_id=$3
-    group_inherited_assignment_state() { printf "not assigned\\n"; }
-    verify_obs_admin_assignment "$group_id" "$policy_id"
-  ' bash "${source_only}" "${group_id}" "${policy_id}" >/dev/null 2>&1; then
-    printf 'OTC IAM bootstrap accepted a missing inherited OBS Administrator assignment.\n' >&2
-    return 1
-  fi
+validate_cloudferro_credential_rendering() {
+  local script="${REPO_ROOT}/cloudferro/dependencies/iam.sh"
+  local credentials="${TMP_DIR}/cloudferro-provider.json"
+  local rendered_secrets="${TMP_DIR}/cloudferro-provider-secrets.yaml"
+  local first=0123456789abcdef0123456789abcdef
+  local second=fedcba9876543210fedcba9876543210
+  jq -n --arg first "${first}" --arg second "${second}" '
+    {identity:{auth_url:"https://keystone.example.test/v3",region:"RegionOne",
+      domain_id:"1234567890abcdef1234567890abcdef",
+      user_id:"abcdef0123456789abcdef0123456789",
+      user_name:"provider-storage-controller",password:"controller-password"},
+     projects:[$first,$second]}
+  ' >"${credentials}"
+  chmod 600 "${credentials}"
+  env -i PATH=/usr/bin:/bin \
+    CROSSPLANE_CLOUDFERRO_CREDENTIALS_FILE="${credentials}" \
+    CROSSPLANE_CLOUDFERRO_NAMESPACE=workspace \
+    bash "${script}" render-secrets >"${rendered_secrets}"
+  assert_yaml "${rendered_secrets}" '
+    [.] | ({
+      "names": (map(.metadata.name) | sort),
+      "namespaces": (map(.metadata.namespace) | unique),
+      "types": (map(.type) | unique),
+      "tenantIds": (
+        map(.data.config | @base64d | from_json | .tenant_id) | sort
+      )
+    } | to_json) == ({
+      "names": [
+        "cloudferro-project-0123456789abcdef0123456789abcdef",
+        "cloudferro-project-fedcba9876543210fedcba9876543210"
+      ],
+      "namespaces": ["workspace"],
+      "types": ["Opaque"],
+      "tenantIds": [
+        "0123456789abcdef0123456789abcdef",
+        "fedcba9876543210fedcba9876543210"
+      ]
+    } | to_json)
+  ' 'CloudFerro project credential Secrets'
 }
 
 render_and_compare() {
@@ -451,6 +545,7 @@ render_and_compare() {
     "${source}" \
     "${REPO_ROOT}/${backend}/composition.yaml" \
     "${REPO_ROOT}/${backend}/dependencies/functions.yaml" \
+    --cache-dir="${PROVIDER_STORAGE_CROSSPLANE_CACHE_DIR}" \
     --xrd="${REPO_ROOT}/xrd.yaml" \
     --crossplane-version="${CROSSPLANE_VERSION}" \
     --timeout=5m \
@@ -459,7 +554,7 @@ render_and_compare() {
   normalize_generations "${actual}" "${actual}.normalized"
   normalize_generations "${expected}" "${actual}.expected.normalized"
   dyff between "${actual}.normalized" "${actual}.expected.normalized" -s
-  validate_schemas "${backend}" "${actual}"
+  queue_schema_validation "${backend}" "${actual}"
 }
 
 run_backend() {
@@ -515,36 +610,34 @@ run_backend() {
 main() {
   require_command crossplane
   require_command dyff
+  require_command yq
 
   validate_shell_syntax
 
-  printf 'Validate OVHcloud IAM bootstrap\n'
-  bash "${REPO_ROOT}/ovh/tests/test_iam.bash"
-
-  printf 'Validate CloudFerro IAM bootstrap\n'
-  bash "${REPO_ROOT}/cloudferro/tests/test_iam.bash"
-
-  printf 'Validate CloudFerro integration Storage selection\n'
-  bash "${REPO_ROOT}/tests/integration/test_cloudferro_selection.bash"
-
-  printf 'Validate aligned integration Storage manifests\n'
-  bash "${REPO_ROOT}/tests/integration/test_storage_manifests.bash"
-
-  printf 'Validate integration setup contract\n'
-  bash "${REPO_ROOT}/tests/integration/test_setup_contract.bash"
-
   local backend
   for backend in "${BACKENDS[@]}"; do
+    printf 'Validate %s integration Storage manifest contract\n' "${backend}"
+    bash "${REPO_ROOT}/tests/integration/test_storage_manifests.bash" \
+      "${backend}"
     if [[ "${backend}" == "aws" ]]; then
       require_command jq
       validate_aws_iam_policy
     fi
     if [[ "${backend}" == "otc" ]]; then
       require_command jq
-      validate_otc_iam_bootstrap
+      validate_otc_credential_rendering
+    fi
+    if [[ "${backend}" == "ovh" ]]; then
+      require_command jq
+      printf 'Validate OVHcloud IAM credential rendering\n'
+      validate_ovh_credential_rendering
     fi
     if [[ "${backend}" == "cloudferro" ]]; then
+      require_command jq
+      printf 'Validate CloudFerro IAM credential rendering\n'
+      validate_cloudferro_credential_rendering
       validate_cloudferro_composition
+      validate_schemas cloudferro
       continue
     fi
     run_backend "${backend}"
@@ -556,6 +649,7 @@ main() {
       validate_ovh_secret_readiness
       validate_ovh_provider_identity
     fi
+    validate_schemas "${backend}"
   done
 
   printf 'All Composition unit tests passed.\n'

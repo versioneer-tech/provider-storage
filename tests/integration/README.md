@@ -92,7 +92,7 @@ label and an explicit Crossplane composition selector.
 
 ## Run the tests
 
-Install Docker, Kind, kubectl, Helm, Crossplane CLI, dyff, and jq.
+Install Docker, Kind, kubectl, Helm, Crossplane CLI, dyff, yq, and jq.
 
 ### 1. Run the unit tests
 
@@ -325,7 +325,7 @@ Use an active project- or domain-scoped CREODIAS `v3token` shell login.
 This login needs permission to create a user in the project domain and assign
 the configured member role in each selected project.
 For a project-scoped login, the bootstrap re-scopes the token to the configured
-domain for user operations and to each selected project for role assignments.
+domain for project discovery, user operations, and role assignments.
 For a domain-scoped login, use `OS_DOMAIN_ID` instead of
 `OS_PROJECT_DOMAIN_ID` below.
 
