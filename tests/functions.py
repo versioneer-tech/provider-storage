@@ -1,0 +1,499 @@
+# Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+"""Composition regressions run by function-runtime.py in the SDK container."""
+
+import base64
+import json
+import unittest
+from datetime import datetime, timezone
+from unittest.mock import Mock
+
+
+def encoded(value):
+    return base64.b64encode(value.encode()).decode()
+
+
+def run_tests(pipelines):
+    from crossplane.function import response
+    from crossplane.function.proto.v1 import run_function_pb2 as fnv1
+    from google.protobuf.json_format import MessageToDict
+
+    principal = "test-consumer"
+    secret_key = f"secret-{principal}"
+    old_data = {
+        "AWS_ACCESS_KEY_ID": encoded("test-old-access"),
+        "AWS_SECRET_ACCESS_KEY": encoded("test-old-secret"),
+        "AWS_ENDPOINT_URL": encoded("https://old.example.test"),
+    }
+    old_secret = {
+        "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
+        "kind": "Object",
+        "metadata": {
+            "name": secret_key,
+            "namespace": "test-space",
+            "uid": "test-stable-uid",
+            "resourceVersion": "1",
+        },
+        "spec": {
+            "forProvider": {
+                "manifest": {
+                    "apiVersion": "v1",
+                    "kind": "Secret",
+                    "metadata": {"name": principal, "namespace": "test-space"},
+                    "type": "Opaque",
+                    "data": old_data,
+                }
+            },
+            "providerConfigRef": {
+                "name": "provider-kubernetes",
+                "kind": "ProviderConfig",
+            },
+        },
+        "status": {"conditions": [{"type": "Ready", "status": "True"}]},
+    }
+
+    def request(backend, phase="missing", previous=None):
+        req = fnv1.RunFunctionRequest()
+        req.observed.composite.resource.update(
+            {
+                "metadata": {"name": "test-storage", "namespace": "test-space"},
+                "spec": {"principal": principal, "buckets": []},
+            }
+        )
+        req.context.update(
+            {
+                "apiextensions.crossplane.io/environment": {
+                    "storage": {
+                        "endpoint": "https://new.example.test",
+                        "region": "RegionOne",
+                        "s3Region": "RegionOne",
+                        "force_path_style": "true",
+                    }
+                },
+                "storages.pkg.internal/credential-time": "2026-11-13T12:00:00+00:00",
+                "storages.pkg.internal/credential-generations": [""],
+            }
+        )
+        for key, body in (previous or {}).items():
+            req.observed.resources[key].resource.update(body)
+        if phase == "missing":
+            return req
+        data = {"AWS_ACCESS_KEY_ID": encoded("test-new-access")}
+        if phase == "ready":
+            data["AWS_SECRET_ACCESS_KEY"] = encoded("test-new-secret")
+        if backend == "ovh":
+            req.observed.resources[f"user-{principal}"].resource.update(
+                {
+                    "status": {
+                        "atProvider": {"id": "12"},
+                        "conditions": [{"type": "Ready", "status": "True"}],
+                    }
+                }
+            )
+            req.observed.resources[f"credentials-{principal}-u12"].resource.update(
+                {"status": {"atProvider": {"accessKeyId": "test-new-access"}}}
+            )
+            data = {"access_key_id": data["AWS_ACCESS_KEY_ID"]} | (
+                {"attribute.secret_access_key": data["AWS_SECRET_ACCESS_KEY"]}
+                if phase == "ready"
+                else {}
+            )
+            observer = f"observe-secret-{principal}-u12"
+        elif backend == "cloudferro":
+            req.observed.resources[f"credentials-{principal}"].resource.update(
+                {"status": {"atProvider": {"access": "test-new-access"}}}
+            )
+            req.required_resources[
+                f"credential-secret-{principal}"
+            ].items.add().resource.update(
+                {
+                    "data": {"attribute.secret": encoded("test-new-secret")}
+                    if phase == "ready"
+                    else {}
+                }
+            )
+            return req
+        else:
+            observer = f"observe-secret-{principal}"
+        data["provider_token"] = encoded("test-unused-token")
+        req.observed.resources[observer].resource.update(
+            {"status": {"atProvider": {"manifest": {"data": data}}}}
+        )
+        return req
+
+    def compose(backend, step_name, req, clock=None):
+        step = next(step for step in pipelines[backend] if step["step"] == step_name)
+        script = step["input"]["script"]
+        req.input.update(step["input"])
+        scope = {}
+        exec(compile(script, backend, "exec"), scope)
+        if clock is not None:
+            scope["datetime"] = clock
+        rsp = response.to(req)
+        scope["compose"](req, rsp)
+        return rsp
+
+    def publish(backend, req):
+        step = (
+            "publish-current-secret"
+            if backend in ("ovh", "cloudferro")
+            else "manage-current-secret"
+        )
+        return compose(backend, step, req)
+
+    def lifecycle_request(backend, config):
+        req = request(backend)
+        req.observed.composite.resource["spec"].update(
+            {
+                "buckets": [
+                    {
+                        "bucketName": "test-bucket",
+                        "lifecycleRules": [
+                            {"target": "tmp/*", "mode": "Delete", "minAge": "1h"}
+                        ],
+                    }
+                ]
+            }
+        )
+        req.context["apiextensions.crossplane.io/environment"]["storage"].update(
+            {"lifecycle": config}
+        )
+        return req
+
+    def body(rsp, key=secret_key):
+        return MessageToDict(rsp.desired.resources[key].resource)
+
+    class CompositionTests(unittest.TestCase):
+        def test_ovh_publication_uses_the_resource_steps_numeric_user_id(self):
+            if "ovh" not in pipelines:
+                self.skipTest("OVHcloud pipeline not selected")
+            for user_id, publishable in (
+                ("0012", True),
+                ("0", False),
+                ("9007199254740992", False),
+            ):
+                with self.subTest(user_id=user_id):
+                    req = request("ovh", "ready")
+                    req.observed.resources[f"user-{principal}"].resource["status"][
+                        "atProvider"
+                    ]["id"] = user_id
+                    rsp = publish("ovh", req)
+                    self.assertEqual(secret_key in rsp.desired.resources, publishable)
+
+        def test_initial_incomplete_credentials_publish_no_secret(self):
+            for backend in pipelines:
+                for phase in ("missing", "partial"):
+                    with self.subTest(backend=backend, phase=phase):
+                        rsp = publish(backend, request(backend, phase))
+                        self.assertNotIn(secret_key, rsp.desired.resources)
+
+        def test_existing_secret_stays_desired_until_replacement_is_complete(self):
+            for backend in pipelines:
+                for phase in ("missing", "partial"):
+                    with self.subTest(backend=backend, phase=phase):
+                        rsp = publish(
+                            backend, request(backend, phase, {secret_key: old_secret})
+                        )
+                        self.assertEqual(body(rsp)["spec"], old_secret["spec"])
+                        self.assertNotIn("uid", body(rsp)["metadata"])
+                        self.assertNotIn("status", body(rsp))
+                        self.assertEqual(
+                            rsp.desired.resources[secret_key].ready, fnv1.READY_FALSE
+                        )
+
+        def test_complete_replacement_updates_only_consumer_keys(self):
+            for backend in pipelines:
+                with self.subTest(backend=backend):
+                    rsp = publish(
+                        backend, request(backend, "ready", {secret_key: old_secret})
+                    )
+                    data = body(rsp)["spec"]["forProvider"]["manifest"]["data"]
+                    self.assertEqual(
+                        data["AWS_ACCESS_KEY_ID"], encoded("test-new-access")
+                    )
+                    self.assertEqual(
+                        data["AWS_SECRET_ACCESS_KEY"], encoded("test-new-secret")
+                    )
+                    self.assertEqual(
+                        data["AWS_ENDPOINT_URL"], encoded("https://new.example.test")
+                    )
+                    self.assertNotIn("provider_token", data)
+                    self.assertNotEqual(
+                        rsp.desired.resources[secret_key].ready, fnv1.READY_FALSE
+                    )
+
+        @unittest.skipUnless("cloudferro" in pipelines, "CloudFerro was not selected")
+        def test_cloudferro_keeps_policy_provider_during_handover(self):
+            initial = publish("cloudferro", request("cloudferro", "ready"))
+            previous = {
+                key: MessageToDict(value.resource)
+                for key, value in initial.desired.resources.items()
+            }
+            pending = publish("cloudferro", request("cloudferro", previous=previous))
+            self.assertEqual(set(pending.desired.resources), set(previous))
+            for key in previous:
+                self.assertEqual(body(pending, key)["spec"], previous[key]["spec"])
+
+        @unittest.skipUnless("otc" in pipelines, "OTC was not selected")
+        def test_otc_policy_includes_retained_ids_and_omits_expired_or_revoked_ids(
+            self,
+        ):
+            req = request("otc")
+            xr = MessageToDict(req.observed.composite.resource)
+            xr["spec"].update(
+                credentialsRollover={"interval": "daily", "maxToKeep": 2},
+                buckets=[{"bucketName": "test-bucket"}],
+                bucketAccessGrants=[
+                    {
+                        "bucketName": "test-bucket",
+                        "grantee": "test-reader",
+                        "permission": "ReadOnly",
+                    }
+                ],
+            )
+            req.observed.composite.resource.update(xr)
+            peer = {
+                "metadata": {"name": "test-reader-storage", "namespace": "test-space"},
+                "spec": {
+                    "principal": "test-reader",
+                    "providerIdentity": "test-short-reader",
+                    "credentialsRollover": {"interval": "daily", "maxToKeep": 2},
+                },
+            }
+
+            def prepare():
+                req.desired.Clear()
+                del req.context["storages.pkg.internal/credential-generations"]
+                req.required_resources["grantee-storages"].Clear()
+                req.required_resources["grantee-storages"].items.add().resource.update(
+                    peer
+                )
+                for step in (
+                    "load-storage-environment",
+                    "create-users",
+                    "observe-grantee-users-and-current-credential",
+                ):
+                    rsp = compose("otc", step, req)
+                    req.desired.CopyFrom(rsp.desired)
+                    req.context.CopyFrom(rsp.context)
+
+            prepare()
+            expected = set()
+            for prefix, role in (("user-", "owner"), ("observe-user-", "reader")):
+                keys = sorted(
+                    key for key in req.desired.resources if key.startswith(prefix)
+                )
+                self.assertEqual(len(keys), 2)
+                for index, key in enumerate(keys):
+                    identity = f"test-{role}-{index}"
+                    req.observed.resources[key].resource.update(
+                        {
+                            "status": {
+                                "atProvider": {
+                                    "id": identity,
+                                    "domainId": "test-domain",
+                                }
+                            }
+                        }
+                    )
+                    expected.add(f"domain/test-domain:user/{identity}")
+                    if role == "reader":
+                        manifest = MessageToDict(req.desired.resources[key].resource)[
+                            "spec"
+                        ]["forProvider"]["manifest"]
+                        self.assertTrue(
+                            manifest["metadata"]["name"].startswith(
+                                "provider-storage-managed-test-short-reader-"
+                            )
+                        )
+
+            def allowed_ids():
+                rsp = compose("otc", "create-bucket-policies", req)
+                policy = json.loads(
+                    body(rsp, "bucketpolicy-test-bucket")["spec"]["forProvider"][
+                        "manifest"
+                    ]["spec"]["forProvider"]["policy"]
+                )
+                for statement in policy["Statement"]:
+                    if any(
+                        "reader" in identity
+                        for identity in statement["Principal"]["ID"]
+                    ):
+                        self.assertFalse(
+                            {"PutObject", "DeleteObject"} & set(statement["Action"])
+                        )
+                return {
+                    identity
+                    for statement in policy["Statement"]
+                    for identity in statement["Principal"]["ID"]
+                }
+
+            self.assertEqual(allowed_ids(), expected)
+            xr["spec"]["credentialsRollover"]["maxToKeep"] = 1
+            peer["spec"]["credentialsRollover"]["maxToKeep"] = 1
+            req.observed.composite.resource.update(xr)
+            prepare()
+            self.assertEqual(
+                allowed_ids(),
+                {
+                    "domain/test-domain:user/test-owner-1",
+                    "domain/test-domain:user/test-reader-1",
+                },
+            )
+            for grants in (
+                [dict(xr["spec"]["bucketAccessGrants"][0], permission="None")],
+                [],
+            ):
+                xr["spec"]["bucketAccessGrants"] = grants
+                req.observed.composite.resource.update(xr)
+                prepare()
+                self.assertEqual(
+                    allowed_ids(), {"domain/test-domain:user/test-owner-1"}
+                )
+
+        def test_generation_time_stays_fixed_across_a_period_boundary(self):
+            for backend in pipelines:
+                with self.subTest(backend=backend):
+                    req = request(backend)
+                    req.context.Clear()
+                    req.observed.composite.resource["metadata"].update(
+                        {
+                            "annotations": {
+                                "storages.pkg.internal/cloudferro-project-id": "0123456789abcdef0123456789abcdef"
+                            }
+                        }
+                    )
+                    req.observed.composite.resource["spec"].update(
+                        {
+                            "credentialsRollover": {
+                                "interval": "daily",
+                                "maxToKeep": 2,
+                            },
+                            "crossplane": {
+                                "compositionSelector": {
+                                    "matchLabels": {"provider": backend}
+                                }
+                            },
+                        }
+                    )
+                    req.required_resources[
+                        "storage-environment"
+                    ].items.add().resource.update(
+                        {
+                            "data": {
+                                "storage": {
+                                    "endpoint": "https://s3.example.test",
+                                    "region": "RegionOne",
+                                    "s3Region": "RegionOne",
+                                    "serviceName": "test-project",
+                                    "force_path_style": "true",
+                                }
+                            }
+                        }
+                    )
+                    clock = Mock(wraps=datetime)
+                    clock.now.side_effect = [
+                        datetime(2026, 12, 31, 23, 59, 59, tzinfo=timezone.utc),
+                        datetime(2027, 1, 1, tzinfo=timezone.utc),
+                    ]
+                    clock.fromisoformat.side_effect = datetime.fromisoformat
+                    for _ in range(2):
+                        rsp = compose(backend, "load-storage-environment", req, clock)
+                        req.context.CopyFrom(rsp.context)
+                    self.assertEqual(clock.now.call_count, 1)
+                    for step in pipelines[backend][1:]:
+                        if step["input"]["kind"] != "Script":
+                            continue
+                        rsp = compose(backend, step["step"], req)
+                        req.desired.CopyFrom(rsp.desired)
+                        req.context.CopyFrom(rsp.context)
+                    names = " ".join(req.desired.resources)
+                    self.assertIn("20261231", names)
+                    self.assertIn("20261230", names)
+                    self.assertNotIn("20270101", names)
+
+        def test_generation_intervals_cross_calendar_boundaries(self):
+            expected = {
+                "daily": ["-20270101", "-20261231"],
+                "weekly": ["-2026w53", "-2026w52"],
+                "monthly": ["-202701", "-202612"],
+                "quarterly": ["-2027q1", "-2026q4"],
+                "yearly": ["-2027", "-2026"],
+                "none": [""],
+            }
+            for interval, suffixes in expected.items():
+                with self.subTest(interval=interval):
+                    backend = next(iter(pipelines))
+                    req = request(backend)
+                    req.context.Clear()
+                    req.observed.composite.resource["spec"].update(
+                        {
+                            "credentialsRollover": {
+                                "interval": interval,
+                                "maxToKeep": 1 if interval == "none" else 2,
+                            }
+                        }
+                    )
+                    clock = Mock(wraps=datetime)
+                    clock.now.return_value = datetime(2027, 1, 1, tzinfo=timezone.utc)
+                    clock.fromisoformat.side_effect = datetime.fromisoformat
+                    rsp = compose(backend, "load-storage-environment", req, clock)
+                    self.assertEqual(
+                        MessageToDict(rsp.context)[
+                            "storages.pkg.internal/credential-generations"
+                        ],
+                        suffixes,
+                    )
+
+        def test_lifecycle_has_a_deadline_and_finite_retries(self):
+            for backend in pipelines:
+                for config, deadline, retries in (
+                    ({}, 3600, 2),
+                    ({"activeDeadlineSeconds": 120, "backoffLimit": 0}, 120, 0),
+                ):
+                    with self.subTest(backend=backend, config=config):
+                        req = lifecycle_request(backend, config)
+                        rsp = compose(backend, "manage-lifecycle-rules", req)
+                        job = body(rsp, f"lifecycle-cron-{principal}")["spec"][
+                            "forProvider"
+                        ]["manifest"]["spec"]
+                        self.assertEqual(job["concurrencyPolicy"], "Forbid")
+                        self.assertEqual(
+                            job["jobTemplate"]["spec"]["activeDeadlineSeconds"],
+                            deadline,
+                        )
+                        self.assertEqual(
+                            job["jobTemplate"]["spec"]["backoffLimit"], retries
+                        )
+                        self.assertEqual(
+                            job["jobTemplate"]["spec"]["template"]["spec"][
+                                "restartPolicy"
+                            ],
+                            "Never",
+                        )
+
+        def test_invalid_lifecycle_bounds_fail_without_creating_jobs(self):
+            for field, values in (
+                ("activeDeadlineSeconds", (0, -1, 86401, 1.5, True, "60")),
+                ("backoffLimit", (-1, 11, 1.5, True, "2")),
+            ):
+                for value in values:
+                    with self.subTest(field=field, value=value):
+                        backend = next(iter(pipelines))
+                        req = lifecycle_request(backend, {field: value})
+                        rsp = compose(backend, "manage-lifecycle-rules", req)
+                        self.assertTrue(
+                            any(
+                                result.severity == fnv1.SEVERITY_FATAL
+                                for result in rsp.results
+                            )
+                        )
+                        self.assertNotIn(
+                            f"lifecycle-cron-{principal}", rsp.desired.resources
+                        )
+
+    result = unittest.TextTestRunner(verbosity=2).run(
+        unittest.defaultTestLoader.loadTestsFromTestCase(CompositionTests)
+    )
+    return 0 if result.wasSuccessful() else 1

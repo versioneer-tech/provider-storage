@@ -19,7 +19,7 @@ spec:
     input:
       apiVersion: python.fn.crossplane.io/v1beta1
       kind: Script
-      scriptFile: cloudferro/load-storage-environment.py
+      scriptFile: shared/load-storage-environment.py
   - step: create-project-resources
     functionRef:
       name: crossplane-contrib-function-python

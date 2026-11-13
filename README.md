@@ -30,6 +30,8 @@ spec:
 The consumer Secret is named `alice` in `workspace`. Applications use this
 Secret for S3 access. Platform operators configure the backend and its
 controller credentials before users create Storage resources.
+During credential replacement, Provider Storage keeps the previous consumer
+Secret until both replacement keys are available.
 
 ## Get started
 

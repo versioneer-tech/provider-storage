@@ -15,13 +15,18 @@ identity, and access resources.
 
 ## Backend limits
 
+Storage namespaces separate Kubernetes objects. The API does not enforce
+which backend, environment, principal, or CloudFerro project a tenant can
+select. Deployments need admission and RBAC rules for these choices.
+
 OVHcloud uses a separate, stable project user as the bucket owner. Consumer
 credential users can rotate without a change to the bucket owner ID.
 Each credential user has one combined S3 policy.
 
 OTC must observe grantee user IDs before it can build bucket policies.
 It resolves each grantee through a discoverable peer Storage and observes
-that peer's current credential user.
+each of that peer's retained credential users. Policies include the observed
+retained owner and grantee identities and omit expired generations.
 
 CloudFerro uses the project in the
 `storages.pkg.internal/cloudferro-project-id` annotation. The Composition

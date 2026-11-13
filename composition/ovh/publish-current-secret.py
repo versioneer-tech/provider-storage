@@ -3,22 +3,17 @@
 
 from crossplane.function.proto.v1 import run_function_pb2 as fnv1
 
-from composition.helpers import current_suffix, decoded, encoded, to_dict
+from composition.helpers import (
+    credential_suffixes,
+    decoded,
+    encoded,
+    publish_consumer_secret,
+    ready_user_id,
+    retain_resources,
+    to_dict,
+)
 
 ENVIRONMENT_KEY = "apiextensions.crossplane.io/environment"
-
-
-def ready_user_id(observed, key):
-    item = observed.get(key)
-    if item is None or not getattr(item, "resource", None):
-        return None
-    data = to_dict(item.resource)
-    ready = any(
-        condition.get("type") == "Ready" and condition.get("status") == "True"
-        for condition in ((data.get("status") or {}).get("conditions") or [])
-    )
-    value = ((data.get("status") or {}).get("atProvider") or {}).get("id")
-    return value if ready and isinstance(value, str) and value.isdecimal() else None
 
 
 def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
@@ -27,7 +22,8 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
     spec = xr.get("spec") or {}
     namespace = metadata.get("namespace") or "default"
     principal = (spec.get("principal") or metadata.get("name") or "").strip()
-    generation = f"{principal}{current_suffix(spec)}"
+    retain_resources(req, rsp, [f"secret-{principal}"])
+    generation = f"{principal}{credential_suffixes(req)[0]}"
     context = to_dict(req.context)
     storage_env = (context.get(ENVIRONMENT_KEY) or {}).get("storage") or {}
     endpoint = (storage_env.get("endpoint") or "").strip()
@@ -73,31 +69,5 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
         "AWS_REGION": encoded(region),
         "AWS_S3_FORCE_PATH_STYLE": encoded(str(force_path_style).lower()),
     }
-    key = f"secret-{principal}"
-    rsp.desired.resources[key].resource.update(
-        {
-            "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
-            "kind": "Object",
-            "metadata": {
-                "name": key,
-                "namespace": namespace,
-                "annotations": {"crossplane.io/composition-resource-name": key},
-            },
-            "spec": {
-                "forProvider": {
-                    "manifest": {
-                        "apiVersion": "v1",
-                        "kind": "Secret",
-                        "metadata": {"name": principal, "namespace": namespace},
-                        "type": "Opaque",
-                        "data": data,
-                    }
-                },
-                "providerConfigRef": {
-                    "name": "provider-kubernetes",
-                    "kind": "ProviderConfig",
-                },
-            },
-        }
-    )
+    publish_consumer_secret(rsp, principal, namespace, data)
     rsp.desired.resources[observer_key].ready = fnv1.READY_TRUE

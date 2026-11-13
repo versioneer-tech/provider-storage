@@ -1,10 +1,12 @@
 # Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
 # SPDX-License-Identifier: Apache-2.0
 
+from datetime import datetime, timezone
+
 from crossplane.function import request, resource, response
 from crossplane.function.proto.v1 import run_function_pb2 as fnv1
 
-from composition.helpers import to_dict
+from composition.helpers import rollover_suffixes, to_dict
 
 ENVIRONMENT_KEY = "apiextensions.crossplane.io/environment"
 
@@ -14,6 +16,16 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
     meta = xr.get("metadata", {}) or {}
     annotations = meta.get("annotations", {}) or {}
     labels = meta.get("labels", {}) or {}
+    context = to_dict(req.context)
+    time_key = "storages.pkg.internal/credential-time"
+    generations_key = "storages.pkg.internal/credential-generations"
+    timestamp = context.get(time_key) or datetime.now(timezone.utc).isoformat()
+    suffixes = context.get(generations_key) or rollover_suffixes(
+        xr.get("spec") or {}, datetime.fromisoformat(timestamp)
+    )
+    rsp.context.MergeFrom(
+        resource.dict_to_struct({time_key: timestamp, generations_key: suffixes})
+    )
     env_name = (
         annotations.get("storages.pkg.internal/environment")
         or labels.get("storages.pkg.internal/environment")

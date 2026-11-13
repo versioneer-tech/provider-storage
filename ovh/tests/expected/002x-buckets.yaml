@@ -142,6 +142,8 @@ spec:
         failedJobsHistoryLimit: 1
         jobTemplate:
           spec:
+            activeDeadlineSeconds: 3600
+            backoffLimit: 2
             template:
               spec:
                 automountServiceAccountToken: false
@@ -256,7 +258,7 @@ spec:
                     subPath: rule-02.sh
                   - mountPath: /tmp
                     name: scratch
-                restartPolicy: OnFailure
+                restartPolicy: Never
                 securityContext:
                   fsGroup: 1000
                   runAsGroup: 1000

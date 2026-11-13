@@ -5,7 +5,10 @@ import json
 
 from crossplane.function.proto.v1 import run_function_pb2 as fnv1
 
-from composition.helpers import to_dict
+from composition.helpers import (
+    kubernetes_object,
+    to_dict,
+)
 
 
 def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
@@ -38,30 +41,17 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
         )
 
         rsp.desired.resources[key].resource.update(
-            {
-                "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
-                "kind": "Object",
-                "metadata": {
-                    "name": key,
-                    "namespace": ns,
-                    "annotations": {"crossplane.io/composition-resource-name": key},
-                },
-                "spec": {
-                    "forProvider": {
-                        "manifest": {
-                            "apiVersion": "minio.crossplane.io/v1",
-                            "kind": "Policy",
-                            "metadata": {"name": polname},
-                            "spec": {
-                                "forProvider": {"rawPolicy": raw},
-                                "providerConfigRef": {"name": "provider-minio"},
-                            },
-                        }
-                    },
-                    "providerConfigRef": {
-                        "name": "provider-kubernetes",
-                        "kind": "ProviderConfig",
+            kubernetes_object(
+                key,
+                ns,
+                {
+                    "apiVersion": "minio.crossplane.io/v1",
+                    "kind": "Policy",
+                    "metadata": {"name": polname},
+                    "spec": {
+                        "forProvider": {"rawPolicy": raw},
+                        "providerConfigRef": {"name": "provider-minio"},
                     },
                 },
-            }
+            )
         )

@@ -1,15 +1,13 @@
 # Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
 # SPDX-License-Identifier: Apache-2.0
 
-from datetime import datetime, timezone
-
 from crossplane.function import request, response
 from crossplane.function.proto.v1 import run_function_pb2 as fnv1
 
 from composition.helpers import (
     _bucket_grants_access,
-    _get_rollover,
-    _suffixes,
+    credential_suffixes,
+    kubernetes_object,
     to_dict,
 )
 
@@ -58,9 +56,7 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
         if granted:
             policies.append(f"provider-storage.{principal}.{bucket}")
 
-    interval, max_to_keep = _get_rollover(spec)
-    now = datetime.now(timezone.utc)
-    suffixes = _suffixes(now, interval, max_to_keep)
+    suffixes = credential_suffixes(req)
 
     for suf in suffixes:
         user_name = f"provider-storage-managed-{provider_identity}{suf}"
@@ -68,43 +64,23 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
         connection_secret_name = resource_name if suf else f"{principal}-credentials"
         key = f"user-{resource_name}"
         rsp.desired.resources[key].resource.update(
-            {
-                "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
-                "kind": "Object",
-                "metadata": {
-                    "name": key,
-                    "namespace": ns,
-                    "annotations": {
-                        "crossplane.io/composition-resource-name": key,
+            kubernetes_object(
+                key,
+                ns,
+                {
+                    "apiVersion": "minio.crossplane.io/v1",
+                    "kind": "User",
+                    "metadata": {"name": user_name},
+                    "spec": {
+                        "forProvider": {"userName": user_name, "policies": policies},
+                        "providerConfigRef": {"name": "provider-minio"},
+                        "writeConnectionSecretToRef": {
+                            "name": connection_secret_name,
+                            "namespace": ns,
+                        },
                     },
                 },
-                "spec": {
-                    "forProvider": {
-                        "manifest": {
-                            "apiVersion": "minio.crossplane.io/v1",
-                            "kind": "User",
-                            "metadata": {
-                                "name": user_name,
-                            },
-                            "spec": {
-                                "forProvider": {
-                                    "userName": user_name,
-                                    "policies": policies,
-                                },
-                                "providerConfigRef": {"name": "provider-minio"},
-                                "writeConnectionSecretToRef": {
-                                    "name": connection_secret_name,
-                                    "namespace": ns,
-                                },
-                            },
-                        }
-                    },
-                    "providerConfigRef": {
-                        "name": "provider-kubernetes",
-                        "kind": "ProviderConfig",
-                    },
-                },
-            }
+            )
         )
 
     current_user_name = f"{principal}{suffixes[0] if suffixes else ''}"
@@ -114,32 +90,14 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
     obs_key = f"observe-secret-{principal}"
     rsp.desired.resources[obs_key].ready = fnv1.READY_TRUE
     rsp.desired.resources[obs_key].resource.update(
-        {
-            "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
-            "kind": "Object",
-            "metadata": {
-                "name": obs_key,
-                "namespace": ns,
-                "annotations": {
-                    "crossplane.io/composition-resource-name": obs_key,
-                },
+        kubernetes_object(
+            obs_key,
+            ns,
+            {
+                "apiVersion": "v1",
+                "kind": "Secret",
+                "metadata": {"name": current_secret_name, "namespace": ns},
             },
-            "spec": {
-                "managementPolicies": ["Observe"],
-                "forProvider": {
-                    "manifest": {
-                        "apiVersion": "v1",
-                        "kind": "Secret",
-                        "metadata": {
-                            "name": current_secret_name,
-                            "namespace": ns,
-                        },
-                    }
-                },
-                "providerConfigRef": {
-                    "name": "provider-kubernetes",
-                    "kind": "ProviderConfig",
-                },
-            },
-        }
+            managementPolicies=["Observe"],
+        )
     )

@@ -6,7 +6,11 @@ from collections import defaultdict
 
 from crossplane.function.proto.v1 import run_function_pb2 as fnv1
 
-from composition.helpers import extract_ids, to_dict
+from composition.helpers import (
+    extract_ids,
+    kubernetes_object,
+    to_dict,
+)
 
 
 def grant_statements(bucket, principal_str, perm):
@@ -54,13 +58,11 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
     if not principal:
         return
 
-    observed = getattr(req.observed, "resources", {}) or {}
+    observed = req.observed.resources
 
     owner_ids = {}
-    for k, v in (observed or {}).items():
-        if not k.startswith("user-"):
-            continue
-        if not getattr(v, "resource", None):
+    for k, v in observed.items():
+        if not k.startswith("user-") or k not in req.desired.resources:
             continue
         uname = k.replace("user-", "", 1)
         od = to_dict(v.resource)
@@ -68,17 +70,18 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
         if uid:
             owner_ids[uname] = (uid, udom)
 
-    grantee_ids = {}
-    for k, v in (observed or {}).items():
-        if not k.startswith("observe-user-"):
-            continue
-        if not getattr(v, "resource", None):
-            continue
-        gr_name = k.replace("observe-user-", "", 1)
-        od = to_dict(v.resource)
-        gid, gdom = extract_ids(od)
-        if gid:
-            grantee_ids[gr_name] = (gid, gdom)
+    grantee_ids = defaultdict(set)
+    observers = (
+        to_dict(req.context).get("storages.pkg.internal/otc-grantee-users") or {}
+    )
+    for grantee, keys in observers.items():
+        for key in keys:
+            item = observed.get(key)
+            if item is None or key not in req.desired.resources:
+                continue
+            gid, gdom = extract_ids(to_dict(item.resource))
+            if gid:
+                grantee_ids[grantee].add((gid, gdom))
 
     by_bucket = defaultdict(set)
 
@@ -97,57 +100,40 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
         ids = grantee_ids.get(gr)
         if not ids:
             continue
-        gid, gdom = ids
-        principal_str = f"domain/{gdom}:user/{gid}" if gdom else f"user/{gid}"
-        by_bucket[bucket].add((principal_str, perm))
+        for gid, gdom in ids:
+            principal_str = f"domain/{gdom}:user/{gid}" if gdom else f"user/{gid}"
+            by_bucket[bucket].add((principal_str, perm))
 
     for bucket, items in by_bucket.items():
         statements = []
         for principal_str, perm in sorted(items):
             if principal_str == "_OWNER_":
-                owner_user_name = None
-                candidates = [k for k in owner_ids.keys() if k.startswith(principal)]
-                if candidates:
-                    owner_user_name = sorted(candidates)[0]
-                if not owner_user_name:
-                    continue
-                uid, udom = owner_ids[owner_user_name]
-                owner_principal = f"domain/{udom}:user/{uid}" if udom else f"user/{uid}"
-                statements.extend(grant_statements(bucket, owner_principal, perm))
+                for uid, udom in sorted(owner_ids.values()):
+                    owner_principal = (
+                        f"domain/{udom}:user/{uid}" if udom else f"user/{uid}"
+                    )
+                    statements.extend(grant_statements(bucket, owner_principal, perm))
             else:
                 statements.extend(grant_statements(bucket, principal_str, perm))
 
         policy = {"Version": "2012-10-17", "Statement": statements}
         key = f"bucketpolicy-{bucket}"
         rsp.desired.resources[key].resource.update(
-            {
-                "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
-                "kind": "Object",
-                "metadata": {
-                    "name": key,
-                    "namespace": ns,
-                    "annotations": {"crossplane.io/composition-resource-name": key},
-                },
-                "spec": {
-                    "forProvider": {
-                        "manifest": {
-                            "apiVersion": "obs.opentelekomcloud.crossplane.io/v1alpha1",
-                            "kind": "BucketPolicy",
-                            "metadata": {"name": f"bucketpolicy-{bucket}"},
-                            "spec": {
-                                "forProvider": {
-                                    "bucket": bucket,
-                                    "policy": json.dumps(policy, indent=2),
-                                },
-                                "providerConfigRef": {"name": "provider-otc"},
-                            },
-                        }
-                    },
-                    "readiness": {"policy": "DeriveFromObject"},
-                    "providerConfigRef": {
-                        "name": "provider-kubernetes",
-                        "kind": "ProviderConfig",
+            kubernetes_object(
+                key,
+                ns,
+                {
+                    "apiVersion": "obs.opentelekomcloud.crossplane.io/v1alpha1",
+                    "kind": "BucketPolicy",
+                    "metadata": {"name": f"bucketpolicy-{bucket}"},
+                    "spec": {
+                        "forProvider": {
+                            "bucket": bucket,
+                            "policy": json.dumps(policy, indent=2),
+                        },
+                        "providerConfigRef": {"name": "provider-otc"},
                     },
                 },
-            }
+                readiness={"policy": "DeriveFromObject"},
+            )
         )

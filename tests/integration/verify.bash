@@ -340,6 +340,10 @@ main() {
   verify_backend "${backend}"
   if [[ "${backend}" == minio ]]; then
     verify_minio_lifecycle
+    "${PROVIDER_STORAGE_PYTHON:-python3}" "${INTEGRATION_DIR}/credential-handover.py"
+    verify_storage_ready storage-minio-it2 provider-storage-minio-it2
+    verify_bucket_roundtrip storage-minio-it2-roundtrip \
+      provider-storage-minio-it2 minio-default-it2-a Minio
   elif [[ "${backend}" == cloudferro ]]; then
     verify_cloudferro_lifecycle
   fi

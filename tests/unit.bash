@@ -455,7 +455,7 @@ main() {
 
   "${PROVIDER_STORAGE_PYTHON:-python3}" "${REPO_ROOT}/scripts/build-composition.py" --check
   "${PROVIDER_STORAGE_PYTHON:-python3}" "${REPO_ROOT}/tests/ci-checks.py"
-  "${PROVIDER_STORAGE_PYTHON:-python3}" "${REPO_ROOT}/tests/response-ttl.py" "${BACKENDS[@]}"
+  "${PROVIDER_STORAGE_PYTHON:-python3}" "${REPO_ROOT}/tests/function-runtime.py" "${BACKENDS[@]}"
   "${PROVIDER_STORAGE_PYTHON:-python3}" "${REPO_ROOT}/tests/integration/storage-manifests.py" "${BACKENDS[@]}"
   validate_shell_syntax
 

@@ -68,7 +68,8 @@ spec:
     input:
       apiVersion: python.fn.crossplane.io/v1beta1
       kind: Script
-      scriptFile: aws/manage-current-secret.py
+      scriptFile: shared/manage-current-secret.py
+      backend: aws
   - step: manage-lifecycle-rules
     functionRef:
       name: crossplane-contrib-function-python

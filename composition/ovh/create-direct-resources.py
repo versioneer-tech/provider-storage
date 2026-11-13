@@ -6,7 +6,12 @@ import json
 from crossplane.function import request, response
 from crossplane.function.proto.v1 import run_function_pb2 as fnv1
 
-from composition.helpers import rollover_suffixes, to_dict
+from composition.helpers import (
+    credential_suffixes,
+    kubernetes_object,
+    ready_user_id,
+    to_dict,
+)
 
 ENVIRONMENT_KEY = "apiextensions.crossplane.io/environment"
 API_VERSION = "cloud.ovh.m.edixos.io/v1alpha1"
@@ -75,22 +80,6 @@ def grant_from_peer(peer, bucket, grantee):
         ).strip() == grantee:
             return (grant.get("permission") or "None").strip()
     return "None"
-
-
-def ready_user_id(observed, key):
-    item = observed.get(key)
-    if item is None or not getattr(item, "resource", None):
-        return None
-    data = to_dict(item.resource)
-    ready = any(
-        condition.get("type") == "Ready" and condition.get("status") == "True"
-        for condition in ((data.get("status") or {}).get("conditions") or [])
-    )
-    value = ((data.get("status") or {}).get("atProvider") or {}).get("id")
-    if not ready or not isinstance(value, str) or not value.isdecimal():
-        return None
-    number = int(value)
-    return number if 0 < number <= 9007199254740991 else None
 
 
 def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
@@ -194,7 +183,7 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
         {"Statement": statements}, separators=(",", ":"), sort_keys=True
     )
 
-    suffixes = rollover_suffixes(spec)
+    suffixes = credential_suffixes(req)
     current = f"{principal}{suffixes[0]}"
     current_dependent_name = None
     for suffix in suffixes:
@@ -248,32 +237,17 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
         observer_key = f"observe-secret-{current_dependent_name}"
         rsp.desired.resources[observer_key].ready = fnv1.READY_FALSE
         rsp.desired.resources[observer_key].resource.update(
-            {
-                "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
-                "kind": "Object",
-                "metadata": {
-                    "name": observer_key,
-                    "namespace": namespace,
-                    "annotations": {
-                        "crossplane.io/composition-resource-name": observer_key
+            kubernetes_object(
+                observer_key,
+                namespace,
+                {
+                    "apiVersion": "v1",
+                    "kind": "Secret",
+                    "metadata": {
+                        "name": f"{current_dependent_name}-credentials",
+                        "namespace": namespace,
                     },
                 },
-                "spec": {
-                    "managementPolicies": ["Observe"],
-                    "forProvider": {
-                        "manifest": {
-                            "apiVersion": "v1",
-                            "kind": "Secret",
-                            "metadata": {
-                                "name": f"{current_dependent_name}-credentials",
-                                "namespace": namespace,
-                            },
-                        }
-                    },
-                    "providerConfigRef": {
-                        "name": "provider-kubernetes",
-                        "kind": "ProviderConfig",
-                    },
-                },
-            }
+                managementPolicies=["Observe"],
+            )
         )

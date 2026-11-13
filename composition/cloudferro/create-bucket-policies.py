@@ -7,7 +7,7 @@ import re
 from crossplane.function import request, response
 from crossplane.function.proto.v1 import run_function_pb2 as fnv1
 
-from composition.helpers import current_suffix, to_dict
+from composition.helpers import credential_suffixes, to_dict
 
 
 def statements(bucket, project_id, permission):
@@ -46,7 +46,7 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
     spec = xr.get("spec") or {}
     namespace = metadata.get("namespace") or "default"
     principal = (spec.get("principal") or metadata.get("name") or "").strip()
-    generation = f"{principal}{current_suffix(spec)}"
+    generation = f"{principal}{credential_suffixes(req)[0]}"
     own_buckets = {
         (item.get("bucketName") or "").strip()
         for item in (spec.get("buckets") or [])

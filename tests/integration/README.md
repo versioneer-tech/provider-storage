@@ -49,6 +49,11 @@ field; the owner's grant sets the permission. The local manifest test keeps
 these inputs consistent with the verifier.
 
 MinIO and CloudFerro also test lifecycle deletion in bucket `a`.
+MinIO changes the requester's credential generation and verifies that the
+consumer Secret keeps its UID and receives both keys from the requested
+generation's native Secret. The fixture must start without rollover.
+The test restores that setting and repeats the requester's owned-bucket
+round trip.
 
 ## Prepare the cluster
 

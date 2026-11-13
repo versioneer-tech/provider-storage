@@ -56,10 +56,16 @@ completion.
 | Build and function checks | Generated files match source; response cache settings reach all steps. |
 | Render comparisons | Bucket, access, credential, and lifecycle resources match expected output. |
 | Readiness and policies | Incomplete credentials do not produce a consumer Secret; `None` grants add no allow. |
+| Credential transitions | The desired Secret remains during handover; OTC policies include retained identities and omit expired identities. |
+| Generation and lifecycle bounds | One generation time reaches all steps; cleanup Jobs have a deadline and finite retries. |
 | CloudFerro | Project binding, credential publication, and deletion dependencies. |
 | IAM helpers | Controller Secret formats and AWS permission scope. |
 | Integration inputs | Owner, requester, and grants match the live access checks. |
 | Schemas | Rendered resources conform to their provider schemas. |
+
+Function checks share one container with the pinned SDK. Render and schema
+checks do not prove cloud enforcement, credential revocation, or tenant
+isolation. Use the integration suite for S3 access checks.
 
 ## Fixtures
 

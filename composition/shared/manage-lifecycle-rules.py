@@ -4,9 +4,13 @@
 import shlex
 from datetime import datetime
 
+from crossplane.function import response
 from crossplane.function.proto.v1 import run_function_pb2 as fnv1
 
-from composition.helpers import to_dict
+from composition.helpers import (
+    kubernetes_object,
+    to_dict,
+)
 
 ENVIRONMENT_KEY = "apiextensions.crossplane.io/environment"
 
@@ -44,7 +48,7 @@ def _parse_at_epoch(value: str) -> int | None:
         timestamp = timestamp[:-1] + "+00:00"
     try:
         return int(datetime.fromisoformat(timestamp).timestamp())
-    except Exception:
+    except ValueError:
         return None
 
 
@@ -162,6 +166,23 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
         return
     lifecycle = storage_env.get("lifecycle") or {}
     schedule = (lifecycle.get("schedule") or "").strip() or "17 2 * * *"
+    deadline = lifecycle.get("activeDeadlineSeconds", 3600)
+    retries = lifecycle.get("backoffLimit", 2)
+    for field, value, minimum, maximum in (
+        ("activeDeadlineSeconds", deadline, 1, 86400),
+        ("backoffLimit", retries, 0, 10),
+    ):
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not minimum <= value <= maximum
+            or int(value) != value
+        ):
+            response.fatal(
+                rsp,
+                f"storage.lifecycle.{field} must be an integer from {minimum} through {maximum}.",
+            )
+            return
     force_path_style = storage_env.get("force_path_style")
     if backend == "minio" and force_path_style in (None, ""):
         force_path_style = "true"
@@ -261,100 +282,71 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
     config_key = f"lifecycle-config-{principal}"
     config_name = f"{principal}-lifecycle"
     rsp.desired.resources[config_key].resource.update(
-        {
-            "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
-            "kind": "Object",
-            "metadata": {
-                "name": config_key,
-                "namespace": ns,
-                "annotations": {"crossplane.io/composition-resource-name": config_key},
+        kubernetes_object(
+            config_key,
+            ns,
+            {
+                "apiVersion": "v1",
+                "kind": "ConfigMap",
+                "metadata": {"name": config_name, "namespace": ns},
+                "data": scripts,
             },
-            "spec": {
-                "forProvider": {
-                    "manifest": {
-                        "apiVersion": "v1",
-                        "kind": "ConfigMap",
-                        "metadata": {
-                            "name": config_name,
-                            "namespace": ns,
-                        },
-                        "data": scripts,
-                    }
-                },
-                "providerConfigRef": {
-                    "name": "provider-kubernetes",
-                    "kind": "ProviderConfig",
-                },
-            },
-        }
+        )
     )
 
     cron_key = f"lifecycle-cron-{principal}"
     cron_name = f"{principal}-lifecycle"
     rsp.desired.resources[cron_key].resource.update(
-        {
-            "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
-            "kind": "Object",
-            "metadata": {
-                "name": cron_key,
-                "namespace": ns,
-                "annotations": {"crossplane.io/composition-resource-name": cron_key},
-            },
-            "spec": {
-                "forProvider": {
-                    "manifest": {
-                        "apiVersion": "batch/v1",
-                        "kind": "CronJob",
-                        "metadata": {
-                            "name": cron_name,
-                            "namespace": ns,
-                            "labels": {
-                                "app.kubernetes.io/name": "storage-lifecycle",
-                                "storages.pkg.internal/principal": principal,
-                            },
-                        },
+        kubernetes_object(
+            cron_key,
+            ns,
+            {
+                "apiVersion": "batch/v1",
+                "kind": "CronJob",
+                "metadata": {
+                    "name": cron_name,
+                    "namespace": ns,
+                    "labels": {
+                        "app.kubernetes.io/name": "storage-lifecycle",
+                        "storages.pkg.internal/principal": principal,
+                    },
+                },
+                "spec": {
+                    "schedule": schedule,
+                    "concurrencyPolicy": "Forbid",
+                    "successfulJobsHistoryLimit": 1,
+                    "failedJobsHistoryLimit": 1,
+                    "jobTemplate": {
                         "spec": {
-                            "schedule": schedule,
-                            "concurrencyPolicy": "Forbid",
-                            "successfulJobsHistoryLimit": 1,
-                            "failedJobsHistoryLimit": 1,
-                            "jobTemplate": {
+                            "activeDeadlineSeconds": int(deadline),
+                            "backoffLimit": int(retries),
+                            "template": {
                                 "spec": {
-                                    "template": {
-                                        "spec": {
-                                            "automountServiceAccountToken": False,
-                                            "restartPolicy": "OnFailure",
-                                            "securityContext": {
-                                                "runAsNonRoot": True,
-                                                "runAsUser": 1000,
-                                                "runAsGroup": 1000,
-                                                "fsGroup": 1000,
-                                                "seccompProfile": {
-                                                    "type": "RuntimeDefault"
-                                                },
+                                    "automountServiceAccountToken": False,
+                                    "restartPolicy": "Never",
+                                    "securityContext": {
+                                        "runAsNonRoot": True,
+                                        "runAsUser": 1000,
+                                        "runAsGroup": 1000,
+                                        "fsGroup": 1000,
+                                        "seccompProfile": {"type": "RuntimeDefault"},
+                                    },
+                                    "containers": containers,
+                                    "volumes": [
+                                        {
+                                            "name": "lifecycle-scripts",
+                                            "configMap": {
+                                                "name": config_name,
+                                                "defaultMode": 493,
                                             },
-                                            "containers": containers,
-                                            "volumes": [
-                                                {
-                                                    "name": "lifecycle-scripts",
-                                                    "configMap": {
-                                                        "name": config_name,
-                                                        "defaultMode": 493,
-                                                    },
-                                                },
-                                                {"name": "scratch", "emptyDir": {}},
-                                            ],
-                                        }
-                                    }
+                                        },
+                                        {"name": "scratch", "emptyDir": {}},
+                                    ],
                                 }
                             },
-                        },
-                    }
-                },
-                "providerConfigRef": {
-                    "name": "provider-kubernetes",
-                    "kind": "ProviderConfig",
+                        }
+                    },
                 },
             },
-        }
+        )
     )

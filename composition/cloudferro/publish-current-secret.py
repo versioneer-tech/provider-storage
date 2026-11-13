@@ -4,7 +4,15 @@
 from crossplane.function import request, response
 from crossplane.function.proto.v1 import run_function_pb2 as fnv1
 
-from composition.helpers import current_suffix, decoded, encoded, to_dict
+from composition.helpers import (
+    credential_suffixes,
+    decoded,
+    encoded,
+    kubernetes_object,
+    publish_consumer_secret,
+    retain_resources,
+    to_dict,
+)
 
 ENVIRONMENT_KEY = "apiextensions.crossplane.io/environment"
 
@@ -15,7 +23,14 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
     spec = xr.get("spec") or {}
     namespace = metadata.get("namespace") or "default"
     principal = (spec.get("principal") or metadata.get("name") or "").strip()
-    generation = f"{principal}{current_suffix(spec)}"
+    retained_keys = [
+        f"secret-{principal}",
+        f"aws-provider-secret-{principal}",
+        f"aws-provider-config-{principal}",
+        f"usage-aws-provider-{principal}",
+    ]
+    retain_resources(req, rsp, retained_keys)
+    generation = f"{principal}{credential_suffixes(req)[0]}"
     env = (to_dict(req.context).get(ENVIRONMENT_KEY) or {}).get("storage") or {}
     endpoint = (env.get("endpoint") or "").strip()
     region = (env.get("s3Region") or "").strip()
@@ -53,33 +68,10 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
         "AWS_REGION": encoded(region),
         "AWS_S3_FORCE_PATH_STYLE": encoded("true"),
     }
-    key = f"secret-{principal}"
-    rsp.desired.resources[key].resource.update(
-        {
-            "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
-            "kind": "Object",
-            "metadata": {
-                "name": key,
-                "namespace": namespace,
-                "annotations": {"crossplane.io/composition-resource-name": key},
-            },
-            "spec": {
-                "forProvider": {
-                    "manifest": {
-                        "apiVersion": "v1",
-                        "kind": "Secret",
-                        "metadata": {"name": principal, "namespace": namespace},
-                        "type": "Opaque",
-                        "data": data,
-                    }
-                },
-                "providerConfigRef": {
-                    "name": "provider-kubernetes",
-                    "kind": "ProviderConfig",
-                },
-            },
-        }
-    )
+    for retained_key in retained_keys[1:]:
+        if retained_key in rsp.desired.resources:
+            rsp.desired.resources[retained_key].ClearField("ready")
+    publish_consumer_secret(rsp, principal, namespace, data)
     provider_secret = f"{principal}-cloudferro-aws"
     credentials = "\n".join(
         [
@@ -91,82 +83,55 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
     )
     secret_key = f"aws-provider-secret-{principal}"
     rsp.desired.resources[secret_key].resource.update(
-        {
-            "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
-            "kind": "Object",
-            "metadata": {
-                "name": secret_key,
-                "namespace": namespace,
-                "annotations": {"crossplane.io/composition-resource-name": secret_key},
+        kubernetes_object(
+            secret_key,
+            namespace,
+            {
+                "apiVersion": "v1",
+                "kind": "Secret",
+                "metadata": {"name": provider_secret, "namespace": namespace},
+                "type": "Opaque",
+                "data": {"credentials": encoded(credentials)},
             },
-            "spec": {
-                "forProvider": {
-                    "manifest": {
-                        "apiVersion": "v1",
-                        "kind": "Secret",
-                        "metadata": {"name": provider_secret, "namespace": namespace},
-                        "type": "Opaque",
-                        "data": {"credentials": encoded(credentials)},
-                    }
-                },
-                "providerConfigRef": {
-                    "name": "provider-kubernetes",
-                    "kind": "ProviderConfig",
-                },
-            },
-        }
+        )
     )
     provider_key = f"aws-provider-config-{principal}"
     provider_name = f"cloudferro-s3-{principal}"
     rsp.desired.resources[provider_key].resource.update(
-        {
-            "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
-            "kind": "Object",
-            "metadata": {
-                "name": provider_name,
-                "namespace": namespace,
-                "annotations": {
-                    "crossplane.io/composition-resource-name": provider_key
-                },
-            },
-            "spec": {
-                "forProvider": {
-                    "manifest": {
-                        "apiVersion": "aws.m.upbound.io/v1beta1",
-                        "kind": "ProviderConfig",
-                        "metadata": {"name": provider_name, "namespace": namespace},
-                        "spec": {
-                            "credentials": {
-                                "source": "Secret",
-                                "secretRef": {
-                                    "name": provider_secret,
-                                    "namespace": namespace,
-                                    "key": "credentials",
-                                },
-                            },
-                            "endpoint": {
-                                "url": {"type": "Static", "static": endpoint},
-                                "services": ["s3"],
-                                "source": "Custom",
-                                "hostnameImmutable": True,
-                                "signingName": "s3",
-                                "signingRegion": region,
-                            },
-                            "s3_use_path_style": True,
-                            "skip_credentials_validation": True,
-                            "skip_metadata_api_check": True,
-                            "skip_region_validation": True,
-                            "skip_requesting_account_id": True,
+        kubernetes_object(
+            provider_key,
+            namespace,
+            {
+                "apiVersion": "aws.m.upbound.io/v1beta1",
+                "kind": "ProviderConfig",
+                "metadata": {"name": provider_name, "namespace": namespace},
+                "spec": {
+                    "credentials": {
+                        "source": "Secret",
+                        "secretRef": {
+                            "name": provider_secret,
+                            "namespace": namespace,
+                            "key": "credentials",
                         },
-                    }
-                },
-                "readiness": {"policy": "SuccessfulCreate"},
-                "providerConfigRef": {
-                    "name": "provider-kubernetes",
-                    "kind": "ProviderConfig",
+                    },
+                    "endpoint": {
+                        "url": {"type": "Static", "static": endpoint},
+                        "services": ["s3"],
+                        "source": "Custom",
+                        "hostnameImmutable": True,
+                        "signingName": "s3",
+                        "signingRegion": region,
+                    },
+                    "s3_use_path_style": True,
+                    "skip_credentials_validation": True,
+                    "skip_metadata_api_check": True,
+                    "skip_region_validation": True,
+                    "skip_requesting_account_id": True,
                 },
             },
-        }
+            name=provider_name,
+            readiness={"policy": "SuccessfulCreate"},
+        )
     )
     usage_key = f"usage-aws-provider-{principal}"
     rsp.desired.resources[usage_key].ready = fnv1.READY_TRUE

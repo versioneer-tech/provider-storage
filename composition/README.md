@@ -2,6 +2,14 @@
 
 Each backend has a `pipeline.yaml` and Python step files. Shared steps and
 helpers are in `shared/` and `helpers.py`.
+The shared environment step records the UTC time and credential generations
+in the pipeline context. Later steps use that context instead of reading the
+clock again.
+AWS, MinIO, and OTC share the current-Secret step. OVHcloud and CloudFerro
+resolve their provider-specific credential sources, then use the same consumer
+Secret writer.
+`kubernetes_object` builds the common provider-kubernetes envelope. Keep the
+native manifest and provider-specific settings in each backend step.
 
 Build all deployable Compositions from the repository root:
 

@@ -14,8 +14,10 @@ Every backend publishes these keys:
 - `AWS_SECRET_ACCESS_KEY`
 
 Connection settings can add `AWS_ENDPOINT_URL`, `AWS_REGION`, and
-`AWS_S3_FORCE_PATH_STYLE`. A Composition must omit the consumer Secret when
-either required key is absent. It copies only the documented keys.
+`AWS_S3_FORCE_PATH_STYLE`. Initial provisioning creates no consumer Secret
+until both required keys are available. During replacement, the Composition
+keeps the previous Secret and reports it as not ready until the new pair is
+available. It copies only the documented keys from the new source.
 
 `spec.providerIdentity` can set a shorter provider-native name. It does not
 change the principal or consumer Secret name. Provider-native connection
@@ -38,8 +40,11 @@ Provider Storage does not force a reload. Rotation occurs on reconciliation
 after a period boundary; it does not provide an exact expiry time. Function
 response caching can delay it.
 
-Live tests must prove that retained keys have only the intended access and
-that removed generations can no longer access the buckets.
+Keeping the Secret does not extend a credential generation's validity. Use
+more than one retained generation when consumers need an overlap.
+
+A `Ready` condition does not prove S3 authorization. Verify allowed and
+denied operations, retained keys, and revocation with the issued keys.
 
 ## Storage and access
 

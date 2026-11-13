@@ -39,10 +39,16 @@ Jobs use the current consumer Secret and the backend settings from the
 `EnvironmentConfig`. They do not receive a Kubernetes service-account token.
 `concurrencyPolicy: Forbid` prevents two scheduled Jobs from running at the
 same time.
+Each Job has a one-hour deadline and permits two retries by default. Failed
+Pods do not restart in place. The EnvironmentConfig can set
+`storage.lifecycle.activeDeadlineSeconds` from 1 through 86400 and
+`storage.lifecycle.backoffLimit` from 0 through 10. The deadline includes
+retry time. A Job that exceeds either limit fails and permits a later
+scheduled Job to run.
 
 ## Consequences
 
-- Lifecycle behavior is the same for all backends.
+- All backends use the same Job and script generator.
 - Cleanup depends on Kubernetes, network access, rclone, and valid consumer
   credentials.
 - Containers for rules in the same Job run at the same time. Rules with

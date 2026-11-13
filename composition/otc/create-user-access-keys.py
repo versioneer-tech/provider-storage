@@ -1,11 +1,14 @@
 # Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
 # SPDX-License-Identifier: Apache-2.0
 
-from datetime import datetime, timezone
-
 from crossplane.function.proto.v1 import run_function_pb2 as fnv1
 
-from composition.helpers import _get_rollover, _suffixes, extract_ids, to_dict
+from composition.helpers import (
+    credential_suffixes,
+    extract_ids,
+    kubernetes_object,
+    to_dict,
+)
 
 
 def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
@@ -17,18 +20,16 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
     if not principal:
         return
 
-    interval, max_to_keep = _get_rollover(spec)
-    now = datetime.now(timezone.utc)
-    suffixes = _suffixes(now, interval, max_to_keep)
+    suffixes = credential_suffixes(req)
 
-    observed = getattr(req.observed, "resources", {}) or {}
+    observed = req.observed.resources
 
     for suf in suffixes:
         user_name = f"{principal}{suf}"
         connection_secret_name = user_name if suf else f"{principal}-credentials"
         wrapper = observed.get(f"user-{user_name}")
         user_id = None
-        if wrapper and getattr(wrapper, "resource", None):
+        if wrapper is not None:
             od = to_dict(wrapper.resource)
             user_id, _ = extract_ids(od)
         if not user_id:
@@ -36,35 +37,22 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
 
         key = f"access-key-{user_name}"
         rsp.desired.resources[key].resource.update(
-            {
-                "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
-                "kind": "Object",
-                "metadata": {
-                    "name": key,
-                    "namespace": ns,
-                    "annotations": {"crossplane.io/composition-resource-name": key},
-                },
-                "spec": {
-                    "forProvider": {
-                        "manifest": {
-                            "apiVersion": "identity.opentelekomcloud.crossplane.io/v1alpha1",
-                            "kind": "CredentialV3",
-                            "metadata": {"name": f"aksk-{user_name}"},
-                            "spec": {
-                                "forProvider": {"userId": user_id},
-                                "providerConfigRef": {"name": "provider-otc"},
-                                "writeConnectionSecretToRef": {
-                                    "name": connection_secret_name,
-                                    "namespace": ns,
-                                },
-                            },
-                        }
-                    },
-                    "readiness": {"policy": "DeriveFromObject"},
-                    "providerConfigRef": {
-                        "name": "provider-kubernetes",
-                        "kind": "ProviderConfig",
+            kubernetes_object(
+                key,
+                ns,
+                {
+                    "apiVersion": "identity.opentelekomcloud.crossplane.io/v1alpha1",
+                    "kind": "CredentialV3",
+                    "metadata": {"name": f"aksk-{user_name}"},
+                    "spec": {
+                        "forProvider": {"userId": user_id},
+                        "providerConfigRef": {"name": "provider-otc"},
+                        "writeConnectionSecretToRef": {
+                            "name": connection_secret_name,
+                            "namespace": ns,
+                        },
                     },
                 },
-            }
+                readiness={"policy": "DeriveFromObject"},
+            )
         )

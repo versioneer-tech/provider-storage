@@ -53,8 +53,7 @@ set.
   occur at an exact time.
 - This decision applies only to static access keys.
 
-## Current limits
-
-- AWS and OTC calculate time in more than one pipeline step. A reconciliation
-  across a period boundary can create inconsistent resource names.
-- OTC policies do not reliably include all retained identities.
+The shared environment step records one UTC time and the desired generations
+in the pipeline context. All later steps use these generations. OTC resolves
+retained grantee generations with the same time and includes each observed
+retained owner and grantee identity in its bucket policies.

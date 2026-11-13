@@ -6,7 +6,7 @@ import re
 from crossplane.function import response
 from crossplane.function.proto.v1 import run_function_pb2 as fnv1
 
-from composition.helpers import rollover_suffixes, to_dict
+from composition.helpers import credential_suffixes, to_dict
 
 ENVIRONMENT_KEY = "apiextensions.crossplane.io/environment"
 PROJECT_ID_ANNOTATION = "storages.pkg.internal/cloudferro-project-id"
@@ -127,7 +127,7 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
             },
         )
 
-    for suffix in rollover_suffixes(spec):
+    for suffix in credential_suffixes(req):
         generation = f"{principal}{suffix}"
         managed(
             rsp,

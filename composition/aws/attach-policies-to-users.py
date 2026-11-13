@@ -1,12 +1,10 @@
 # Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
 # SPDX-License-Identifier: Apache-2.0
 
-from datetime import datetime, timezone
-
 from crossplane.function import request, response
 from crossplane.function.proto.v1 import run_function_pb2 as fnv1
 
-from composition.helpers import _bucket_grants_access, _get_rollover, _suffixes, to_dict
+from composition.helpers import _bucket_grants_access, credential_suffixes, to_dict
 
 
 def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
@@ -26,9 +24,7 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
         match_labels={"storages.pkg.internal/discoverable": "true"},
     )
     peer_storages = request.get_required_resources(req, "peer-storages") or []
-    interval, max_to_keep = _get_rollover(spec)
-    now = datetime.now(timezone.utc)
-    suffixes = _suffixes(now, interval, max_to_keep)
+    suffixes = credential_suffixes(req)
     user_names = (
         [f"{provider_identity}{suf}" for suf in suffixes]
         if suffixes

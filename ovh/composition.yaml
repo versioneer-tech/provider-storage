@@ -22,7 +22,45 @@ spec:
       apiVersion: python.fn.crossplane.io/v1beta1
       kind: Script
       script: |
+        from datetime import datetime, timedelta
+
         from google.protobuf import json_format
+
+        def rollover_suffixes(spec, now: datetime) -> list[str]:
+            cfg = spec.get("credentialsRollover") or {}
+            interval = cfg.get("interval", "none")
+            # The XRD validates the range; protobuf Struct stores numbers as floats.
+            max_to_keep = int(cfg.get("maxToKeep", 1))
+            out = []
+            if interval == "daily":
+                for i in range(max_to_keep):
+                    d = (now - timedelta(days=i)).date()
+                    out.append(d.strftime("%Y%m%d"))
+            elif interval == "weekly":
+                for i in range(max_to_keep):
+                    d = (now - timedelta(weeks=i)).date()
+                    iso = d.isocalendar()
+                    out.append(f"{iso.year}w{iso.week:02d}")
+            elif interval == "monthly":
+                for i in range(max_to_keep):
+                    y = now.year
+                    m = now.month - i
+                    while m <= 0:
+                        y -= 1
+                        m += 12
+                    out.append(f"{y}{m:02d}")
+            elif interval == "quarterly":
+                for i in range(max_to_keep):
+                    q_total = now.year * 4 + (now.month - 1) // 3 - i
+                    y = q_total // 4
+                    q = (q_total % 4) + 1
+                    out.append(f"{y}q{q}")
+            elif interval == "yearly":
+                for i in range(max_to_keep):
+                    out.append(str(now.year - i))
+            else:
+                return [""]
+            return ["-" + s for s in out]
 
         def to_dict(value):
             if value is None:
@@ -34,6 +72,8 @@ spec:
         # Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
         # SPDX-License-Identifier: Apache-2.0
 
+        from datetime import datetime, timezone
+
         from crossplane.function import request, resource, response
         from crossplane.function.proto.v1 import run_function_pb2 as fnv1
 
@@ -44,14 +84,25 @@ spec:
         def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
             rsp.meta.ttl.FromSeconds(60)
             xr = to_dict(req.observed.composite.resource)
-            metadata = xr.get("metadata") or {}
-            annotations = metadata.get("annotations") or {}
-            labels = metadata.get("labels") or {}
+            meta = xr.get("metadata", {}) or {}
+            annotations = meta.get("annotations", {}) or {}
+            labels = meta.get("labels", {}) or {}
+            context = to_dict(req.context)
+            time_key = "storages.pkg.internal/credential-time"
+            generations_key = "storages.pkg.internal/credential-generations"
+            timestamp = context.get(time_key) or datetime.now(timezone.utc).isoformat()
+            suffixes = context.get(generations_key) or rollover_suffixes(
+                xr.get("spec") or {}, datetime.fromisoformat(timestamp)
+            )
+            rsp.context.MergeFrom(
+                resource.dict_to_struct({time_key: timestamp, generations_key: suffixes})
+            )
             env_name = (
                 annotations.get("storages.pkg.internal/environment")
                 or labels.get("storages.pkg.internal/environment")
                 or "storage"
             ).strip() or "storage"
+
             response.require_resources(
                 rsp,
                 name="storage-environment",
@@ -59,10 +110,10 @@ spec:
                 kind="EnvironmentConfig",
                 match_name=env_name,
             )
+
             environment = request.get_required_resource(req, "storage-environment") or {}
-            rsp.context.MergeFrom(
-                resource.dict_to_struct({ENVIRONMENT_KEY: environment.get("data") or {}})
-            )
+            environment_data = environment.get("data") or {}
+            rsp.context.MergeFrom(resource.dict_to_struct({ENVIRONMENT_KEY: environment_data}))
   - step: create-direct-resources
     functionRef:
       name: crossplane-contrib-function-python
@@ -70,37 +121,44 @@ spec:
       apiVersion: python.fn.crossplane.io/v1beta1
       kind: Script
       script: |
-        from datetime import datetime, timedelta, timezone
-
         from google.protobuf import json_format
 
-        def rollover_suffixes(spec):
-            config = spec.get("credentialsRollover") or {}
-            interval = (config.get("interval") or "none").strip().lower()
-            count = max(1, min(10, int(config.get("maxToKeep") or 1)))
-            now = datetime.now(timezone.utc)
-            if interval == "daily":
-                dates = [(now - timedelta(days=i)).strftime("%Y%m%d") for i in range(count)]
-            elif interval == "weekly":
-                dates = []
-                for i in range(count):
-                    week = (now - timedelta(weeks=i)).isocalendar()
-                    dates.append(f"{week.year}w{week.week:02d}")
-            elif interval == "monthly":
-                dates = [
-                    f"{(now.year * 12 + now.month - 1 - i) // 12}{((now.year * 12 + now.month - 1 - i) % 12) + 1:02d}"
-                    for i in range(count)
-                ]
-            elif interval == "quarterly":
-                quarter = now.year * 4 + (now.month - 1) // 3
-                dates = [
-                    f"{(quarter - i) // 4}q{((quarter - i) % 4) + 1}" for i in range(count)
-                ]
-            elif interval == "yearly":
-                dates = [str(now.year - i) for i in range(count)]
-            else:
-                return [""]
-            return ["-" + date for date in dates]
+        def credential_suffixes(req):
+            return to_dict(req.context)["storages.pkg.internal/credential-generations"]
+
+        def kubernetes_object(key, namespace, manifest, *, name=None, **spec_fields):
+            return {
+                "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
+                "kind": "Object",
+                "metadata": {
+                    "name": key if name is None else name,
+                    "namespace": namespace,
+                    "annotations": {"crossplane.io/composition-resource-name": key},
+                },
+                "spec": {
+                    "forProvider": {"manifest": manifest},
+                    "providerConfigRef": {
+                        "name": "provider-kubernetes",
+                        "kind": "ProviderConfig",
+                    },
+                    **spec_fields,
+                },
+            }
+
+        def ready_user_id(observed, key):
+            item = observed.get(key)
+            if item is None:
+                return None
+            status = to_dict(item.resource).get("status") or {}
+            ready = any(
+                condition.get("type") == "Ready" and condition.get("status") == "True"
+                for condition in status.get("conditions") or []
+            )
+            value = (status.get("atProvider") or {}).get("id")
+            if not ready or not isinstance(value, str) or not value.isdecimal():
+                return None
+            number = int(value)
+            return number if 0 < number <= 9007199254740991 else None
 
         def to_dict(value):
             if value is None:
@@ -185,22 +243,6 @@ spec:
                 ).strip() == grantee:
                     return (grant.get("permission") or "None").strip()
             return "None"
-
-
-        def ready_user_id(observed, key):
-            item = observed.get(key)
-            if item is None or not getattr(item, "resource", None):
-                return None
-            data = to_dict(item.resource)
-            ready = any(
-                condition.get("type") == "Ready" and condition.get("status") == "True"
-                for condition in ((data.get("status") or {}).get("conditions") or [])
-            )
-            value = ((data.get("status") or {}).get("atProvider") or {}).get("id")
-            if not ready or not isinstance(value, str) or not value.isdecimal():
-                return None
-            number = int(value)
-            return number if 0 < number <= 9007199254740991 else None
 
 
         def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
@@ -305,7 +347,7 @@ spec:
                 {"Statement": statements}, separators=(",", ":"), sort_keys=True
             )
 
-            suffixes = rollover_suffixes(spec)
+            suffixes = credential_suffixes(req)
             current = f"{principal}{suffixes[0]}"
             current_dependent_name = None
             for suffix in suffixes:
@@ -359,34 +401,19 @@ spec:
                 observer_key = f"observe-secret-{current_dependent_name}"
                 rsp.desired.resources[observer_key].ready = fnv1.READY_FALSE
                 rsp.desired.resources[observer_key].resource.update(
-                    {
-                        "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
-                        "kind": "Object",
-                        "metadata": {
-                            "name": observer_key,
-                            "namespace": namespace,
-                            "annotations": {
-                                "crossplane.io/composition-resource-name": observer_key
+                    kubernetes_object(
+                        observer_key,
+                        namespace,
+                        {
+                            "apiVersion": "v1",
+                            "kind": "Secret",
+                            "metadata": {
+                                "name": f"{current_dependent_name}-credentials",
+                                "namespace": namespace,
                             },
                         },
-                        "spec": {
-                            "managementPolicies": ["Observe"],
-                            "forProvider": {
-                                "manifest": {
-                                    "apiVersion": "v1",
-                                    "kind": "Secret",
-                                    "metadata": {
-                                        "name": f"{current_dependent_name}-credentials",
-                                        "namespace": namespace,
-                                    },
-                                }
-                            },
-                            "providerConfigRef": {
-                                "name": "provider-kubernetes",
-                                "kind": "ProviderConfig",
-                            },
-                        },
-                    }
+                        managementPolicies=["Observe"],
+                    )
                 )
   - step: publish-current-secret
     functionRef:
@@ -397,29 +424,88 @@ spec:
       script: |
         import base64
 
-        from datetime import datetime, timedelta, timezone
+        from crossplane.function.proto.v1 import run_function_pb2 as fnv1
 
         from google.protobuf import json_format
 
-        def current_suffix(spec):
-            interval = (
-                ((spec.get("credentialsRollover") or {}).get("interval") or "none")
-                .strip()
-                .lower()
+        def retain_resources(req, rsp, keys):
+            # Omitted resources are deleted, so keep the last output during handover.
+            for key in keys:
+                observed = req.observed.resources.get(key)
+                if observed is None:
+                    continue
+                body = to_dict(observed.resource)
+                if not body.get("spec"):
+                    continue
+                metadata = body.get("metadata") or {}
+                rsp.desired.resources[key].resource.update(
+                    {
+                        "apiVersion": body["apiVersion"],
+                        "kind": body["kind"],
+                        "metadata": {
+                            field: metadata[field]
+                            for field in ("name", "namespace")
+                            if field in metadata
+                        }
+                        | {"annotations": {"crossplane.io/composition-resource-name": key}},
+                        "spec": body["spec"],
+                    }
+                )
+                rsp.desired.resources[key].ready = fnv1.READY_FALSE
+
+        def credential_suffixes(req):
+            return to_dict(req.context)["storages.pkg.internal/credential-generations"]
+
+        def kubernetes_object(key, namespace, manifest, *, name=None, **spec_fields):
+            return {
+                "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
+                "kind": "Object",
+                "metadata": {
+                    "name": key if name is None else name,
+                    "namespace": namespace,
+                    "annotations": {"crossplane.io/composition-resource-name": key},
+                },
+                "spec": {
+                    "forProvider": {"manifest": manifest},
+                    "providerConfigRef": {
+                        "name": "provider-kubernetes",
+                        "kind": "ProviderConfig",
+                    },
+                    **spec_fields,
+                },
+            }
+
+        def publish_consumer_secret(rsp, principal, namespace, data):
+            key = f"secret-{principal}"
+            rsp.desired.resources[key].ClearField("ready")
+            rsp.desired.resources[key].resource.update(
+                kubernetes_object(
+                    key,
+                    namespace,
+                    {
+                        "apiVersion": "v1",
+                        "kind": "Secret",
+                        "metadata": {"name": principal, "namespace": namespace},
+                        "type": "Opaque",
+                        "data": data,
+                    },
+                )
             )
-            now = datetime.now(timezone.utc)
-            if interval == "daily":
-                return "-" + now.strftime("%Y%m%d")
-            if interval == "weekly":
-                week = now.isocalendar()
-                return f"-{week.year}w{week.week:02d}"
-            if interval == "monthly":
-                return "-" + now.strftime("%Y%m")
-            if interval == "quarterly":
-                return f"-{now.year}q{(now.month - 1) // 3 + 1}"
-            if interval == "yearly":
-                return "-" + str(now.year)
-            return ""
+
+        def ready_user_id(observed, key):
+            item = observed.get(key)
+            if item is None:
+                return None
+            status = to_dict(item.resource).get("status") or {}
+            ready = any(
+                condition.get("type") == "Ready" and condition.get("status") == "True"
+                for condition in status.get("conditions") or []
+            )
+            value = (status.get("atProvider") or {}).get("id")
+            if not ready or not isinstance(value, str) or not value.isdecimal():
+                return None
+            number = int(value)
+            return number if 0 < number <= 9007199254740991 else None
 
         def encoded(value):
             return base64.b64encode(value.encode("utf-8")).decode("ascii")
@@ -448,19 +534,6 @@ spec:
         ENVIRONMENT_KEY = "apiextensions.crossplane.io/environment"
 
 
-        def ready_user_id(observed, key):
-            item = observed.get(key)
-            if item is None or not getattr(item, "resource", None):
-                return None
-            data = to_dict(item.resource)
-            ready = any(
-                condition.get("type") == "Ready" and condition.get("status") == "True"
-                for condition in ((data.get("status") or {}).get("conditions") or [])
-            )
-            value = ((data.get("status") or {}).get("atProvider") or {}).get("id")
-            return value if ready and isinstance(value, str) and value.isdecimal() else None
-
-
         def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
             rsp.meta.ttl.FromSeconds(60)
             xr = to_dict(req.observed.composite.resource)
@@ -468,7 +541,8 @@ spec:
             spec = xr.get("spec") or {}
             namespace = metadata.get("namespace") or "default"
             principal = (spec.get("principal") or metadata.get("name") or "").strip()
-            generation = f"{principal}{current_suffix(spec)}"
+            retain_resources(req, rsp, [f"secret-{principal}"])
+            generation = f"{principal}{credential_suffixes(req)[0]}"
             context = to_dict(req.context)
             storage_env = (context.get(ENVIRONMENT_KEY) or {}).get("storage") or {}
             endpoint = (storage_env.get("endpoint") or "").strip()
@@ -514,33 +588,7 @@ spec:
                 "AWS_REGION": encoded(region),
                 "AWS_S3_FORCE_PATH_STYLE": encoded(str(force_path_style).lower()),
             }
-            key = f"secret-{principal}"
-            rsp.desired.resources[key].resource.update(
-                {
-                    "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
-                    "kind": "Object",
-                    "metadata": {
-                        "name": key,
-                        "namespace": namespace,
-                        "annotations": {"crossplane.io/composition-resource-name": key},
-                    },
-                    "spec": {
-                        "forProvider": {
-                            "manifest": {
-                                "apiVersion": "v1",
-                                "kind": "Secret",
-                                "metadata": {"name": principal, "namespace": namespace},
-                                "type": "Opaque",
-                                "data": data,
-                            }
-                        },
-                        "providerConfigRef": {
-                            "name": "provider-kubernetes",
-                            "kind": "ProviderConfig",
-                        },
-                    },
-                }
-            )
+            publish_consumer_secret(rsp, principal, namespace, data)
             rsp.desired.resources[observer_key].ready = fnv1.READY_TRUE
   - step: manage-lifecycle-rules
     functionRef:
@@ -551,6 +599,25 @@ spec:
       backend: ovh
       script: |
         from google.protobuf import json_format
+
+        def kubernetes_object(key, namespace, manifest, *, name=None, **spec_fields):
+            return {
+                "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
+                "kind": "Object",
+                "metadata": {
+                    "name": key if name is None else name,
+                    "namespace": namespace,
+                    "annotations": {"crossplane.io/composition-resource-name": key},
+                },
+                "spec": {
+                    "forProvider": {"manifest": manifest},
+                    "providerConfigRef": {
+                        "name": "provider-kubernetes",
+                        "kind": "ProviderConfig",
+                    },
+                    **spec_fields,
+                },
+            }
 
         def to_dict(value):
             if value is None:
@@ -565,6 +632,7 @@ spec:
         import shlex
         from datetime import datetime
 
+        from crossplane.function import response
         from crossplane.function.proto.v1 import run_function_pb2 as fnv1
 
 
@@ -604,7 +672,7 @@ spec:
                 timestamp = timestamp[:-1] + "+00:00"
             try:
                 return int(datetime.fromisoformat(timestamp).timestamp())
-            except Exception:
+            except ValueError:
                 return None
 
 
@@ -723,6 +791,23 @@ spec:
                 return
             lifecycle = storage_env.get("lifecycle") or {}
             schedule = (lifecycle.get("schedule") or "").strip() or "17 2 * * *"
+            deadline = lifecycle.get("activeDeadlineSeconds", 3600)
+            retries = lifecycle.get("backoffLimit", 2)
+            for field, value, minimum, maximum in (
+                ("activeDeadlineSeconds", deadline, 1, 86400),
+                ("backoffLimit", retries, 0, 10),
+            ):
+                if (
+                    isinstance(value, bool)
+                    or not isinstance(value, (int, float))
+                    or not minimum <= value <= maximum
+                    or int(value) != value
+                ):
+                    response.fatal(
+                        rsp,
+                        f"storage.lifecycle.{field} must be an integer from {minimum} through {maximum}.",
+                    )
+                    return
             force_path_style = storage_env.get("force_path_style")
             if backend == "minio" and force_path_style in (None, ""):
                 force_path_style = "true"
@@ -822,102 +907,73 @@ spec:
             config_key = f"lifecycle-config-{principal}"
             config_name = f"{principal}-lifecycle"
             rsp.desired.resources[config_key].resource.update(
-                {
-                    "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
-                    "kind": "Object",
-                    "metadata": {
-                        "name": config_key,
-                        "namespace": ns,
-                        "annotations": {"crossplane.io/composition-resource-name": config_key},
+                kubernetes_object(
+                    config_key,
+                    ns,
+                    {
+                        "apiVersion": "v1",
+                        "kind": "ConfigMap",
+                        "metadata": {"name": config_name, "namespace": ns},
+                        "data": scripts,
                     },
-                    "spec": {
-                        "forProvider": {
-                            "manifest": {
-                                "apiVersion": "v1",
-                                "kind": "ConfigMap",
-                                "metadata": {
-                                    "name": config_name,
-                                    "namespace": ns,
-                                },
-                                "data": scripts,
-                            }
-                        },
-                        "providerConfigRef": {
-                            "name": "provider-kubernetes",
-                            "kind": "ProviderConfig",
-                        },
-                    },
-                }
+                )
             )
 
             cron_key = f"lifecycle-cron-{principal}"
             cron_name = f"{principal}-lifecycle"
             rsp.desired.resources[cron_key].resource.update(
-                {
-                    "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
-                    "kind": "Object",
-                    "metadata": {
-                        "name": cron_key,
-                        "namespace": ns,
-                        "annotations": {"crossplane.io/composition-resource-name": cron_key},
-                    },
-                    "spec": {
-                        "forProvider": {
-                            "manifest": {
-                                "apiVersion": "batch/v1",
-                                "kind": "CronJob",
-                                "metadata": {
-                                    "name": cron_name,
-                                    "namespace": ns,
-                                    "labels": {
-                                        "app.kubernetes.io/name": "storage-lifecycle",
-                                        "storages.pkg.internal/principal": principal,
-                                    },
-                                },
+                kubernetes_object(
+                    cron_key,
+                    ns,
+                    {
+                        "apiVersion": "batch/v1",
+                        "kind": "CronJob",
+                        "metadata": {
+                            "name": cron_name,
+                            "namespace": ns,
+                            "labels": {
+                                "app.kubernetes.io/name": "storage-lifecycle",
+                                "storages.pkg.internal/principal": principal,
+                            },
+                        },
+                        "spec": {
+                            "schedule": schedule,
+                            "concurrencyPolicy": "Forbid",
+                            "successfulJobsHistoryLimit": 1,
+                            "failedJobsHistoryLimit": 1,
+                            "jobTemplate": {
                                 "spec": {
-                                    "schedule": schedule,
-                                    "concurrencyPolicy": "Forbid",
-                                    "successfulJobsHistoryLimit": 1,
-                                    "failedJobsHistoryLimit": 1,
-                                    "jobTemplate": {
+                                    "activeDeadlineSeconds": int(deadline),
+                                    "backoffLimit": int(retries),
+                                    "template": {
                                         "spec": {
-                                            "template": {
-                                                "spec": {
-                                                    "automountServiceAccountToken": False,
-                                                    "restartPolicy": "OnFailure",
-                                                    "securityContext": {
-                                                        "runAsNonRoot": True,
-                                                        "runAsUser": 1000,
-                                                        "runAsGroup": 1000,
-                                                        "fsGroup": 1000,
-                                                        "seccompProfile": {
-                                                            "type": "RuntimeDefault"
-                                                        },
+                                            "automountServiceAccountToken": False,
+                                            "restartPolicy": "Never",
+                                            "securityContext": {
+                                                "runAsNonRoot": True,
+                                                "runAsUser": 1000,
+                                                "runAsGroup": 1000,
+                                                "fsGroup": 1000,
+                                                "seccompProfile": {"type": "RuntimeDefault"},
+                                            },
+                                            "containers": containers,
+                                            "volumes": [
+                                                {
+                                                    "name": "lifecycle-scripts",
+                                                    "configMap": {
+                                                        "name": config_name,
+                                                        "defaultMode": 493,
                                                     },
-                                                    "containers": containers,
-                                                    "volumes": [
-                                                        {
-                                                            "name": "lifecycle-scripts",
-                                                            "configMap": {
-                                                                "name": config_name,
-                                                                "defaultMode": 493,
-                                                            },
-                                                        },
-                                                        {"name": "scratch", "emptyDir": {}},
-                                                    ],
-                                                }
-                                            }
+                                                },
+                                                {"name": "scratch", "emptyDir": {}},
+                                            ],
                                         }
                                     },
-                                },
-                            }
-                        },
-                        "providerConfigRef": {
-                            "name": "provider-kubernetes",
-                            "kind": "ProviderConfig",
+                                }
+                            },
                         },
                     },
-                }
+                )
             )
   - step: automatically-detect-ready-composed-resources
     functionRef:

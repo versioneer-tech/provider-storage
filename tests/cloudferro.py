@@ -1,7 +1,7 @@
 # Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
 # SPDX-License-Identifier: Apache-2.0
 
-"""Check project isolation, credential publication, and deletion order."""
+"""Check project binding, credential publication, and deletion dependencies."""
 
 import base64
 import json

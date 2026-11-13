@@ -3,7 +3,10 @@
 
 from crossplane.function.proto.v1 import run_function_pb2 as fnv1
 
-from composition.helpers import to_dict
+from composition.helpers import (
+    kubernetes_object,
+    to_dict,
+)
 
 
 def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
@@ -19,32 +22,19 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
         discoverable = str(bool(b.get("discoverable", False))).lower()
         key = f"bucket-{bucket}"
         rsp.desired.resources[key].resource.update(
-            {
-                "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
-                "kind": "Object",
-                "metadata": {
-                    "name": key,
-                    "namespace": ns,
-                    "annotations": {"crossplane.io/composition-resource-name": key},
-                },
-                "spec": {
-                    "forProvider": {
-                        "manifest": {
-                            "apiVersion": "minio.crossplane.io/v1",
-                            "kind": "Bucket",
-                            "metadata": {
-                                "name": bucket,
-                                "annotations": {
-                                    "storages.pkg.internal/discoverable": discoverable
-                                },
-                            },
-                            "spec": {"providerConfigRef": {"name": "provider-minio"}},
-                        }
+            kubernetes_object(
+                key,
+                ns,
+                {
+                    "apiVersion": "minio.crossplane.io/v1",
+                    "kind": "Bucket",
+                    "metadata": {
+                        "name": bucket,
+                        "annotations": {
+                            "storages.pkg.internal/discoverable": discoverable
+                        },
                     },
-                    "providerConfigRef": {
-                        "name": "provider-kubernetes",
-                        "kind": "ProviderConfig",
-                    },
+                    "spec": {"providerConfigRef": {"name": "provider-minio"}},
                 },
-            }
+            )
         )

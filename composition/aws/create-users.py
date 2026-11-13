@@ -1,11 +1,13 @@
 # Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
 # SPDX-License-Identifier: Apache-2.0
 
-from datetime import datetime, timezone
-
 from crossplane.function.proto.v1 import run_function_pb2 as fnv1
 
-from composition.helpers import _get_rollover, _suffixes, to_dict
+from composition.helpers import (
+    credential_suffixes,
+    kubernetes_object,
+    to_dict,
+)
 
 ENVIRONMENT_KEY = "apiextensions.crossplane.io/environment"
 
@@ -22,9 +24,7 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
     ns = meta.get("namespace") or "default"
     principal = (spec.get("principal") or meta.get("name") or "<principal>").strip()
     provider_identity = (spec.get("providerIdentity") or principal).strip()
-    interval, max_to_keep = _get_rollover(spec)
-    now = datetime.now(timezone.utc)
-    suffixes = _suffixes(now, interval, max_to_keep)
+    suffixes = credential_suffixes(req)
 
     for suf in suffixes:
         user_name = f"{provider_identity}{suf}"
@@ -55,27 +55,14 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
     )
     obs_key = f"observe-secret-{principal}"
     rsp.desired.resources[obs_key].resource.update(
-        {
-            "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
-            "kind": "Object",
-            "metadata": {
-                "name": obs_key,
-                "namespace": ns,
-                "annotations": {"crossplane.io/composition-resource-name": obs_key},
+        kubernetes_object(
+            obs_key,
+            ns,
+            {
+                "apiVersion": "v1",
+                "kind": "Secret",
+                "metadata": {"name": current_secret_name, "namespace": ns},
             },
-            "spec": {
-                "managementPolicies": ["Observe"],
-                "forProvider": {
-                    "manifest": {
-                        "apiVersion": "v1",
-                        "kind": "Secret",
-                        "metadata": {"name": current_secret_name, "namespace": ns},
-                    }
-                },
-                "providerConfigRef": {
-                    "name": "provider-kubernetes",
-                    "kind": "ProviderConfig",
-                },
-            },
-        }
+            managementPolicies=["Observe"],
+        )
     )

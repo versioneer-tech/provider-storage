@@ -1,12 +1,16 @@
 # Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
 # SPDX-License-Identifier: Apache-2.0
 
-from datetime import datetime, timezone
-
-from crossplane.function import request, response
+from crossplane.function import request, resource, response
 from crossplane.function.proto.v1 import run_function_pb2 as fnv1
 
-from composition.helpers import _get_rollover, _suffixes, to_dict
+from composition.helpers import (
+    credential_suffixes,
+    credential_time,
+    kubernetes_object,
+    rollover_suffixes,
+    to_dict,
+)
 
 
 def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
@@ -18,9 +22,7 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
     if not principal:
         return
 
-    interval, max_to_keep = _get_rollover(spec)
-    now = datetime.now(timezone.utc)
-    suffixes = _suffixes(now, interval, max_to_keep)
+    suffixes = credential_suffixes(req)
     current_user_name = f"{principal}{suffixes[0] if suffixes else ''}"
     current_secret_name = (
         current_user_name if suffixes and suffixes[0] else f"{principal}-credentials"
@@ -28,29 +30,16 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
 
     key = f"observe-secret-{principal}"
     rsp.desired.resources[key].resource.update(
-        {
-            "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
-            "kind": "Object",
-            "metadata": {
-                "name": key,
-                "namespace": ns,
-                "annotations": {"crossplane.io/composition-resource-name": key},
+        kubernetes_object(
+            key,
+            ns,
+            {
+                "apiVersion": "v1",
+                "kind": "Secret",
+                "metadata": {"name": current_secret_name, "namespace": ns},
             },
-            "spec": {
-                "managementPolicies": ["Observe"],
-                "forProvider": {
-                    "manifest": {
-                        "apiVersion": "v1",
-                        "kind": "Secret",
-                        "metadata": {"name": current_secret_name, "namespace": ns},
-                    }
-                },
-                "providerConfigRef": {
-                    "name": "provider-kubernetes",
-                    "kind": "ProviderConfig",
-                },
-            },
-        }
+            managementPolicies=["Observe"],
+        )
     )
 
     grantees = []
@@ -71,7 +60,7 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
         )
         peers = request.get_required_resources(req, "grantee-storages") or []
         if not peers:
-            grantee_users.update({gr: gr for gr in grantees})
+            grantee_users.update({gr: [("", gr)] for gr in grantees})
         else:
             for gr in grantees:
                 matches = [
@@ -89,37 +78,30 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
                     return
                 peer_spec = matches[0].get("spec") or {}
                 peer_identity = (peer_spec.get("providerIdentity") or gr).strip()
-                peer_interval, peer_max_to_keep = _get_rollover(peer_spec)
-                peer_suffixes = _suffixes(now, peer_interval, peer_max_to_keep)
-                peer_suffix = peer_suffixes[0] if peer_suffixes else ""
-                grantee_users[gr] = (
-                    f"provider-storage-managed-{peer_identity}{peer_suffix}"
-                )
+                peer_suffixes = rollover_suffixes(peer_spec, credential_time(req))
+                grantee_users[gr] = [
+                    (suffix, f"provider-storage-managed-{peer_identity}{suffix}")
+                    for suffix in peer_suffixes
+                ]
 
+    observers = {}
     for gr in grantees:
-        key = f"observe-user-{gr}"
-        rsp.desired.resources[key].resource.update(
-            {
-                "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
-                "kind": "Object",
-                "metadata": {
-                    "name": key,
-                    "namespace": ns,
-                    "annotations": {"crossplane.io/composition-resource-name": key},
-                },
-                "spec": {
-                    "managementPolicies": ["Observe"],
-                    "forProvider": {
-                        "manifest": {
-                            "apiVersion": "identity.opentelekomcloud.crossplane.io/v1alpha1",
-                            "kind": "UserV3",
-                            "metadata": {"name": grantee_users[gr]},
-                        }
+        observers[gr] = []
+        for suffix, user_name in grantee_users[gr]:
+            key = f"observe-user-{gr}{suffix}"
+            observers[gr].append(key)
+            rsp.desired.resources[key].resource.update(
+                kubernetes_object(
+                    key,
+                    ns,
+                    {
+                        "apiVersion": "identity.opentelekomcloud.crossplane.io/v1alpha1",
+                        "kind": "UserV3",
+                        "metadata": {"name": user_name},
                     },
-                    "providerConfigRef": {
-                        "name": "provider-kubernetes",
-                        "kind": "ProviderConfig",
-                    },
-                },
-            }
-        )
+                    managementPolicies=["Observe"],
+                )
+            )
+    rsp.context.MergeFrom(
+        resource.dict_to_struct({"storages.pkg.internal/otc-grantee-users": observers})
+    )

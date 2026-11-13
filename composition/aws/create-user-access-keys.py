@@ -1,11 +1,9 @@
 # Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
 # SPDX-License-Identifier: Apache-2.0
 
-from datetime import datetime, timezone
-
 from crossplane.function.proto.v1 import run_function_pb2 as fnv1
 
-from composition.helpers import _get_rollover, _suffixes, to_dict
+from composition.helpers import credential_suffixes, to_dict
 
 
 def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
@@ -16,9 +14,7 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
     principal = (spec.get("principal") or meta.get("name") or "<principal>").strip()
     provider_identity = (spec.get("providerIdentity") or principal).strip()
 
-    interval, max_to_keep = _get_rollover(spec)
-    now = datetime.now(timezone.utc)
-    suffixes = _suffixes(now, interval, max_to_keep)
+    suffixes = credential_suffixes(req)
 
     for suf in suffixes:
         user_name = f"{provider_identity}{suf}"

@@ -42,6 +42,9 @@ the stable Secret before the previous generation is removed. Rotation occurs
 on reconciliation after a period boundary. See the
 [API reference](../reference-guides/api.md#credential-rollover).
 
+For Secret publication and consumer reload requirements, see
+[Consumer credentials](../architecture/credential-strategy.md).
+
 ## Lifecycle rules
 
 Set rules under `spec.buckets[].lifecycleRules`. A target can be `*` for the
@@ -52,6 +55,11 @@ Set exactly one time condition: `minAge`, such as `30s`, `15m`, `2h`, `1d`,
 or `2w`, or `at`, an RFC3339 UTC timestamp. After `at`, each job processes
 all objects under the target, regardless of age. The backend
 EnvironmentConfig's `storage.lifecycle.schedule` controls when the CronJob runs.
+
+Jobs stop after one hour and allow two retries by default. Set
+`storage.lifecycle.activeDeadlineSeconds` (1 through 86400) and
+`storage.lifecycle.backoffLimit` (0 through 10) in that EnvironmentConfig
+when cleanup needs different limits. Check failed Jobs before the next run.
 
 ## Access requests and grants
 

@@ -3,7 +3,10 @@
 
 from crossplane.function.proto.v1 import run_function_pb2 as fnv1
 
-from composition.helpers import to_dict
+from composition.helpers import (
+    kubernetes_object,
+    to_dict,
+)
 
 ENVIRONMENT_KEY = "apiextensions.crossplane.io/environment"
 
@@ -23,31 +26,18 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
             continue
         key = f"bucket-{bucket}"
         rsp.desired.resources[key].resource.update(
-            {
-                "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
-                "kind": "Object",
-                "metadata": {
-                    "name": key,
-                    "namespace": ns,
-                    "annotations": {"crossplane.io/composition-resource-name": key},
-                },
-                "spec": {
-                    "forProvider": {
-                        "manifest": {
-                            "apiVersion": "obs.opentelekomcloud.crossplane.io/v1alpha1",
-                            "kind": "Bucket",
-                            "metadata": {"name": bucket},
-                            "spec": {
-                                "forProvider": {"bucket": bucket, "region": region},
-                                "providerConfigRef": {"name": "provider-otc"},
-                            },
-                        }
-                    },
-                    "readiness": {"policy": "DeriveFromObject"},
-                    "providerConfigRef": {
-                        "name": "provider-kubernetes",
-                        "kind": "ProviderConfig",
+            kubernetes_object(
+                key,
+                ns,
+                {
+                    "apiVersion": "obs.opentelekomcloud.crossplane.io/v1alpha1",
+                    "kind": "Bucket",
+                    "metadata": {"name": bucket},
+                    "spec": {
+                        "forProvider": {"bucket": bucket, "region": region},
+                        "providerConfigRef": {"name": "provider-otc"},
                     },
                 },
-            }
+                readiness={"policy": "DeriveFromObject"},
+            )
         )

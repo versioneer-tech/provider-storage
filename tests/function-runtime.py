@@ -1,7 +1,7 @@
 # Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
 # SPDX-License-Identifier: Apache-2.0
 
-"""Check response cache durations in the installed function runtimes."""
+"""Check cache durations and Composition behavior in the function runtimes."""
 
 import json
 import runpy
@@ -29,10 +29,12 @@ from crossplane.function.proto.v1 import run_function_pb2 as fnv1
 from crossplane.function.proto.v1 import run_function_pb2_grpc as fnv1_grpc
 
 data = json.load(sys.stdin)
+pipelines = {}
 with grpc.insecure_channel('localhost:9443') as channel:
     grpc.channel_ready_future(channel).result(timeout=30)
     stub = fnv1_grpc.FunctionRunnerServiceStub(channel)
-    for case in data:
+    for case in data['cases']:
+        pipelines.setdefault(case['backend'], case['pipeline'])
         for xr in ({}, case['xr']):
             for step in case['pipeline']:
                 req = fnv1.RunFunctionRequest()
@@ -40,7 +42,8 @@ with grpc.insecure_channel('localhost:9443') as channel:
                 req.context.update({'apiextensions.crossplane.io/environment': {
                     'storage': {'region': 'RegionOne', 's3Region': 'RegionOne',
                                 'endpoint': 'https://s3.example.test'},
-                }})
+                }, 'storages.pkg.internal/credential-time': '2026-11-13T12:00:00+00:00',
+                   'storages.pkg.internal/credential-generations': ['']})
                 req.input.update(step['input'])
                 if step['input']['kind'] == 'Script':
                     namespace = {}
@@ -51,10 +54,13 @@ with grpc.insecure_channel('localhost:9443') as channel:
                     rsp = stub.RunFunction(req, timeout=10)
                 assert (rsp.meta.ttl.seconds, rsp.meta.ttl.nanos) == (case['seconds'], 0), (
                     case['backend'], step['step'], rsp.meta.ttl)
+scope = {}
+exec(compile(data['checks'], 'tests/functions.py', 'exec'), scope)
+raise SystemExit(scope['run_tests'](pipelines))
 """
 
 
-class ResponseTTLTests(unittest.TestCase):
+class FunctionRuntimeTests(unittest.TestCase):
     def test_build_without_backend_arguments_writes_all_compositions(self):
         with tempfile.TemporaryDirectory(prefix="test-storage-build-") as directory:
             result = subprocess.run(
@@ -69,7 +75,10 @@ class ResponseTTLTests(unittest.TestCase):
             )
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(
-                {path.parent.name for path in Path(directory).glob("*/composition.yaml")},
+                {
+                    path.parent.name
+                    for path in Path(directory).glob("*/composition.yaml")
+                },
                 {"minio", "aws", "otc", "ovh", "cloudferro"},
             )
 
@@ -78,7 +87,7 @@ class ResponseTTLTests(unittest.TestCase):
             with self.subTest(value=value), self.assertRaises(ValueError):
                 BUILDER["response_ttl_seconds"](value)
 
-    def test_setting_and_override_reach_every_function_response(self):
+    def test_function_responses_and_cache_settings(self):
         cases = []
         with tempfile.TemporaryDirectory(prefix="test-storage-ttl-") as directory:
             root = Path(directory)
@@ -118,7 +127,7 @@ class ResponseTTLTests(unittest.TestCase):
             function["metadata"]["name"]: function["spec"]["package"]
             for function in functions
         }
-        name = "test-storage-ttl-" + uuid.uuid4().hex[:12]
+        name = "test-storage-functions-" + uuid.uuid4().hex[:12]
         subprocess.run(
             [
                 "docker",
@@ -151,11 +160,17 @@ class ResponseTTLTests(unittest.TestCase):
                     "-c",
                     RUNTIME,
                 ],
-                input=json.dumps(cases),
+                input=json.dumps(
+                    {
+                        "cases": cases,
+                        "checks": (ROOT / "tests/functions.py").read_text(),
+                    }
+                ),
                 capture_output=True,
                 text=True,
             )
             self.assertEqual(result.returncode, 0, result.stderr)
+            print(result.stderr, end="")
         finally:
             subprocess.run(
                 ["docker", "rm", "--force", name], check=True, capture_output=True

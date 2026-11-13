@@ -34,8 +34,9 @@ helm install crossplane crossplane-stable/crossplane \
   --set provider.defaultActivations={}
 ```
 
-Provider Storage supplies a `ManagedResourceActivationPolicy` for each
-backend. It activates only the managed resource types that the backend uses.
+Each backend's `ManagedResourceActivationPolicy` lists the managed resource
+types it uses. Selective activation requires a provider with `safe-start`
+support; older providers activate all their types.
 
 ## 1. Install backend dependencies
 
@@ -65,7 +66,14 @@ The dependency manifests use the same order for every backend:
 Edit all placeholders before you apply a manifest. Apply the numbered files
 in order, then apply `functions.yaml` and `rbac.yaml`.
 
+Lifecycle Jobs have a one-hour deadline and two retries by default. Adjust
+these limits in the backend EnvironmentConfig when needed. See
+[Lifecycle rules](usage_concepts.md#lifecycle-rules).
+
 ## 2. Install the configuration package
+
+Each backend package includes the shared Storage XRD. Use one backend package
+per cluster; two active packages cannot own the same XRD.
 
 After the backend dependencies are ready, create a `Configuration` manifest.
 Use the name and package for your backend:
