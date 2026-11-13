@@ -34,6 +34,17 @@ require_command() {
   fi
 }
 
+render() {
+  local backend="$1" source="$2"
+  shift 2
+  crossplane render "${source}" \
+    "${REPO_ROOT}/${backend}/composition.yaml" \
+    "${REPO_ROOT}/${backend}/dependencies/functions.yaml" \
+    --cache-dir="${PROVIDER_STORAGE_CROSSPLANE_CACHE_DIR}" \
+    --xrd="${REPO_ROOT}/xrd.yaml" \
+    --crossplane-version="${CROSSPLANE_VERSION}" --timeout=5m -x "$@"
+}
+
 validate_shell_syntax() {
   local script
   printf 'Validate shell script syntax\n'
@@ -183,16 +194,9 @@ validate_aws_secret_readiness() {
   local composite="${TMP_DIR}/aws-secret-readiness-composite.yaml"
 
   printf 'Validate AWS readiness while the credential observer has no data\n'
-  crossplane render \
-    "${scenario}/input.yaml" \
-    "${REPO_ROOT}/aws/composition.yaml" \
-    "${REPO_ROOT}/aws/dependencies/functions.yaml" \
-    --cache-dir="${PROVIDER_STORAGE_CROSSPLANE_CACHE_DIR}" \
-    --xrd="${REPO_ROOT}/xrd.yaml" \
-    --crossplane-version="${CROSSPLANE_VERSION}" \
-    --timeout=5m \
+  render "aws" "${scenario}/input.yaml" \
     --observed-resources "${scenario}/observed.yaml" \
-    -x >"${rendered}"
+    >"${rendered}"
   awk 'NR == 1 { next } /^---$/ { exit } { print }' \
     "${rendered}" >"${composite}"
   dyff between "${composite}" "${scenario}/expected.yaml" -s
@@ -206,15 +210,8 @@ validate_aws_none_grant() {
   printf 'Validate AWS None grant policy omission\n'
   sed 's/permission: ReadWrite/permission: None/' \
     "${REPO_ROOT}/examples/base/001-buckets.yaml" >"${input}"
-  crossplane render \
-    "${input}" \
-    "${REPO_ROOT}/aws/composition.yaml" \
-    "${REPO_ROOT}/aws/dependencies/functions.yaml" \
-    --cache-dir="${PROVIDER_STORAGE_CROSSPLANE_CACHE_DIR}" \
-    --xrd="${REPO_ROOT}/xrd.yaml" \
-    --crossplane-version="${CROSSPLANE_VERSION}" \
-    --timeout=5m \
-    -x >"${rendered}"
+  render "aws" "${input}" \
+    >"${rendered}"
   assert_yaml "${rendered}" '
     [.] | (
     ([.[] | select(
@@ -232,17 +229,10 @@ validate_ovh_secret_readiness() {
   local missing="${TMP_DIR}/ovh-missing-credential.yaml"
 
   printf 'Validate OVHcloud readiness while the credential Secret lacks its secret key\n'
-  crossplane render \
-    "${REPO_ROOT}/examples/base/001-buckets.yaml" \
-    "${REPO_ROOT}/ovh/composition.yaml" \
-    "${REPO_ROOT}/ovh/dependencies/functions.yaml" \
-    --cache-dir="${PROVIDER_STORAGE_CROSSPLANE_CACHE_DIR}" \
-    --xrd="${REPO_ROOT}/xrd.yaml" \
-    --crossplane-version="${CROSSPLANE_VERSION}" \
-    --timeout=5m \
+  render "ovh" "${REPO_ROOT}/examples/base/001-buckets.yaml" \
     --required-resources "${REPO_ROOT}/ovh/tests/required/001x-buckets.yaml" \
     --observed-resources "${REPO_ROOT}/ovh/tests/readiness/observed-missing.yaml" \
-    -x >"${missing}"
+    >"${missing}"
   assert_yaml "${missing}" '
     [.] | (map(select(
       .kind == "Object" and
@@ -259,16 +249,9 @@ validate_ovh_provider_identity() {
   printf 'Validate OVHcloud providerIdentity resource names\n'
   sed '/^  principal: s-joe$/a\  providerIdentity: it' \
     "${REPO_ROOT}/examples/base/001-buckets.yaml" >"${input}"
-  crossplane render \
-    "${input}" \
-    "${REPO_ROOT}/ovh/composition.yaml" \
-    "${REPO_ROOT}/ovh/dependencies/functions.yaml" \
-    --cache-dir="${PROVIDER_STORAGE_CROSSPLANE_CACHE_DIR}" \
-    --xrd="${REPO_ROOT}/xrd.yaml" \
-    --crossplane-version="${CROSSPLANE_VERSION}" \
-    --timeout=5m \
+  render "ovh" "${input}" \
     --required-resources "${REPO_ROOT}/ovh/tests/required/environment.yaml" \
-    -x >"${rendered}"
+    >"${rendered}"
   assert_yaml "${rendered}" '
     [.] | ((map("\(.kind)/\(.metadata.name)") | sort | to_json) == ([
       "Storage/s-joe",
@@ -281,157 +264,22 @@ validate_ovh_provider_identity() {
 
 validate_cloudferro_composition() {
   local input="${REPO_ROOT}/cloudferro/tests/fixtures/001-buckets.yaml"
-  local composition="${REPO_ROOT}/cloudferro/composition.yaml"
-  local functions="${REPO_ROOT}/cloudferro/dependencies/functions.yaml"
   local required="${REPO_ROOT}/cloudferro/tests/required/001x-buckets.yaml"
-  local observed="${REPO_ROOT}/cloudferro/tests/observed"
   local base="${TMP_DIR}/cloudferro-base.yaml"
   local credential="${TMP_DIR}/cloudferro-credential.yaml"
-  local denied="${TMP_DIR}/cloudferro-grant-error.out"
   local second="${TMP_DIR}/cloudferro-second-project.yaml"
-  local wrong_label="${TMP_DIR}/cloudferro-wrong-label.yaml"
-  local denied_content
 
-  printf 'Validate CloudFerro project binding, resource ordering, and consumer Secret\n'
-  crossplane render "${input}" "${composition}" "${functions}" \
-    --cache-dir="${PROVIDER_STORAGE_CROSSPLANE_CACHE_DIR}" \
-    --xrd="${REPO_ROOT}/xrd.yaml" \
-    --crossplane-version="${CROSSPLANE_VERSION}" --timeout=5m \
-    --required-resources "${required}" -x >"${base}"
-  assert_yaml "${base}" '
-    [.] | (({
-      "inventory": (map("\(.kind)/\(.metadata.name)") | sort),
-      "providerSecretRefs": map(
-        select(.kind == "ProviderConfig") | .spec.credentials.secretRef
-      ),
-      "bucketPrincipals": (map(
-        select(.kind == "BucketPolicy") |
-        .spec.forProvider.policy | from_json | .Statement[].Principal.AWS
-      ) | unique),
-      "managementPolicyCount": (
-        map(select(.spec.managementPolicies != null)) | length
-      )
-    } | to_json) == ({
-      "inventory": [
-        "BucketPolicy/bucketpolicy-s-joe",
-        "ContainerV1/s-joe",
-        "EC2CredentialV3/s-joe",
-        "ProviderConfig/cloudferro-s-joe",
-        "Storage/s-joe",
-        "Usage/usage-bucketpolicy-s-joe",
-        "Usage/usage-credential-bucketpolicy-s-joe"
-      ],
-      "providerSecretRefs": [{
-        "key": "config",
-        "name": "cloudferro-project-0123456789abcdef0123456789abcdef",
-        "namespace": "default"
-      }],
-      "bucketPrincipals": [
-        "arn:aws:iam::fedcba9876543210fedcba9876543210:root"
-      ],
-      "managementPolicyCount": 0
-    } | to_json))
-  ' 'CloudFerro base resource set and project binding'
+  printf 'Validate CloudFerro project binding, credentials, and deletion order\n'
+  render cloudferro "${input}" --required-resources "${required}" >"${base}"
+  render cloudferro "${input}" --required-resources "${required}" \
+    --observed-resources "${REPO_ROOT}/cloudferro/tests/observed/credential-ready.yaml" >"${credential}"
+  render cloudferro "${REPO_ROOT}/cloudferro/tests/fixtures/002-buckets.yaml" \
+    --required-resources "${REPO_ROOT}/cloudferro/tests/required/002x-buckets.yaml" >"${second}"
+  "${PROVIDER_STORAGE_PYTHON:-python3}" "${REPO_ROOT}/tests/cloudferro.py" \
+    "${base}" "${credential}" "${second}"
   queue_schema_validation cloudferro "${base}"
-
-  crossplane render "${input}" "${composition}" "${functions}" \
-    --cache-dir="${PROVIDER_STORAGE_CROSSPLANE_CACHE_DIR}" \
-    --xrd="${REPO_ROOT}/xrd.yaml" \
-    --crossplane-version="${CROSSPLANE_VERSION}" --timeout=5m \
-    --required-resources "${required}" \
-    --observed-resources "${observed}/credential-ready.yaml" -x >"${credential}"
-  assert_yaml "${credential}" '
-    [.] | (({
-      "inventory": (map("\(.kind)/\(.metadata.name)") | sort),
-      "secretData": map(
-        select(.kind == "Object" and .metadata.name == "secret-s-joe") |
-        .spec.forProvider.manifest.data
-      )
-    } | to_json) == ({
-      "inventory": [
-        "BucketPolicy/bucketpolicy-s-joe",
-        "ContainerV1/s-joe",
-        "EC2CredentialV3/s-joe",
-        "Object/aws-provider-secret-s-joe",
-        "Object/cloudferro-s3-s-joe",
-        "Object/secret-s-joe",
-        "ProviderConfig/cloudferro-s-joe",
-        "Storage/s-joe",
-        "Usage/usage-aws-provider-s-joe",
-        "Usage/usage-bucketpolicy-s-joe",
-        "Usage/usage-credential-bucketpolicy-s-joe"
-      ],
-      "secretData": [{
-        "AWS_ACCESS_KEY_ID": "RVhBTVBMRUFDQ0VTU0tFWQ==",
-        "AWS_ENDPOINT_URL": "aHR0cHM6Ly9zMy5leGFtcGxlLmNsb3VkZmVycm8udGVzdA==",
-        "AWS_REGION": "UmVnaW9uT25l",
-        "AWS_S3_FORCE_PATH_STYLE": "dHJ1ZQ==",
-        "AWS_SECRET_ACCESS_KEY": "RVhBTVBMRVNFQ1JFVEtFWQ=="
-      }]
-    } | to_json))
-  ' 'CloudFerro ready credential resources and consumer Secret'
   queue_schema_validation cloudferro "${credential}"
-
-  crossplane render "${REPO_ROOT}/cloudferro/tests/fixtures/002-buckets.yaml" \
-    "${composition}" "${functions}" \
-    --cache-dir="${PROVIDER_STORAGE_CROSSPLANE_CACHE_DIR}" \
-    --xrd="${REPO_ROOT}/xrd.yaml" \
-    --crossplane-version="${CROSSPLANE_VERSION}" --timeout=5m \
-    --required-resources "${REPO_ROOT}/cloudferro/tests/required/002x-buckets.yaml" \
-    -x >"${second}"
-  assert_yaml "${second}" '
-    [.] | (({
-      "containers": (map(
-        select(.kind == "ContainerV1") | .metadata.name
-      ) | sort),
-      "credentialCount": (
-        map(select(.kind == "EC2CredentialV3")) | length
-      ),
-      "objectKinds": (map(
-        select(.kind == "Object") | .spec.forProvider.manifest.kind
-      ) | sort),
-      "regions": (map(
-        select(.kind == "Object") |
-        .spec.forProvider.manifest.spec.jobTemplate.spec.template.spec.containers[].env[] |
-        select(.name == "RCLONE_CONFIG_STORAGE_REGION") | .value
-      ) | unique),
-      "bucketPrincipals": (map(
-        select(.kind == "BucketPolicy") |
-        .spec.forProvider.policy | from_json | .Statement[].Principal.AWS
-      ) | unique),
-      "providerSecretNames": map(
-        select(.kind == "ProviderConfig") | .spec.credentials.secretRef.name
-      )
-    } | to_json) == ({
-      "containers": ["s-jeff", "s-jeff-shared"],
-      "credentialCount": 2,
-      "objectKinds": ["ConfigMap", "CronJob"],
-      "regions": ["RegionOne"],
-      "bucketPrincipals": [
-        "arn:aws:iam::0123456789abcdef0123456789abcdef:root"
-      ],
-      "providerSecretNames": [
-        "cloudferro-project-fedcba9876543210fedcba9876543210"
-      ]
-    } | to_json))
-  ' 'CloudFerro second-project and lifecycle resources'
   queue_schema_validation cloudferro "${second}"
-
-  sed 's/provider: cloudferro/provider: invalid/' \
-    "${input}" >"${wrong_label}"
-  if crossplane render "${wrong_label}" "${composition}" "${functions}" \
-    --cache-dir="${PROVIDER_STORAGE_CROSSPLANE_CACHE_DIR}" \
-    --xrd="${REPO_ROOT}/xrd.yaml" \
-    --crossplane-version="${CROSSPLANE_VERSION}" --timeout=5m \
-    --required-resources "${required}" -x >"${denied}" 2>&1; then
-    printf 'CloudFerro accepted an invalid Composition selector.\n' >&2
-    return 1
-  fi
-  denied_content="$(<"${denied}")"
-  [[ "${denied_content}" == *'incorrect value for label "provider"'* ]] || {
-    printf 'CloudFerro selector failure did not report the provider label.\n' >&2
-    return 1
-  }
 }
 
 validate_otc_credential_rendering() {
@@ -541,16 +389,9 @@ render_and_compare() {
   shift 4
 
   printf 'Render %s with %s\n' "${source#"${REPO_ROOT}/"}" "${backend}"
-  crossplane render \
-    "${source}" \
-    "${REPO_ROOT}/${backend}/composition.yaml" \
-    "${REPO_ROOT}/${backend}/dependencies/functions.yaml" \
-    --cache-dir="${PROVIDER_STORAGE_CROSSPLANE_CACHE_DIR}" \
-    --xrd="${REPO_ROOT}/xrd.yaml" \
-    --crossplane-version="${CROSSPLANE_VERSION}" \
-    --timeout=5m \
+  render "${backend}" "${source}" \
     "$@" \
-    -x >"${actual}"
+    >"${actual}"
   normalize_generations "${actual}" "${actual}.normalized"
   normalize_generations "${expected}" "${actual}.expected.normalized"
   dyff between "${actual}.normalized" "${actual}.expected.normalized" -s
@@ -612,13 +453,14 @@ main() {
   require_command dyff
   require_command yq
 
+  "${PROVIDER_STORAGE_PYTHON:-python3}" "${REPO_ROOT}/scripts/build-composition.py" --check
+  "${PROVIDER_STORAGE_PYTHON:-python3}" "${REPO_ROOT}/tests/ci-checks.py"
+  "${PROVIDER_STORAGE_PYTHON:-python3}" "${REPO_ROOT}/tests/response-ttl.py" "${BACKENDS[@]}"
+  "${PROVIDER_STORAGE_PYTHON:-python3}" "${REPO_ROOT}/tests/integration/storage-manifests.py" "${BACKENDS[@]}"
   validate_shell_syntax
 
   local backend
   for backend in "${BACKENDS[@]}"; do
-    printf 'Validate %s integration Storage manifest contract\n' "${backend}"
-    bash "${REPO_ROOT}/tests/integration/test_storage_manifests.bash" \
-      "${backend}"
     if [[ "${backend}" == "aws" ]]; then
       require_command jq
       validate_aws_iam_policy

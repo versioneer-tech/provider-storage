@@ -9,12 +9,12 @@ copyright: "Copyright &copy; 2026, Versioneer"
 nav:
   - Home: index.md
   - How-to guides:
-    - Backend Differences: how-to-guides/backend_differences.md
+    - Backend differences: how-to-guides/backend_differences.md
     - Installation: how-to-guides/installation.md
-    - Cloud IAM Bootstrap: how-to-guides/cloud-iam-bootstrap.md
-    - Usage and Concepts: how-to-guides/usage_concepts.md
-    - Permission Model: how-to-guides/permissions.md
-    - Local Integration Tests: how-to-guides/local_setup.md
+    - Cloud IAM bootstrap: how-to-guides/cloud-iam-bootstrap.md
+    - Use Storage: how-to-guides/usage_concepts.md
+    - Permissions: how-to-guides/permissions.md
+    - Local tests: how-to-guides/local_setup.md
   - Reference guides:
     - API: reference-guides/api.md
     - Architecture:

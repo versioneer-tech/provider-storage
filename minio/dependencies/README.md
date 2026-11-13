@@ -3,10 +3,6 @@
 These manifests configure the providers used by the `storage-minio`
 Composition.
 
-Dedicated provider controllers in the cluster reconcile resources created by
-the Composition. Use a separate MinIO credential for the controller and give
-it only the permissions it needs. Keep the credential outside Git.
-
 ## Controller credential
 
 MinIO does not use a cloud IAM bootstrap script. Create a dedicated controller
@@ -37,7 +33,5 @@ namespace, or Secret name is different, update
 Apply [`03-providerConfigs.yaml`](03-providerConfigs.yaml) in every namespace
 that contains a MinIO `Storage` resource. The MinIO controller Secret can stay
 in the `minio` namespace because the ProviderConfig refers to it explicitly.
-The other dependency manifests are cluster-scoped. Apply the numbered
-manifests in order, then apply [`functions.yaml`](functions.yaml) and
-[`rbac.yaml`](rbac.yaml). Wait for all provider and function revisions to
-become ready.
+Apply the remaining manifests in the order given in the
+[installation guide](../../docs/how-to-guides/installation.md#1-install-backend-dependencies).

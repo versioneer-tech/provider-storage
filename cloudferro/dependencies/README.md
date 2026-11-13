@@ -3,11 +3,8 @@
 These manifests configure the providers used by the `storage-cloudferro`
 Composition.
 
-Dedicated provider controllers in the cluster reconcile resources created by
-the Composition. Give each `ProviderConfig` only the permissions it needs. Do
-not use unrestricted administrator credentials. Read the
-[CloudFerro IAM bootstrap guide](../../docs/how-to-guides/cloud-iam-bootstrap.md#cloudferro)
-for the permission model and safety details.
+See [Cloud IAM bootstrap](../../docs/how-to-guides/cloud-iam-bootstrap.md#cloudferro)
+for controller permissions and project isolation.
 
 ## IAM bootstrap
 
@@ -16,9 +13,7 @@ the [CREODIAS billing portal](https://creodias.docs.cloudferro.com/en/latest/acc
 and check their wallet and region settings. The bootstrap script does not
 create projects.
 
-Each project is also the access boundary for its buckets. Create every project
-that Provider Storage needs before bootstrap, and assign one project to each
-team that needs isolated bucket access.
+Assign separate projects to teams that need isolated bucket access.
 
 Use a project- or domain-scoped `v3token` login. The script derives and
 verifies a domain-scoped token for project discovery, user operations, and
@@ -56,7 +51,6 @@ The Composition creates a project-scoped OpenStack `ProviderConfig` for each
 controller Secrets.
 
 Apply [`03-providerConfigs.yaml`](03-providerConfigs.yaml) in every namespace
-that contains a CloudFerro `Storage` resource. The other dependency manifests
-are cluster-scoped. Apply the numbered manifests in order, then apply
-[`functions.yaml`](functions.yaml) and [`rbac.yaml`](rbac.yaml). Wait for all
-provider and function revisions to become ready.
+that contains a CloudFerro `Storage` resource. Apply the remaining manifests
+in the order given in the
+[installation guide](../../docs/how-to-guides/installation.md#1-install-backend-dependencies).

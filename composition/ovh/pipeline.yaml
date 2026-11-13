@@ -1,0 +1,47 @@
+# Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: storage-ovh
+  labels:
+    provider: ovh
+spec:
+  compositeTypeRef:
+    apiVersion: pkg.internal/v1beta1
+    kind: Storage
+  mode: Pipeline
+  pipeline:
+  - step: load-storage-environment
+    functionRef:
+      name: crossplane-contrib-function-python
+    input:
+      apiVersion: python.fn.crossplane.io/v1beta1
+      kind: Script
+      scriptFile: ovh/load-storage-environment.py
+  - step: create-direct-resources
+    functionRef:
+      name: crossplane-contrib-function-python
+    input:
+      apiVersion: python.fn.crossplane.io/v1beta1
+      kind: Script
+      scriptFile: ovh/create-direct-resources.py
+  - step: publish-current-secret
+    functionRef:
+      name: crossplane-contrib-function-python
+    input:
+      apiVersion: python.fn.crossplane.io/v1beta1
+      kind: Script
+      scriptFile: ovh/publish-current-secret.py
+  - step: manage-lifecycle-rules
+    functionRef:
+      name: crossplane-contrib-function-python
+    input:
+      apiVersion: python.fn.crossplane.io/v1beta1
+      kind: Script
+      scriptFile: shared/manage-lifecycle-rules.py
+      backend: ovh
+  - step: automatically-detect-ready-composed-resources
+    functionRef:
+      name: crossplane-contrib-function-auto-ready

@@ -5,10 +5,10 @@ name: Publish Provider Storage
 on:
   push:
     tags:
-      - "[0-9]+\\.[0-9]+\\.[0-9]+"                 # 1.2.3
-      - "[0-9]+\\.[0-9]+\\.[0-9]+-alpha\\.[0-9]+"  # 1.2.3-alpha.1
-      - "[0-9]+\\.[0-9]+\\.[0-9]+-beta\\.[0-9]+"   # 1.2.3-beta.1
-      - "[0-9]+\\.[0-9]+\\.[0-9]+-rc\\.[0-9]+"     # 1.2.3-rc.1
+      - "[0-9]+.[0-9]+.[0-9]+"                 # 1.2.3
+      - "[0-9]+.[0-9]+.[0-9]+-alpha.[0-9]+"  # 1.2.3-alpha.1
+      - "[0-9]+.[0-9]+.[0-9]+-beta.[0-9]+"   # 1.2.3-beta.1
+      - "[0-9]+.[0-9]+.[0-9]+-rc.[0-9]+"     # 1.2.3-rc.1
 
 jobs:
   verify_release_commit:
@@ -21,7 +21,7 @@ jobs:
       - name: Checkout release commit
         uses: actions/checkout@v7
 
-      - name: Verify successful main-branch tests
+      - name: Verify full main-branch tests
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
@@ -34,24 +34,44 @@ jobs:
               --header "Authorization: Bearer ${GH_TOKEN}" \
               --header "X-GitHub-Api-Version: 2022-11-28" \
               --data-urlencode "branch=main" \
-              --data-urlencode "event=push" \
               --data-urlencode "head_sha=${release_commit}" \
               --data-urlencode "status=success" \
+              --data-urlencode "per_page=100" \
               "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/actions/workflows/pr.yaml/runs"
           )"
-
-          if ! jq -e --arg commit "${release_commit}" \
-            '.workflow_runs | any(.head_sha == $commit and .conclusion == "success")' \
-            <<<"${workflow_runs}" >/dev/null; then
-            printf 'Release commit %s has no successful main-branch Tests workflow run.\n' \
-              "${release_commit}" >&2
-            exit 1
-          fi
+          while IFS= read -r run_id; do
+            jobs="$(
+              curl --fail --silent --show-error --location \
+                --header "Accept: application/vnd.github+json" \
+                --header "Authorization: Bearer ${GH_TOKEN}" \
+                --header "X-GitHub-Api-Version: 2022-11-28" \
+                "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/jobs?per_page=100"
+            )"
+            if jq -e '
+              .jobs as $jobs |
+              all(["Composition (minio)", "Composition (aws)", "Composition (otc)",
+                   "Composition (ovh)", "Composition (cloudferro)", "MinIO integration"][];
+                  . as $name | any($jobs[]; .name == $name and .conclusion == "success"))
+            ' <<<"${jobs}" >/dev/null; then
+              exit 0
+            fi
+          done < <(jq -r --arg commit "${release_commit}" '
+            .workflow_runs[] | select(.head_sha == $commit and .head_branch == "main"
+              and (.event == "push" or .event == "workflow_dispatch")) | .id
+          ' <<<"${workflow_runs}")
+          printf 'Release commit %s needs a full successful Tests run on main.\n' \
+            "${release_commit}" >&2
+          printf 'For a documentation-only commit, run Tests manually on main.\n' >&2
+          exit 1
 
   build_and_publish_configuration_packages:
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 15
     needs: verify_release_commit
+    strategy:
+      fail-fast: false
+      matrix:
+        backend: [minio, aws, otc, ovh, cloudferro]
     permissions:
       contents: read
       packages: write
@@ -68,113 +88,32 @@ jobs:
 
       - name: Install Crossplane CLI
         run: |
-          curl -sL "https://raw.githubusercontent.com/crossplane/crossplane/v2.4.1/install.sh" | XP_VERSION=v2.4.1 sh
-          sudo mv crossplane /usr/local/bin
+          set -euo pipefail
+          curl --fail --silent --show-error --location \
+            https://raw.githubusercontent.com/crossplane/crossplane/v2.4.1/install.sh \
+            --output /tmp/crossplane-install.sh
+          XP_VERSION=v2.4.1 sh /tmp/crossplane-install.sh
+          sudo install crossplane /usr/local/bin/crossplane
 
-      - name: Build and publish storage-minio Configuration Package
-        shell: bash
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Build and publish Configuration package
+        env:
+          BACKEND: ${{ matrix.backend }}
         run: |
           set -euo pipefail
-          ORG="${GITHUB_REPOSITORY_OWNER,,}"
-          REPO="${GITHUB_REPOSITORY#*/}"; REPO="${REPO,,}"
-          TAG="${GITHUB_REF_NAME##*/}"
-
-          cp xrd.yaml minio/xrd.yaml
-
+          python3 -m pip install -r scripts/requirements.txt
+          python3 scripts/build-composition.py --check "${BACKEND}"
+          package_root="$(mktemp -d)"
+          cp xrd.yaml "${BACKEND}/composition.yaml" "${BACKEND}/crossplane.yaml" "${package_root}/"
           crossplane xpkg build \
-            --package-root=minio \
-            --ignore 'dependencies/*,tests/*,tests/*/*' \
-            --package-file minio/storage-minio.xpkg \
-            --verbose
-
-          crossplane xpkg push \
-            --package-files=minio/storage-minio.xpkg \
-            "ghcr.io/${ORG}/${REPO}/minio:${TAG}" \
-            --verbose
-
-      - name: Build and publish storage-aws Configuration Package
-        shell: bash
-        run: |
-          set -euo pipefail
-          ORG="${GITHUB_REPOSITORY_OWNER,,}"
-          REPO="${GITHUB_REPOSITORY#*/}"; REPO="${REPO,,}"
-          TAG="${GITHUB_REF_NAME##*/}"
-
-          cp xrd.yaml aws/xrd.yaml
-
-          crossplane xpkg build \
-            --package-root=aws \
-            --ignore 'dependencies/*,tests/*,tests/*/*' \
-            --package-file aws/storage-aws.xpkg \
-            --verbose
-
-          crossplane xpkg push \
-            --package-files=aws/storage-aws.xpkg \
-            "ghcr.io/${ORG}/${REPO}/aws:${TAG}" \
-            --verbose
-
-      - name: Build and publish storage-otc Configuration Package
-        shell: bash
-        run: |
-          set -euo pipefail
-          ORG="${GITHUB_REPOSITORY_OWNER,,}"
-          REPO="${GITHUB_REPOSITORY#*/}"; REPO="${REPO,,}"
-          TAG="${GITHUB_REF_NAME##*/}"
-
-          cp xrd.yaml otc/xrd.yaml
-
-          crossplane xpkg build \
-            --package-root=otc \
-            --ignore 'dependencies/*,tests/*,tests/*/*' \
-            --package-file otc/storage-otc.xpkg \
-            --verbose
-
-          crossplane xpkg push \
-            --package-files=otc/storage-otc.xpkg \
-            "ghcr.io/${ORG}/${REPO}/otc:${TAG}" \
-            --verbose
-
-      - name: Build and publish storage-ovh Configuration Package
-        shell: bash
-        run: |
-          set -euo pipefail
-          ORG="${GITHUB_REPOSITORY_OWNER,,}"
-          REPO="${GITHUB_REPOSITORY#*/}"; REPO="${REPO,,}"
-          TAG="${GITHUB_REF_NAME##*/}"
-
-          cp xrd.yaml ovh/xrd.yaml
-
-          crossplane xpkg build \
-            --package-root=ovh \
-            --ignore 'dependencies/*,tests/*,tests/*/*' \
-            --package-file ovh/storage-ovh.xpkg \
-            --verbose
-
-          crossplane xpkg push \
-            --package-files=ovh/storage-ovh.xpkg \
-            "ghcr.io/${ORG}/${REPO}/ovh:${TAG}" \
-            --verbose
-
-      - name: Build and publish storage-cloudferro Configuration Package
-        shell: bash
-        run: |
-          set -euo pipefail
-          ORG="${GITHUB_REPOSITORY_OWNER,,}"
-          REPO="${GITHUB_REPOSITORY#*/}"; REPO="${REPO,,}"
-          TAG="${GITHUB_REF_NAME##*/}"
-
-          cp xrd.yaml cloudferro/xrd.yaml
-
-          crossplane xpkg build \
-            --package-root=cloudferro \
-            --ignore 'dependencies/*,tests/*,tests/*/*' \
-            --package-file cloudferro/storage-cloudferro.xpkg \
-            --verbose
-
-          crossplane xpkg push \
-            --package-files=cloudferro/storage-cloudferro.xpkg \
-            "ghcr.io/${ORG}/${REPO}/cloudferro:${TAG}" \
-            --verbose
+            --package-root="${package_root}" \
+            --package-file="${package_root}/storage.xpkg"
+          crossplane xpkg push --package-files="${package_root}/storage.xpkg" \
+            "ghcr.io/${GITHUB_REPOSITORY,,}/${BACKEND}:${GITHUB_REF_NAME}"
 
   build_docs:
     runs-on: ubuntu-24.04
@@ -196,22 +135,6 @@ jobs:
       - name: Install mkdocs dependencies
         run: |
           pip install -r docs/requirements.txt
-
-      - name: Set up Go (for crdoc)
-        uses: actions/setup-go@v6
-        with:
-          go-version: "1.23.x"
-          cache: true
-
-      - name: Install crdoc
-        run: go install fybrik.io/crdoc@v0.6.4
-
-      - name: Generate API docs
-        run: |
-          # Adapt XRD to K8s CRD format for crdoc
-          sed -i 's/CompositeResourceDefinition/CustomResourceDefinition/' xrd.yaml
-          sed -i 's#apiextensions.crossplane.io/v2#apiextensions.k8s.io/v1#g' xrd.yaml
-          crdoc -r xrd.yaml -o docs/reference-guides/api.md
 
       - name: Replace Crossplane Configuration version with tag
         run: |

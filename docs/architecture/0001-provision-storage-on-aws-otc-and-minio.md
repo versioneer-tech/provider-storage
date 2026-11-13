@@ -28,7 +28,7 @@ Each Composition must:
    [Consumer Credential Strategy](credential-strategy.md).
 
 An access request is intent only. Access becomes active only when the verified
-bucket owner grants the requested access level.
+bucket owner sets a matching grant.
 
 The backend resource mapping is:
 

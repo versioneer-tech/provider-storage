@@ -1,11 +1,10 @@
-# OTC Composition tests
+# OTC tests
 
-Run the shared render and golden-file test from the repository root:
+Run this backend's unit checks from the repository root:
 
 ```bash
 tests/unit.bash otc
 ```
 
-For OTC credential setup and a live provider test in the dedicated Kind
-cluster, see
-[`tests/integration/README.md`](../../tests/integration/README.md#otc).
+See the [test guide](../../tests/README.md) for setup and the
+[integration guide](../../tests/integration/README.md#otc) for live checks.

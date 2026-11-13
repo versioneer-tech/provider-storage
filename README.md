@@ -4,71 +4,54 @@
 [![Latest release](https://img.shields.io/github/v/release/versioneer-tech/provider-storage)](https://github.com/versioneer-tech/provider-storage/releases/latest)
 [![License](https://img.shields.io/github/license/versioneer-tech/provider-storage)](LICENSE)
 
-Provider Storage defines one namespaced Crossplane `Storage` API for S3
-buckets, consumer credentials, access grants, and lifecycle rules. Platform
-operators configure the storage backends. Users do not need to manage
-provider-specific identities or policies.
+Provider Storage provisions S3 buckets and consumer credentials on MinIO,
+AWS, Open Telekom Cloud (OTC), OVHcloud, and CloudFerro. Declare buckets,
+access grants, and lifecycle rules in a namespaced `Storage`; Crossplane
+creates the provider resources from the platform's backend settings.
 
-Supported backends are MinIO, AWS S3, Open Telekom Cloud (OTC), OVHcloud, and
-CloudFerro. See the
-[backend comparison](docs/how-to-guides/backend_differences.md) before you
-select a backend.
-
-## Start here
-
-1. Follow the [installation guide](docs/how-to-guides/installation.md).
-2. For a managed cloud, prepare the controller credentials as described in the
-   [cloud IAM guide](docs/how-to-guides/cloud-iam-bootstrap.md).
-3. Create a `Storage` resource in the same namespace as its namespaced
-   `ProviderConfig`.
-
-If MinIO is the only compatible Composition in the cluster, this example
-creates one bucket without an explicit selector:
+This example creates one MinIO bucket:
 
 ```yaml
 apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
   name: team-wonderland
+  namespace: workspace
 spec:
+  crossplane:
+    compositionSelector:
+      matchLabels:
+        provider: minio
   principal: alice
   buckets:
     - bucketName: wonderland
 ```
 
-Provider Storage creates a consumer Secret named after `spec.principal` in
-the same namespace. See [Usage and concepts](docs/how-to-guides/usage_concepts.md)
-for access requests, grants, credential rollover, lifecycle rules, and
-verification commands. The [API reference](docs/reference-guides/api.md)
-lists all fields.
+The consumer Secret is named `alice` in `workspace`. Applications use this
+Secret for S3 access. Platform operators configure the backend and its
+controller credentials before users create Storage resources.
 
-Backend-specific examples are in [`examples/overlays`](examples/overlays).
-If you install more than one backend Composition, see
-[Select a backend](docs/how-to-guides/usage_concepts.md#select-a-backend).
+## Get started
 
-## Backend setup
+[Read the documentation online](https://versioneer-tech.github.io/provider-storage/),
+or use the guides in this checkout:
 
-| Backend | Dependency guide |
+| Task | Guide |
 | --- | --- |
-| MinIO | [MinIO dependencies](minio/dependencies/README.md) |
-| AWS | [AWS dependencies](aws/dependencies/README.md) |
-| OTC | [OTC dependencies](otc/dependencies/README.md) |
-| OVHcloud | [OVHcloud dependencies](ovh/dependencies/README.md) |
-| CloudFerro | [CloudFerro dependencies](cloudferro/dependencies/README.md) |
+| Compare access rules and limits | [Backend differences](docs/how-to-guides/backend_differences.md) |
+| Install packages and backend dependencies | [Installation](docs/how-to-guides/installation.md) |
+| Prepare cloud controller credentials | [Cloud IAM bootstrap](docs/how-to-guides/cloud-iam-bootstrap.md) |
+| Create buckets, rotate credentials, and check provisioning | [Use Storage](docs/how-to-guides/usage_concepts.md) |
+| Request and grant bucket access | [Permissions](docs/how-to-guides/permissions.md) |
+| Look up resource fields | [API reference](docs/reference-guides/api.md) |
 
-## Tests
+Backend examples are in [`examples/overlays`](examples/overlays).
 
-Run the local validation suite from the repository root:
+## Development
 
-```bash
-tests/unit.bash
-```
-
-The suite checks the rendered IAM credentials, renders each Composition,
-compares golden files, validates the rendered resources against schemas, and
-checks the integration Storage manifest contracts. See the
-[local test guide](docs/how-to-guides/local_setup.md) before you run a live
-Kind or cloud integration test.
+Build instructions are in [`composition/`](composition/README.md).
+Use the [test guide](tests/README.md) to select and run checks, and the
+[integration guide](tests/integration/README.md) for the dedicated Kind cluster.
 
 ## License
 

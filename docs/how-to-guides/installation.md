@@ -1,16 +1,15 @@
-# Provider Storage installation guide
+# Installation
 
-Provider Storage lets platform operators offer S3-compatible storage through
-Crossplane. Install the dependencies and configuration package for each
-backend that you want to provide.
+Install the dependencies and configuration package for each storage backend.
 
 ## Namespaces
 
 Choose a target namespace before deployment.
 
 - Apply `Storage` resources to the target namespace.
-- Provider Secrets and namespaced `ProviderConfig` resources must use the
-  target namespace.
+- Apply namespaced `ProviderConfig` resources in each Storage namespace.
+- Create controller Secrets in the namespace named by the ProviderConfig's
+  Secret reference. MinIO uses a separate `minio` namespace by default.
 - Provider Storage creates the consumer Secret in the same namespace as its
   `Storage` resource. The Secret name is the principal name.
 
@@ -22,7 +21,7 @@ You need:
 
 - a Kubernetes cluster;
 - `kubectl` access to the cluster;
-- Crossplane installed in the cluster.
+- Crossplane v2 installed in the cluster.
 
 For example:
 
@@ -40,9 +39,8 @@ backend. It activates only the managed resource types that the backend uses.
 
 ## 1. Install backend dependencies
 
-Choose a backend and follow its dependency guide. The guide contains the IAM
-bootstrap, credential Secret, provider configuration, and deployment steps
-for that backend.
+Follow the dependency guide for your backend to prepare controller
+credentials and edit the manifests:
 
 | Backend | Dependency guide |
 | --- | --- |
@@ -66,15 +64,6 @@ The dependency manifests use the same order for every backend:
 
 Edit all placeholders before you apply a manifest. Apply the numbered files
 in order, then apply `functions.yaml` and `rbac.yaml`.
-
-Create the target namespace before you apply the namespaced ProviderConfigs.
-For example:
-
-```bash
-kubectl create namespace <storage-namespace>
-kubectl apply --namespace <storage-namespace> \
-  -f <backend>/dependencies/03-providerConfigs.yaml
-```
 
 ## 2. Install the configuration package
 
@@ -100,15 +89,18 @@ spec:
   package: <package>
 ```
 
-Replace `<configuration-name>` and `<package>` with values from the table.
-Replace `<!version!>` with the package version that you want to install. Save
-the manifest as `configuration.yaml`, then apply it:
+Replace the placeholders with values from the table and your package
+version. Save the manifest as `configuration.yaml`, then apply it:
 
 ```bash
 kubectl apply -f configuration.yaml
 ```
 
-Wait until the configuration, providers, and functions are ready.
+Check that the configuration, providers, and functions are healthy:
+
+```bash
+kubectl get configurations,providers,functions
+```
 
 If the cluster has more than one Provider Storage Composition, each `Storage`
 resource must select its backend explicitly. A selector is not needed when
@@ -119,5 +111,5 @@ only one compatible Composition is installed. See
 
 Create a small `Storage` resource in the target namespace. Check that the
 resource becomes ready and that Provider Storage creates its consumer Secret.
-See [Usage and concepts](usage_concepts.md) for examples and verification
+See [Use Storage](usage_concepts.md) for examples and verification
 commands.

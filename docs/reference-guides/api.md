@@ -1,10 +1,7 @@
-# Provider Storage API reference
+# API reference
 
-The source of truth for the `Storage` API is the
 [`xrd.yaml`](https://github.com/versioneer-tech/provider-storage/blob/main/xrd.yaml)
-CompositeResourceDefinition.
-
-The API is the platform-facing contract for bucket self-service. Users describe buckets, access requests, grants, lifecycle rules, and credential rollover once. Operators select the backend implementation.
+CompositeResourceDefinition defines the `Storage` API.
 
 ## Storage
 
@@ -38,7 +35,7 @@ Lifecycle rules are configured under `spec.buckets[].lifecycleRules[]`.
 - `target`: `*` for the whole bucket, or a prefix such as `tmp/*`.
 - `mode`: `Delete` or `Notify`.
 - `minAge`: relative object age such as `30s`, `15m`, `2h`, `1d`, or `2w`.
-- `at`: RFC3339 timestamp for a fixed UTC cutoff.
+- `at`: RFC3339 UTC timestamp after which each job processes all matching objects.
 
 Each rule must set exactly one of `minAge` or `at`.
 

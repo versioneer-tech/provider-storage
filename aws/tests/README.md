@@ -1,10 +1,10 @@
-# AWS Composition tests
+# AWS tests
 
-Run the shared render and golden-file test from the repository root:
+Run this backend's unit checks from the repository root:
 
 ```bash
 tests/unit.bash aws
 ```
 
-For AWS bootstrap and a live provider test in the dedicated Kind cluster, see
-[`tests/integration/README.md`](../../tests/integration/README.md#aws).
+See the [test guide](../../tests/README.md) for setup and the
+[integration guide](../../tests/integration/README.md#aws) for live checks.

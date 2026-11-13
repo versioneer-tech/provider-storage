@@ -1,26 +1,24 @@
-# Provider Storage permission model
+# Permissions
 
-The **permission model** in `provider-storage` gives operators one access model across backends. Users work with four normalized permission levels instead of raw backend-specific IAM or policy actions. The Composition translates that model into the backend implementation.
+The bucket owner sets access in `spec.bucketAccessGrants`. Each grant names
+a bucket, a grantee principal, a permission, and a `grantedAt` timestamp.
 
-- **ReadWrite**: Full read and write access to bucket contents.
-  Includes: `ListBucket`, `GetObject`, `PutObject`, `DeleteObject`
-- **ReadOnly**: Read access.
-  Includes: `ListBucket`, `GetObject`
-- **WriteOnly**: Write and delete access without object read access.
-  Includes: `ListBucket`, `PutObject`, `DeleteObject`
-- **None**: Record that access is not granted by this resource. Backends differ
-  in whether they remove an allow or write an explicit deny.
+| Permission | Allowed S3 operations |
+| --- | --- |
+| `ReadWrite` | List, read, write, and delete objects. |
+| `ReadOnly` | List and read objects. |
+| `WriteOnly` | List, write, and delete objects. |
+| `None` | No access granted by this resource. |
 
-The [backend comparison](backend_differences.md#from-request-to-access) shows
-how each backend implements a pending, granted, or denied request and records
-current verification limits.
+`None` can remove an allow or create a deny, depending on the backend.
+See [Backend differences](backend_differences.md#from-request-to-access).
+Other cloud permissions can still provide access.
 
 ## Discoverable buckets
 
-`spec.buckets[].discoverable` records whether a bucket should be shown to
-potential requesters. The Compositions do not use that field to decide
-access. Compositions that resolve requests from peer `Storage` resources
-require this label on the owner resource:
+`spec.buckets[].discoverable` lets clients show a bucket to potential
+requesters. It does not grant access. Compositions that find peer Storage
+resources require this label on the owner:
 
 ```yaml
 metadata:
@@ -28,99 +26,22 @@ metadata:
     storages.pkg.internal/discoverable: "true"
 ```
 
-Once loaded, the Composition checks that the peer owns the named bucket and
-has a matching `bucketAccessGrants` entry for the requester. OTC uses
-observed grantee identities to build bucket policies; its current
-Composition does not inspect peer `Storage` resources for requests.
+The Composition checks that the peer owns the bucket and has a grant for
+the requester. OTC uses the owner's grants and observed grantee IDs to build
+bucket policies; a request does not change that policy.
 
-Example (owner Joe making his bucket discoverable):
+## Request and grant access
 
-```yaml
-apiVersion: pkg.internal/v1beta1
-kind: Storage
-metadata:
-  name: s-joe
-  labels:
-    storages.pkg.internal/discoverable: "true"
-spec:
-  principal: s-joe
-  buckets:
-    - bucketName: s-joe
-      discoverable: true
-```
+1. The requester adds `bucketName`, `requestedAt`, and an optional `reason`
+   to `spec.bucketAccessRequests`.
+2. The owner adds a matching grant with the chosen permission.
+3. To withdraw the grant, the owner sets `None` or removes the grant. Cloud
+   policy changes take time to affect access.
 
-## Request access
+A request has no permission field. Its reason can describe the desired
+access, but the owner chooses the permission. Requests and grants remain on
+the Storage resources for operators to inspect.
 
-Other users can **request access** to a discoverable bucket by adding a `bucketAccessRequests` entry.
-Requests include the bucket name, a `requestedAt` timestamp, and optionally a free-text reason.
-The `Storage` API does not store a requested permission on the request itself; the effective permission is decided by the bucket owner's grant.
-
-Example (Jeff requesting access to Joe’s bucket):
-
-```yaml
-apiVersion: pkg.internal/v1beta1
-kind: Storage
-metadata:
-  name: s-jeff
-spec:
-  principal: s-jeff
-  buckets:
-    - bucketName: s-jeff
-  bucketAccessRequests:
-    - bucketName: s-joe
-      reason: Need access for collaboration
-      requestedAt: "2025-09-29T10:10:00Z"
-```
-
-Until Joe explicitly grants access, Jeff’s request remains pending.
-
-## Grant or deny access
-
-The bucket owner decides whether to **grant** or **deny** a request.
-This is captured with a `bucketAccessGrants` entry, which specifies:
-
-- The bucket name
-- The grantee
-- The granted permission (`ReadWrite`, `ReadOnly`, `WriteOnly`, or `None`)
-- The timestamp when the grant or denial was recorded (`grantedAt`)
-
-Example (Joe granting Jeff ReadOnly access to `s-joe`):
-
-```yaml
-apiVersion: pkg.internal/v1beta1
-kind: Storage
-metadata:
-  name: s-joe
-  labels:
-    storages.pkg.internal/discoverable: "true"
-spec:
-  principal: s-joe
-  buckets:
-    - bucketName: s-joe
-      discoverable: true
-  bucketAccessGrants:
-    - bucketName: s-joe
-      grantee: s-jeff
-      permission: ReadOnly
-      grantedAt: "2025-09-29T10:15:00Z"
-```
-
-If Joe wanted to record a denial, he would set `permission: None` in the
-grant. Whether this produces an explicit cloud policy deny depends on the
-backend.
-
-## Permission lifecycle
-
-1. **Bucket owner marks bucket discoverable.**
-2. **Requester adds a `bucketAccessRequests` entry** with the target bucket, timestamp, and optional reason.
-3. **Owner responds with a `bucketAccessGrants` entry.**
-   - If permission is one of `ReadWrite`, `ReadOnly`, or `WriteOnly`, access is granted.
-   - If permission is `None`, the resource records a denial; the generated
-     policy behavior differs by backend.
-4. Callers supply **requestedAt** and **grantedAt** timestamps for traceability.
-
-This keeps the workflow visible: requests, reasons, grants, and denials remain
-in the `Storage` resources for operators to inspect.
-
-For a complete two-principal example, see
-[Joe and Jeff](usage_concepts.md#example-joe-and-jeff).
+See the [examples](usage_concepts.md#examples) for complete
+manifests. Verify both allowed and denied operations with consumer
+credentials; a successful render does not prove cloud enforcement.

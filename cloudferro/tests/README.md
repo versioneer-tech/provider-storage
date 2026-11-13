@@ -1,11 +1,10 @@
-# CloudFerro Composition tests
+# CloudFerro tests
 
-Run the CloudFerro project binding, credential publication, IAM helper, and
-integration-manifest checks from the repository root:
+Run this backend's unit checks from the repository root:
 
 ```bash
 tests/unit.bash cloudferro
 ```
 
-For project bootstrap and the live two-project test, see the
-[CloudFerro integration guide](../../tests/integration/README.md#cloudferro).
+See the [test guide](../../tests/README.md) for setup and the
+[integration guide](../../tests/integration/README.md#cloudferro) for live checks.

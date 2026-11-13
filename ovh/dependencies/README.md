@@ -3,11 +3,8 @@
 These manifests configure the providers used by the `storage-ovh`
 Composition.
 
-Dedicated provider controllers in the cluster reconcile resources created by
-the Composition. Give each `ProviderConfig` only the permissions it needs. Do
-not use unrestricted administrator credentials. Read the
-[OVHcloud IAM bootstrap guide](../../docs/how-to-guides/cloud-iam-bootstrap.md#ovhcloud)
-for the permission model and safety details.
+See [Cloud IAM bootstrap](../../docs/how-to-guides/cloud-iam-bootstrap.md#ovhcloud)
+for service-account permissions and project scope.
 
 ## IAM bootstrap
 
@@ -40,7 +37,6 @@ ovh/dependencies/iam.sh render-secrets |
 ```
 
 Apply [`03-providerConfigs.yaml`](03-providerConfigs.yaml) in every namespace
-that contains an OVHcloud `Storage` resource. The other dependency manifests
-are cluster-scoped. Apply the numbered manifests in order, then apply
-[`functions.yaml`](functions.yaml) and [`rbac.yaml`](rbac.yaml). Wait for all
-provider and function revisions to become ready.
+that contains an OVHcloud `Storage` resource. Apply the remaining manifests in
+the order given in the
+[installation guide](../../docs/how-to-guides/installation.md#1-install-backend-dependencies).

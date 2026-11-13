@@ -14,3 +14,9 @@ repos:
         entry: ./scripts/copyright.py
         language: system
         types_or: [yaml]
+      - id: generated-compositions
+        name: Generated Compositions
+        entry: python3 scripts/build-composition.py --check
+        language: system
+        files: ^(composition/|scripts/build-composition\.py|(?:aws|cloudferro|minio|otc|ovh)/composition\.yaml$)
+        pass_filenames: false

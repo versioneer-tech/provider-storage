@@ -1,66 +1,39 @@
-# Local integration tests
+# Local tests
 
-Provider Storage uses an ephemeral Kind cluster for local integration tests.
-The cluster name is `provider-storage-it`. Every script uses the explicit
-`kind-provider-storage-it` context.
+Use the [test guide](https://github.com/versioneer-tech/provider-storage/blob/main/tests/README.md)
+to select checks and install local test tools. The unit suite uses Docker
+and needs no Kubernetes cluster.
 
-## Prerequisites
+## Unit tests
 
-Install Docker, Kind, kubectl, Helm, Crossplane CLI, dyff, yq, and jq. Run the
-full unit suite before integration:
+From the repository root, build the Compositions and run all backends:
 
 ```bash
+python3 -m pip install -r scripts/requirements.txt
+python3 scripts/build-composition.py
+docker ps
 tests/unit.bash
 ```
 
-An agent must ask the operator before it creates the local test cluster.
-After approval, run:
+## Integration tests
+
+Install Kind, kubectl, and Helm. Tests use the dedicated `provider-storage-it`
+cluster and the explicit `kind-provider-storage-it` context. Use a separate
+`KUBECONFIG` file to keep this setup apart from other clusters.
+
+Get the operator's approval before creating the test cluster:
 
 ```bash
 tests/integration/create-cluster.bash
-```
-
-The command also creates the `provider-storage-it` namespace. The other
-scripts stop if this cluster is absent. They do not create it or use another
-current Kubernetes context.
-
-## Test MinIO
-
-MinIO needs no cloud IAM bootstrap:
-
-```bash
 tests/integration/run.bash minio
 ```
 
-The integration command deploys Crossplane, MinIO, the required providers,
-and one MinIO `Storage`. It waits for the resource and its credential Secret,
-then verifies an object round trip and lifecycle cleanup.
-
-## Test a cloud backend
-
-Cloud tests use the same cluster. Before you run a cloud integration test:
-
-1. complete the backend procedure in the
-   [cloud IAM bootstrap guide](cloud-iam-bootstrap.md);
-2. apply the provider credential Secret manifest printed by the IAM bootstrap;
-   and
-3. run the provider and verification scripts for the selected backend.
-
-The backend commands, credential formats, and multi-backend workflow are in
-[`tests/integration/README.md`](https://github.com/versioneer-tech/provider-storage/blob/main/tests/integration/README.md).
-
-Run `tests/integration/run.bash <backend>` after the controller Secrets and
-required variables are ready. The command deploys the providers and test
-Storages, then runs the backend access checks.
-
-List retained test resources by backend:
-
-```bash
-kubectl --context kind-provider-storage-it \
-  get storages.pkg.internal \
-  --namespace provider-storage-it \
-  -L storages.pkg.internal/backend
-```
+The runner installs Crossplane, MinIO, and the providers. It creates two
+Storages and checks consumer Secrets, object access, and lifecycle cleanup.
+Other backends need [cloud IAM bootstrap](cloud-iam-bootstrap.md) and provider
+Secrets first. The
+[integration guide](https://github.com/versioneer-tech/provider-storage/blob/main/tests/integration/README.md)
+lists backend settings and the access checks.
 
 The cluster is for a validation cycle. Remove it when the operator directs
 you to do so:

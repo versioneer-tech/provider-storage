@@ -1,0 +1,53 @@
+# Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+from crossplane.function.proto.v1 import run_function_pb2 as fnv1
+
+from composition.helpers import to_dict
+
+ENVIRONMENT_KEY = "apiextensions.crossplane.io/environment"
+
+
+def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
+    xr = to_dict(req.observed.composite.resource)
+    meta = xr.get("metadata", {}) or {}
+    spec = xr.get("spec", {}) or {}
+    ctx = to_dict(req.context)
+    env = ctx.get(ENVIRONMENT_KEY) or {}
+    storage_env = env.get("storage") or {}
+    ns = meta.get("namespace") or "default"
+    region = (storage_env.get("region") or spec.get("region") or "eu-nl").strip()
+    for b in spec.get("buckets") or []:
+        bucket = (b.get("bucketName") or "").strip()
+        if not bucket:
+            continue
+        key = f"bucket-{bucket}"
+        rsp.desired.resources[key].resource.update(
+            {
+                "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
+                "kind": "Object",
+                "metadata": {
+                    "name": key,
+                    "namespace": ns,
+                    "annotations": {"crossplane.io/composition-resource-name": key},
+                },
+                "spec": {
+                    "forProvider": {
+                        "manifest": {
+                            "apiVersion": "obs.opentelekomcloud.crossplane.io/v1alpha1",
+                            "kind": "Bucket",
+                            "metadata": {"name": bucket},
+                            "spec": {
+                                "forProvider": {"bucket": bucket, "region": region},
+                                "providerConfigRef": {"name": "provider-otc"},
+                            },
+                        }
+                    },
+                    "readiness": {"policy": "DeriveFromObject"},
+                    "providerConfigRef": {
+                        "name": "provider-kubernetes",
+                        "kind": "ProviderConfig",
+                    },
+                },
+            }
+        )

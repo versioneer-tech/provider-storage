@@ -49,8 +49,6 @@ same time.
   overlapping targets can conflict.
 - An `at` rule runs on every later schedule. `Notify` can report the same
   object more than once.
-- A consumer profile without a Secret needs a separate workload identity for
-  lifecycle Jobs.
 
 ## Current limits
 
