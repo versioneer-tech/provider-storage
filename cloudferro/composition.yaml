@@ -136,6 +136,37 @@ spec:
         def credential_suffixes(req):
             return to_dict(req.context)["storages.pkg.internal/credential-generations"]
 
+        def managed_resource(
+            rsp,
+            key,
+            api_version,
+            kind,
+            name,
+            namespace,
+            provider_config_name,
+            for_provider,
+            **spec_fields,
+        ):
+            rsp.desired.resources[key].resource.update(
+                {
+                    "apiVersion": api_version,
+                    "kind": kind,
+                    "metadata": {
+                        "name": name,
+                        "namespace": namespace,
+                        "annotations": {"crossplane.io/composition-resource-name": key},
+                    },
+                    "spec": {
+                        "forProvider": for_provider,
+                        "providerConfigRef": {
+                            "name": provider_config_name,
+                            "kind": "ProviderConfig",
+                        },
+                        **spec_fields,
+                    },
+                }
+            )
+
         def to_dict(value):
             if value is None:
                 return {}
@@ -153,38 +184,6 @@ spec:
 
 
         ENVIRONMENT_KEY = "apiextensions.crossplane.io/environment"
-
-
-        def managed(
-            rsp,
-            key,
-            api_version,
-            kind,
-            name,
-            namespace,
-            provider_config_name,
-            for_provider,
-            **fields,
-        ):
-            rsp.desired.resources[key].resource.update(
-                {
-                    "apiVersion": api_version,
-                    "kind": kind,
-                    "metadata": {
-                        "name": name,
-                        "namespace": namespace,
-                        "annotations": {"crossplane.io/composition-resource-name": key},
-                    },
-                    "spec": {
-                        "forProvider": for_provider,
-                        "providerConfigRef": {
-                            "name": provider_config_name,
-                            "kind": "ProviderConfig",
-                        },
-                        **fields,
-                    },
-                }
-            )
 
 
         def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
@@ -229,7 +228,7 @@ spec:
                 }
             )
             for bucket in own_buckets:
-                managed(
+                managed_resource(
                     rsp,
                     f"bucket-{bucket}",
                     "objectstorage.openstack.m.crossplane.io/v1alpha1",
@@ -246,7 +245,7 @@ spec:
 
             for suffix in credential_suffixes(req):
                 generation = f"{principal}{suffix}"
-                managed(
+                managed_resource(
                     rsp,
                     f"credentials-{generation}",
                     "identity.openstack.m.crossplane.io/v1alpha1",

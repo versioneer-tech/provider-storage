@@ -8,43 +8,12 @@ from crossplane.function.proto.v1 import run_function_pb2 as fnv1
 
 from composition.helpers import (
     credential_suffixes,
+    managed_resource,
     storage_provider_config_name,
     to_dict,
 )
 
 ENVIRONMENT_KEY = "apiextensions.crossplane.io/environment"
-
-
-def managed(
-    rsp,
-    key,
-    api_version,
-    kind,
-    name,
-    namespace,
-    provider_config_name,
-    for_provider,
-    **fields,
-):
-    rsp.desired.resources[key].resource.update(
-        {
-            "apiVersion": api_version,
-            "kind": kind,
-            "metadata": {
-                "name": name,
-                "namespace": namespace,
-                "annotations": {"crossplane.io/composition-resource-name": key},
-            },
-            "spec": {
-                "forProvider": for_provider,
-                "providerConfigRef": {
-                    "name": provider_config_name,
-                    "kind": "ProviderConfig",
-                },
-                **fields,
-            },
-        }
-    )
 
 
 def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
@@ -88,7 +57,7 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
         }
     )
     for bucket in own_buckets:
-        managed(
+        managed_resource(
             rsp,
             f"bucket-{bucket}",
             "objectstorage.openstack.m.crossplane.io/v1alpha1",
@@ -105,7 +74,7 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
 
     for suffix in credential_suffixes(req):
         generation = f"{principal}{suffix}"
-        managed(
+        managed_resource(
             rsp,
             f"credentials-{generation}",
             "identity.openstack.m.crossplane.io/v1alpha1",

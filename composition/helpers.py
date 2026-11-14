@@ -146,6 +146,38 @@ def credential_time(req):
     )
 
 
+def managed_resource(
+    rsp,
+    key,
+    api_version,
+    kind,
+    name,
+    namespace,
+    provider_config_name,
+    for_provider,
+    **spec_fields,
+):
+    rsp.desired.resources[key].resource.update(
+        {
+            "apiVersion": api_version,
+            "kind": kind,
+            "metadata": {
+                "name": name,
+                "namespace": namespace,
+                "annotations": {"crossplane.io/composition-resource-name": key},
+            },
+            "spec": {
+                "forProvider": for_provider,
+                "providerConfigRef": {
+                    "name": provider_config_name,
+                    "kind": "ProviderConfig",
+                },
+                **spec_fields,
+            },
+        }
+    )
+
+
 def kubernetes_object(key, namespace, manifest, *, name=None, **spec_fields):
     return {
         "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",

@@ -8,6 +8,7 @@ from crossplane.function.proto.v1 import run_function_pb2 as fnv1
 
 from composition.helpers import (
     credential_suffixes,
+    managed_resource,
     ready_user_id,
     storage_provider_config_name,
     to_dict,
@@ -15,30 +16,6 @@ from composition.helpers import (
 
 ENVIRONMENT_KEY = "apiextensions.crossplane.io/environment"
 API_VERSION = "cloud.ovh.m.edixos.io/v1alpha1"
-
-
-def managed(
-    rsp, key, kind, name, namespace, provider_config_name, for_provider, **spec_fields
-):
-    rsp.desired.resources[key].resource.update(
-        {
-            "apiVersion": API_VERSION,
-            "kind": kind,
-            "metadata": {
-                "name": name,
-                "namespace": namespace,
-                "annotations": {"crossplane.io/composition-resource-name": key},
-            },
-            "spec": {
-                "forProvider": for_provider,
-                "providerConfigRef": {
-                    "name": provider_config_name,
-                    "kind": "ProviderConfig",
-                },
-                **spec_fields,
-            },
-        }
-    )
 
 
 def policy_statements(bucket, permission, effect):
@@ -114,9 +91,10 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
     peers = request.get_required_resources(req, "peer-storages") or []
     observed = req.observed.resources
     owner_key = f"owner-{principal}"
-    managed(
+    managed_resource(
         rsp,
         owner_key,
+        API_VERSION,
         "User",
         f"{identity}-owner",
         namespace,
@@ -141,9 +119,10 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
         if numeric_owner is None:
             continue
         key = f"bucket-{bucket}"
-        managed(
+        managed_resource(
             rsp,
             key,
+            API_VERSION,
             "ProjectStorage",
             bucket,
             namespace,
@@ -196,9 +175,10 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
         generation = f"{principal}{suffix}"
         user_key = f"user-{generation}"
         user_name = f"{identity}{suffix}"
-        managed(
+        managed_resource(
             rsp,
             user_key,
+            API_VERSION,
             "User",
             user_name,
             namespace,
@@ -213,9 +193,10 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
         if numeric_user is None:
             continue
         dependent_name = f"{generation}-u{numeric_user}"
-        managed(
+        managed_resource(
             rsp,
             f"credentials-{dependent_name}",
+            API_VERSION,
             "S3Credentials",
             dependent_name,
             namespace,
@@ -226,9 +207,10 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
             },
             writeConnectionSecretToRef={"name": f"{dependent_name}-credentials"},
         )
-        managed(
+        managed_resource(
             rsp,
             f"policy-{dependent_name}",
+            API_VERSION,
             "S3Policy",
             dependent_name,
             namespace,
