@@ -144,6 +144,208 @@ def run_tests(pipelines):
         return MessageToDict(rsp.desired.resources[key].resource)
 
     class CompositionTests(unittest.TestCase):
+        def test_backend_resources_use_selected_provider_config_or_existing_default(
+            self,
+        ):
+            kinds = {
+                "aws": {
+                    "Bucket",
+                    "User",
+                    "AccessKey",
+                    "Policy",
+                    "UserPolicyAttachment",
+                },
+                "minio": {"Bucket", "User", "Policy"},
+                "otc": {"Bucket", "UserV3", "CredentialV3", "BucketPolicy"},
+                "ovh": {"User", "ProjectStorage", "S3Credentials", "S3Policy"},
+            }
+            for backend in pipelines.keys() & kinds.keys():
+                for selected in (None, "", "  ", " test-project-provider "):
+                    with self.subTest(backend=backend, selected=selected):
+                        req = request(backend)
+                        req.context["apiextensions.crossplane.io/environment"][
+                            "storage"
+                        ].update({"serviceName": "test-project"})
+                        if selected is not None:
+                            req.context["apiextensions.crossplane.io/environment"][
+                                "storage"
+                            ].update({"providerConfigName": selected})
+                        req.observed.composite.resource["spec"].update(
+                            {
+                                "buckets": [{"bucketName": "test-bucket"}],
+                                "bucketAccessGrants": [
+                                    {
+                                        "bucketName": "test-bucket",
+                                        "grantee": "test-reader",
+                                        "permission": "ReadOnly",
+                                    }
+                                ],
+                            }
+                        )
+                        for key in (f"owner-{principal}", f"user-{principal}"):
+                            req.observed.resources[key].resource.update(
+                                {
+                                    "status": {
+                                        "atProvider": {
+                                            "id": "12",
+                                            "domainId": "test-domain",
+                                        },
+                                        "conditions": [
+                                            {"type": "Ready", "status": "True"}
+                                        ],
+                                    }
+                                }
+                            )
+                        for step in pipelines[backend][1:]:
+                            if step["input"]["kind"] != "Script":
+                                continue
+                            rsp = compose(backend, step["step"], req)
+                            req.desired.CopyFrom(rsp.desired)
+                            req.context.CopyFrom(rsp.context)
+                        checked = set()
+                        for value in req.desired.resources.values():
+                            item = MessageToDict(value.resource)
+                            if item["kind"] == "Object":
+                                self.assertEqual(
+                                    item["spec"]["providerConfigRef"]["name"],
+                                    "provider-kubernetes",
+                                )
+                                item = item["spec"]["forProvider"]["manifest"]
+                            ref = (item.get("spec") or {}).get("providerConfigRef")
+                            if ref is not None:
+                                self.assertEqual(
+                                    ref["name"],
+                                    selected.strip()
+                                    if selected and selected.strip()
+                                    else f"provider-{backend}",
+                                )
+                                checked.add(item["kind"])
+                        self.assertTrue(kinds[backend].issubset(checked), checked)
+
+        @unittest.skipUnless("cloudferro" in pipelines, "CloudFerro was not selected")
+        def test_cloudferro_rejects_incomplete_project_environments(self):
+            valid = {
+                "projectId": "0123456789abcdef0123456789abcdef",
+                "providerConfigName": "test-project-provider",
+                "region": "RegionOne",
+                "s3Region": "RegionOne",
+            }
+            for change in (
+                {"projectId": ""},
+                {"projectId": "invalid-project"},
+                {"providerConfigName": ""},
+            ):
+                with self.subTest(change=change):
+                    req = request("cloudferro")
+                    req.observed.composite.resource["spec"].update(
+                        {
+                            "buckets": [{"bucketName": "test-bucket"}],
+                            "crossplane": {
+                                "compositionSelector": {
+                                    "matchLabels": {"provider": "cloudferro"}
+                                }
+                            },
+                        }
+                    )
+                    req.context["apiextensions.crossplane.io/environment"].update(
+                        {"storage": valid | change}
+                    )
+                    rsp = compose("cloudferro", "create-project-resources", req)
+                    self.assertFalse(rsp.desired.resources)
+                    self.assertTrue(
+                        any(
+                            result.severity == fnv1.SEVERITY_FATAL
+                            for result in rsp.results
+                        )
+                    )
+
+        @unittest.skipUnless("cloudferro" in pipelines, "CloudFerro was not selected")
+        def test_cloudferro_grants_resolve_all_peer_environments(self):
+            req = request("cloudferro")
+            req.observed.composite.resource["spec"].update(
+                {
+                    "buckets": [{"bucketName": "test-bucket"}],
+                    "bucketAccessGrants": [
+                        {
+                            "bucketName": "test-bucket",
+                            "grantee": grantee,
+                            "permission": "ReadOnly",
+                        }
+                        for grantee in ("test-reader-one", "test-reader-two")
+                    ],
+                }
+            )
+            for grantee, selector in (
+                (
+                    "test-reader-one",
+                    {"labels": {"storages.pkg.internal/environment": "test-env-one"}},
+                ),
+                (
+                    "test-reader-two",
+                    {
+                        "annotations": {
+                            "storages.pkg.internal/environment": "test-env-two"
+                        },
+                        "labels": {
+                            "storages.pkg.internal/environment": "test-unused-env"
+                        },
+                    },
+                ),
+            ):
+                req.required_resources[
+                    "cloudferro-grantee-storages"
+                ].items.add().resource.update(
+                    {
+                        "metadata": {"name": grantee, **selector},
+                        "spec": {
+                            "principal": grantee,
+                            "crossplane": {
+                                "compositionSelector": {
+                                    "matchLabels": {"provider": "cloudferro"}
+                                }
+                            },
+                        },
+                    }
+                )
+            pending = compose("cloudferro", "create-bucket-policies", req)
+            self.assertNotIn("bucketpolicy-test-bucket", pending.desired.resources)
+            self.assertEqual(
+                {
+                    item.match_name
+                    for item in pending.requirements.resources.values()
+                    if item.kind == "EnvironmentConfig"
+                },
+                {"test-env-one", "test-env-two"},
+            )
+            projects = (
+                "0123456789abcdef0123456789abcdef",
+                "fedcba9876543210fedcba9876543210",
+            )
+            for name, project in zip(("test-env-one", "test-env-two"), projects):
+                req.required_resources[
+                    f"cloudferro-grantee-environment-{name}"
+                ].items.add().resource.update(
+                    {"data": {"storage": {"projectId": project}}}
+                )
+            ready = compose("cloudferro", "create-bucket-policies", req)
+            policy = json.loads(
+                body(ready, "bucketpolicy-test-bucket")["spec"]["forProvider"]["policy"]
+            )
+            self.assertEqual(
+                {item["Principal"]["AWS"] for item in policy["Statement"]},
+                {f"arn:aws:iam::{project}:root" for project in projects},
+            )
+            req.required_resources["cloudferro-grantee-environment-test-env-one"].items[
+                0
+            ].resource.update({"data": {"storage": {"projectId": "invalid-project"}}})
+            invalid = compose("cloudferro", "create-bucket-policies", req)
+            self.assertNotIn("bucketpolicy-test-bucket", invalid.desired.resources)
+            self.assertTrue(
+                any(
+                    result.severity == fnv1.SEVERITY_FATAL for result in invalid.results
+                )
+            )
+
         def test_ovh_publication_uses_the_resource_steps_numeric_user_id(self):
             if "ovh" not in pipelines:
                 self.skipTest("OVHcloud pipeline not selected")
@@ -355,13 +557,6 @@ def run_tests(pipelines):
                 with self.subTest(backend=backend):
                     req = request(backend)
                     req.context.Clear()
-                    req.observed.composite.resource["metadata"].update(
-                        {
-                            "annotations": {
-                                "storages.pkg.internal/cloudferro-project-id": "0123456789abcdef0123456789abcdef"
-                            }
-                        }
-                    )
                     req.observed.composite.resource["spec"].update(
                         {
                             "credentialsRollover": {
@@ -385,6 +580,8 @@ def run_tests(pipelines):
                                     "region": "RegionOne",
                                     "s3Region": "RegionOne",
                                     "serviceName": "test-project",
+                                    "projectId": "0123456789abcdef0123456789abcdef",
+                                    "providerConfigName": "test-project-provider",
                                     "force_path_style": "true",
                                 }
                             }

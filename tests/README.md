@@ -56,7 +56,7 @@ completion.
 | [Build and function runtime](function-runtime.py) | Generated files match source; response cache settings reach every pipeline. |
 | [Credential and lifecycle behavior](composition-behavior.py) | Secrets stay available during rollover; policies retain the correct identities; cleanup Jobs have finite limits. |
 | [Render and schema checks](unit.bash) | Bucket, access, credential, and lifecycle resources match expected output and provider schemas. |
-| [CloudFerro](cloudferro.py) | Project isolation, AWS profile wiring, and deletion dependencies. |
+| [CloudFerro](cloudferro.py) | External project ProviderConfig selection, cross-project grants, AWS profile wiring, and deletion dependencies. |
 | [IAM bootstrap](bootstrap-iam.py) | Configuration, provider Secret formats, permission scope, credential reuse, and rotation recovery. |
 | [Access checks](integration/access-checks.py) | Owner and requester inputs match the access matrix; only the requested operation's AccessDenied satisfies a negative probe. |
 

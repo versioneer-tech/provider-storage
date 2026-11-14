@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from crossplane.function import request, resource, response
 from crossplane.function.proto.v1 import run_function_pb2 as fnv1
 
-from composition.helpers import rollover_suffixes, to_dict
+from composition.helpers import rollover_suffixes, storage_environment_name, to_dict
 
 ENVIRONMENT_KEY = "apiextensions.crossplane.io/environment"
 
@@ -14,8 +14,6 @@ ENVIRONMENT_KEY = "apiextensions.crossplane.io/environment"
 def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
     xr = to_dict(req.observed.composite.resource)
     meta = xr.get("metadata", {}) or {}
-    annotations = meta.get("annotations", {}) or {}
-    labels = meta.get("labels", {}) or {}
     context = to_dict(req.context)
     time_key = "storages.pkg.internal/credential-time"
     generations_key = "storages.pkg.internal/credential-generations"
@@ -26,11 +24,7 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
     rsp.context.MergeFrom(
         resource.dict_to_struct({time_key: timestamp, generations_key: suffixes})
     )
-    env_name = (
-        annotations.get("storages.pkg.internal/environment")
-        or labels.get("storages.pkg.internal/environment")
-        or "storage"
-    ).strip() or "storage"
+    env_name = storage_environment_name(meta)
 
     response.require_resources(
         rsp,

@@ -1,14 +1,24 @@
 # Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
 # SPDX-License-Identifier: Apache-2.0
 
-# The Composition creates OpenStack ProviderConfigs for CloudFerro Storages.
-# This manifest configures provider-kubernetes for generated Secrets and AWS
-# ProviderConfigs.
 apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: ProviderConfig
 metadata:
   name: provider-kubernetes
-  # Apply this manifest with --namespace <storage-namespace>.
+  namespace: __STORAGE_NAMESPACE__
 spec:
   credentials:
     source: InjectedIdentity
+---
+apiVersion: openstack.m.crossplane.io/v1beta1
+kind: ProviderConfig
+metadata:
+  name: cloudferro-project-__CLOUDFERRO_PROJECT_ID__
+  namespace: __STORAGE_NAMESPACE__
+spec:
+  credentials:
+    source: Secret
+    secretRef:
+      name: cloudferro-project-__CLOUDFERRO_PROJECT_ID__
+      namespace: __STORAGE_NAMESPACE__
+      key: config

@@ -6,7 +6,7 @@ Accepted
 
 ## Date
 
-2026-09-14
+2026-09-14; revised 2026-11-14
 
 ## Context
 
@@ -37,17 +37,18 @@ configured project role.
 
 Operators provide one namespaced controller Secret for each project. Its name is
 `cloudferro-project-<project-id>` and its key is `config`. The JSON value
-contains the controller credentials and the project ID as `tenant_id`. A
-static `storage` EnvironmentConfig contains only endpoint and region settings.
-Multi-backend installations can select another name with the
-`storages.pkg.internal/environment` annotation or label.
+contains the controller credentials and the project ID as `tenant_id`.
+Operators create a namespaced OpenStack ProviderConfig that refers to this
+Secret. A project EnvironmentConfig holds `storage.projectId`,
+`storage.providerConfigName`, endpoint, and region settings. The project ID
+must match the Secret's authentication scope.
 
-A Storage selects the generic Composition and declares its project ID:
+A Storage selects the generic Composition and its project EnvironmentConfig:
 
 ```yaml
 metadata:
   annotations:
-    storages.pkg.internal/cloudferro-project-id: 0123456789abcdef0123456789abcdef
+    storages.pkg.internal/environment: storage-cloudferro-0123456789abcdef0123456789abcdef
 spec:
   crossplane:
     compositionSelector:
@@ -55,10 +56,10 @@ spec:
         provider: cloudferro
 ```
 
-The Composition creates one namespaced OpenStack ProviderConfig per Storage.
-It refers to the deterministic project Secret. All OpenStack managed resources
-for that Storage refer to the composed ProviderConfig. `ContainerV1` therefore
-uses the project from the Secret. `EC2CredentialV3` also uses the current auth
+All OpenStack managed resources for a Storage refer to the ProviderConfig
+named by its EnvironmentConfig. Storages in one namespace can share the
+project ProviderConfig. The Composition does not create or own it.
+`ContainerV1` uses the project from the Secret. `EC2CredentialV3` uses the current auth
 scope; the Composition does not pass `projectId` or `userId`.
 
 The Composition creates buckets with `ContainerV1` and one EC2 credential for
@@ -66,14 +67,17 @@ each retained Storage credential generation. It publishes the standard
 consumer Secret. It does not create OpenStack users or role assignments.
 
 For an active cross-project grant, the Composition resolves one discoverable
-Storage with the matching principal. It reads that Storage's
-`storages.pkg.internal/cloudferro-project-id` annotation and creates an AWS S3
-BucketPolicy with the grantee project's `root` ARN. It does not use a peer
-ProviderConfig lookup. Pending requests and `None` grants do not add access.
+Storage with the matching principal. It resolves that Storage's
+EnvironmentConfig and creates an AWS S3 BucketPolicy with the grantee
+project's `root` ARN. It does not use a peer ProviderConfig lookup. The
+Composition still creates an AWS ProviderConfig from its generated EC2
+credentials for S3 bucket policies. Pending requests and `None` grants do
+not add access.
 
-The project annotation is an authorization selector. Admission controls must
-limit which users and namespaces can set each project ID. Secret read access
-must be limited to provider workloads and trusted operators.
+The environment selector is an authorization selector. Admission controls
+must limit which users and namespaces can select each project environment.
+Only trusted operators can change project EnvironmentConfigs or ProviderConfigs.
+Secret read access must be limited to provider workloads and trusted operators.
 
 ## Consequences
 
@@ -86,9 +90,14 @@ must be limited to provider workloads and trusted operators.
 - Compromise of a shared controller password affects all projects assigned to
   that user. Separate per-project Secrets reduce Kubernetes access scope but
   do not change the OpenStack identity scope.
-- The Composition owns per-Storage ProviderConfigs. The IAM bootstrap owns
-  only OpenStack identities and role assignments. Operators apply the project
-  Secrets and the static EnvironmentConfig.
+- The IAM bootstrap owns OpenStack identities and role assignments.
+  Operators apply project Secrets, OpenStack ProviderConfigs, and project
+  EnvironmentConfigs. A platform can generate the two configuration resources
+  from project Secret names with Kyverno. The Composition owns only its
+  internal AWS ProviderConfig.
+- EnvironmentConfigs are cluster-scoped. Each Storage namespace needs its
+  own OpenStack ProviderConfig and project Secret. A shared project
+  EnvironmentConfig needs one source of configuration.
 - Operators must review dependent Storage resources before removing controller
   users, role assignments, or project Secrets.
 - Removing a bucket requests deletion under Crossplane's default management

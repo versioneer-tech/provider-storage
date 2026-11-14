@@ -28,14 +28,17 @@ It resolves each grantee through a discoverable peer Storage and observes
 each of that peer's retained credential users. Policies include the observed
 retained owner and grantee identities and omit expired generations.
 
-CloudFerro uses the project in the
-`storages.pkg.internal/cloudferro-project-id` annotation. The Composition
-creates a project-scoped OpenStack ProviderConfig from the matching project
-Secret. Every user with S3 access in that project can access its containers.
+CloudFerro selects a project EnvironmentConfig with the
+`storages.pkg.internal/environment` annotation or label. Its `storage.projectId`
+and `storage.providerConfigName` define the project and an existing OpenStack
+ProviderConfig. Operators create the ProviderConfig and its project Secret
+before Storage reconciliation. Every user with S3 access in that project can
+access its containers.
 Separate credentials do not isolate users in one project.
 
-For cross-project access, CloudFerro resolves the grantee Storage's project
-annotation and grants that project's `root` ARN. Supporting resources keep
+For cross-project access, CloudFerro resolves the grantee Storage's
+EnvironmentConfig and uses `storage.projectId` for the grantee project's
+`root` ARN. Supporting resources keep
 the EC2 credential and AWS provider configuration until the bucket policy is
 deleted. Admission rules must restrict who can select each project.
 

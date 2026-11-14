@@ -9,6 +9,7 @@ from crossplane.function.proto.v1 import run_function_pb2 as fnv1
 from composition.helpers import (
     credential_suffixes,
     ready_user_id,
+    storage_provider_config_name,
     to_dict,
 )
 
@@ -16,7 +17,9 @@ ENVIRONMENT_KEY = "apiextensions.crossplane.io/environment"
 API_VERSION = "cloud.ovh.m.edixos.io/v1alpha1"
 
 
-def managed(rsp, key, kind, name, namespace, for_provider, **spec_fields):
+def managed(
+    rsp, key, kind, name, namespace, provider_config_name, for_provider, **spec_fields
+):
     rsp.desired.resources[key].resource.update(
         {
             "apiVersion": API_VERSION,
@@ -28,7 +31,10 @@ def managed(rsp, key, kind, name, namespace, for_provider, **spec_fields):
             },
             "spec": {
                 "forProvider": for_provider,
-                "providerConfigRef": {"name": "provider-ovh", "kind": "ProviderConfig"},
+                "providerConfigRef": {
+                    "name": provider_config_name,
+                    "kind": "ProviderConfig",
+                },
                 **spec_fields,
             },
         }
@@ -90,6 +96,7 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
     identity = (spec.get("providerIdentity") or principal).strip()
     context = to_dict(req.context)
     storage_env = (context.get(ENVIRONMENT_KEY) or {}).get("storage") or {}
+    provider_config_name = storage_provider_config_name(req, "provider-ovh")
     project = (storage_env.get("serviceName") or "").strip()
     s3_region = (storage_env.get("region") or "").strip().lower()
     if not principal or not project or not s3_region:
@@ -113,6 +120,7 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
         "User",
         f"{identity}-owner",
         namespace,
+        provider_config_name,
         {
             "description": f"Stable owner for {identity}",
             "roleNames": ["objectstore_operator"],
@@ -139,6 +147,7 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
             "ProjectStorage",
             bucket,
             namespace,
+            provider_config_name,
             {
                 "serviceName": project,
                 "name": bucket,
@@ -193,6 +202,7 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
             "User",
             user_name,
             namespace,
+            provider_config_name,
             {
                 "description": f"Credential generation for {identity}{suffix}",
                 "roleNames": ["objectstore_operator"],
@@ -209,6 +219,7 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
             "S3Credentials",
             dependent_name,
             namespace,
+            provider_config_name,
             {
                 "serviceName": project,
                 "userId": str(numeric_user),
@@ -221,6 +232,7 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
             "S3Policy",
             dependent_name,
             namespace,
+            provider_config_name,
             {
                 "serviceName": project,
                 "policy": policy,

@@ -61,9 +61,17 @@ class AccessScenarioTests(unittest.TestCase):
                     )
                     self.assertEqual(metadata["name"], f"storage-{backend}-{role}")
                     self.assertEqual(metadata["namespace"], "provider-storage-it")
+                    environment = f"storage-{backend}"
+                    if backend == "cloudferro":
+                        project_key = (
+                            "CLOUDFERRO_PROJECT_ID"
+                            if role == "it"
+                            else "CLOUDFERRO_IT2_PROJECT_ID"
+                        )
+                        environment += f"-{values[project_key]}"
                     self.assertEqual(
                         metadata["annotations"]["storages.pkg.internal/environment"],
-                        f"storage-{backend}",
+                        environment,
                     )
                     self.assertEqual(
                         spec["crossplane"]["compositionSelector"]["matchLabels"][

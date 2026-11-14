@@ -45,15 +45,7 @@ class CloudFerroTests(unittest.TestCase):
             ),
         ):
             with self.subTest(principal=principal):
-                (config,) = resources(documents, "ProviderConfig")
-                self.assertEqual(
-                    config["spec"]["credentials"]["secretRef"],
-                    {
-                        "key": "config",
-                        "name": f"cloudferro-project-{project}",
-                        "namespace": "default",
-                    },
-                )
+                self.assertEqual(resources(documents, "ProviderConfig"), [])
                 self.assertEqual(
                     sorted(
                         bucket["metadata"]["name"]
@@ -67,7 +59,7 @@ class CloudFerroTests(unittest.TestCase):
                 ):
                     self.assertEqual(
                         resource["spec"]["providerConfigRef"]["name"],
-                        config["metadata"]["name"],
+                        f"test-project-{1 if project == FIRST_PROJECT else 2}",
                     )
                 policies = resources(documents, "BucketPolicy")
                 self.assertEqual(len(policies), 1)

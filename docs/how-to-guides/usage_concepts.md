@@ -24,10 +24,18 @@ cluster. Several Compositions can be installed from source against that XRD.
 
 All backends use the `storage` EnvironmentConfig by default. Set the
 `storages.pkg.internal/environment` annotation or label to select another.
-The multi-backend examples use `storage-<backend>`.
+The multi-backend examples use `storage-<backend>`; CloudFerro includes the
+project ID in its environment name.
 
-CloudFerro requires an explicit `provider: cloudferro` selector and the
-`storages.pkg.internal/cloudferro-project-id` annotation. See the
+The EnvironmentConfig can set `storage.providerConfigName` to select an
+existing backend ProviderConfig. When unset or blank, AWS, MinIO, OTC, and
+OVHcloud use `provider-aws`, `provider-minio`, `provider-otc`, and `provider-ovh`.
+
+CloudFerro requires an explicit `provider: cloudferro` selector. Select its
+project EnvironmentConfig with
+`storages.pkg.internal/environment: storage-cloudferro-<project-id>`.
+The EnvironmentConfig defines the project ID and an existing OpenStack
+ProviderConfig name. See the
 [CloudFerro dependency guide](https://github.com/versioneer-tech/provider-storage/blob/main/cloudferro/dependencies/README.md).
 
 ## Credentials
@@ -84,7 +92,8 @@ The shared examples cover these cases:
 
 Use the matching backend overlay in
 [`examples/overlays/`](https://github.com/versioneer-tech/provider-storage/tree/main/examples/overlays).
-The CloudFerro overlay needs your project IDs and omits cross-project grants.
+The CloudFerro overlay needs your project EnvironmentConfig names and omits
+cross-project grants.
 
 ## Verify provisioning
 

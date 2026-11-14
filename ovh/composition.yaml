@@ -26,6 +26,15 @@ spec:
 
         from google.protobuf import json_format
 
+        def storage_environment_name(metadata):
+            annotations = metadata.get("annotations") or {}
+            labels = metadata.get("labels") or {}
+            return (
+                annotations.get("storages.pkg.internal/environment")
+                or labels.get("storages.pkg.internal/environment")
+                or "storage"
+            ).strip() or "storage"
+
         def rollover_suffixes(spec, now: datetime) -> list[str]:
             cfg = spec.get("credentialsRollover") or {}
             interval = cfg.get("interval", "none")
@@ -85,8 +94,6 @@ spec:
             rsp.meta.ttl.FromSeconds(60)
             xr = to_dict(req.observed.composite.resource)
             meta = xr.get("metadata", {}) or {}
-            annotations = meta.get("annotations", {}) or {}
-            labels = meta.get("labels", {}) or {}
             context = to_dict(req.context)
             time_key = "storages.pkg.internal/credential-time"
             generations_key = "storages.pkg.internal/credential-generations"
@@ -97,11 +104,7 @@ spec:
             rsp.context.MergeFrom(
                 resource.dict_to_struct({time_key: timestamp, generations_key: suffixes})
             )
-            env_name = (
-                annotations.get("storages.pkg.internal/environment")
-                or labels.get("storages.pkg.internal/environment")
-                or "storage"
-            ).strip() or "storage"
+            env_name = storage_environment_name(meta)
 
             response.require_resources(
                 rsp,
@@ -122,6 +125,13 @@ spec:
       kind: Script
       script: |
         from google.protobuf import json_format
+
+        def storage_provider_config_name(req, default=""):
+            environment = (
+                to_dict(req.context).get("apiextensions.crossplane.io/environment") or {}
+            )
+            storage = environment.get("storage") or {}
+            return (storage.get("providerConfigName") or "").strip() or default
 
         def credential_suffixes(req):
             return to_dict(req.context)["storages.pkg.internal/credential-generations"]
@@ -161,7 +171,9 @@ spec:
         API_VERSION = "cloud.ovh.m.edixos.io/v1alpha1"
 
 
-        def managed(rsp, key, kind, name, namespace, for_provider, **spec_fields):
+        def managed(
+            rsp, key, kind, name, namespace, provider_config_name, for_provider, **spec_fields
+        ):
             rsp.desired.resources[key].resource.update(
                 {
                     "apiVersion": API_VERSION,
@@ -173,7 +185,10 @@ spec:
                     },
                     "spec": {
                         "forProvider": for_provider,
-                        "providerConfigRef": {"name": "provider-ovh", "kind": "ProviderConfig"},
+                        "providerConfigRef": {
+                            "name": provider_config_name,
+                            "kind": "ProviderConfig",
+                        },
                         **spec_fields,
                     },
                 }
@@ -236,6 +251,7 @@ spec:
             identity = (spec.get("providerIdentity") or principal).strip()
             context = to_dict(req.context)
             storage_env = (context.get(ENVIRONMENT_KEY) or {}).get("storage") or {}
+            provider_config_name = storage_provider_config_name(req, "provider-ovh")
             project = (storage_env.get("serviceName") or "").strip()
             s3_region = (storage_env.get("region") or "").strip().lower()
             if not principal or not project or not s3_region:
@@ -259,6 +275,7 @@ spec:
                 "User",
                 f"{identity}-owner",
                 namespace,
+                provider_config_name,
                 {
                     "description": f"Stable owner for {identity}",
                     "roleNames": ["objectstore_operator"],
@@ -285,6 +302,7 @@ spec:
                     "ProjectStorage",
                     bucket,
                     namespace,
+                    provider_config_name,
                     {
                         "serviceName": project,
                         "name": bucket,
@@ -339,6 +357,7 @@ spec:
                     "User",
                     user_name,
                     namespace,
+                    provider_config_name,
                     {
                         "description": f"Credential generation for {identity}{suffix}",
                         "roleNames": ["objectstore_operator"],
@@ -355,6 +374,7 @@ spec:
                     "S3Credentials",
                     dependent_name,
                     namespace,
+                    provider_config_name,
                     {
                         "serviceName": project,
                         "userId": str(numeric_user),
@@ -367,6 +387,7 @@ spec:
                     "S3Policy",
                     dependent_name,
                     namespace,
+                    provider_config_name,
                     {
                         "serviceName": project,
                         "policy": policy,

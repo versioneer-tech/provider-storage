@@ -4,7 +4,12 @@
 from crossplane.function import request, response
 from crossplane.function.proto.v1 import run_function_pb2 as fnv1
 
-from composition.helpers import _bucket_grants_access, credential_suffixes, to_dict
+from composition.helpers import (
+    _bucket_grants_access,
+    credential_suffixes,
+    storage_provider_config_name,
+    to_dict,
+)
 
 
 def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
@@ -53,7 +58,7 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
                             "policyArnRef": {"name": polname},
                         },
                         "providerConfigRef": {
-                            "name": "provider-aws",
+                            "name": storage_provider_config_name(req, "provider-aws"),
                             "kind": "ProviderConfig",
                         },
                     },
@@ -93,7 +98,7 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
                             "policyArnRef": {"name": polname},
                         },
                         "providerConfigRef": {
-                            "name": "provider-aws",
+                            "name": storage_provider_config_name(req, "provider-aws"),
                             "kind": "ProviderConfig",
                         },
                     },

@@ -4,9 +4,26 @@
 apiVersion: apiextensions.crossplane.io/v1beta1
 kind: EnvironmentConfig
 metadata:
-  name: storage
+  name: storage-cloudferro-0123456789abcdef0123456789abcdef
 data:
   storage:
+    projectId: 0123456789abcdef0123456789abcdef
+    providerConfigName: test-project-1
+    endpoint: https://s3.example.cloudferro.test
+    force_path_style: "true"
+    provider: Other
+    region: WAW3-2
+    s3Region: RegionOne
+    type: s3
+---
+apiVersion: apiextensions.crossplane.io/v1beta1
+kind: EnvironmentConfig
+metadata:
+  name: storage-cloudferro-fedcba9876543210fedcba9876543210
+data:
+  storage:
+    projectId: fedcba9876543210fedcba9876543210
+    providerConfigName: test-project-2
     endpoint: https://s3.example.cloudferro.test
     force_path_style: "true"
     provider: Other
@@ -20,7 +37,7 @@ metadata:
   name: s-jeff
   namespace: default
   annotations:
-    storages.pkg.internal/cloudferro-project-id: fedcba9876543210fedcba9876543210
+    storages.pkg.internal/environment: storage-cloudferro-fedcba9876543210fedcba9876543210
   labels:
     storages.pkg.internal/discoverable: "true"
 spec:

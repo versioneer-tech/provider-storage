@@ -26,6 +26,15 @@ spec:
 
         from google.protobuf import json_format
 
+        def storage_environment_name(metadata):
+            annotations = metadata.get("annotations") or {}
+            labels = metadata.get("labels") or {}
+            return (
+                annotations.get("storages.pkg.internal/environment")
+                or labels.get("storages.pkg.internal/environment")
+                or "storage"
+            ).strip() or "storage"
+
         def rollover_suffixes(spec, now: datetime) -> list[str]:
             cfg = spec.get("credentialsRollover") or {}
             interval = cfg.get("interval", "none")
@@ -85,8 +94,6 @@ spec:
             rsp.meta.ttl.FromSeconds(60)
             xr = to_dict(req.observed.composite.resource)
             meta = xr.get("metadata", {}) or {}
-            annotations = meta.get("annotations", {}) or {}
-            labels = meta.get("labels", {}) or {}
             context = to_dict(req.context)
             time_key = "storages.pkg.internal/credential-time"
             generations_key = "storages.pkg.internal/credential-generations"
@@ -97,11 +104,7 @@ spec:
             rsp.context.MergeFrom(
                 resource.dict_to_struct({time_key: timestamp, generations_key: suffixes})
             )
-            env_name = (
-                annotations.get("storages.pkg.internal/environment")
-                or labels.get("storages.pkg.internal/environment")
-                or "storage"
-            ).strip() or "storage"
+            env_name = storage_environment_name(meta)
 
             response.require_resources(
                 rsp,
@@ -122,6 +125,13 @@ spec:
       kind: Script
       script: |
         from google.protobuf import json_format
+
+        def storage_provider_config_name(req, default=""):
+            environment = (
+                to_dict(req.context).get("apiextensions.crossplane.io/environment") or {}
+            )
+            storage = environment.get("storage") or {}
+            return (storage.get("providerConfigName") or "").strip() or default
 
         def kubernetes_object(key, namespace, manifest, *, name=None, **spec_fields):
             return {
@@ -182,7 +192,11 @@ spec:
                                     "storages.pkg.internal/discoverable": discoverable
                                 },
                             },
-                            "spec": {"providerConfigRef": {"name": "provider-minio"}},
+                            "spec": {
+                                "providerConfigRef": {
+                                    "name": storage_provider_config_name(req, "provider-minio")
+                                }
+                            },
                         },
                     )
                 )
@@ -194,6 +208,13 @@ spec:
       kind: Script
       script: |
         from google.protobuf import json_format
+
+        def storage_provider_config_name(req, default=""):
+            environment = (
+                to_dict(req.context).get("apiextensions.crossplane.io/environment") or {}
+            )
+            storage = environment.get("storage") or {}
+            return (storage.get("providerConfigName") or "").strip() or default
 
         def kubernetes_object(key, namespace, manifest, *, name=None, **spec_fields):
             return {
@@ -270,7 +291,9 @@ spec:
                             "metadata": {"name": polname},
                             "spec": {
                                 "forProvider": {"rawPolicy": raw},
-                                "providerConfigRef": {"name": "provider-minio"},
+                                "providerConfigRef": {
+                                    "name": storage_provider_config_name(req, "provider-minio")
+                                },
                             },
                         },
                     )
@@ -283,6 +306,13 @@ spec:
       kind: Script
       script: |
         from google.protobuf import json_format
+
+        def storage_provider_config_name(req, default=""):
+            environment = (
+                to_dict(req.context).get("apiextensions.crossplane.io/environment") or {}
+            )
+            storage = environment.get("storage") or {}
+            return (storage.get("providerConfigName") or "").strip() or default
 
         def kubernetes_object(key, namespace, manifest, *, name=None, **spec_fields):
             return {
@@ -395,7 +425,9 @@ spec:
                             "metadata": {"name": polname},
                             "spec": {
                                 "forProvider": {"rawPolicy": raw},
-                                "providerConfigRef": {"name": "provider-minio"},
+                                "providerConfigRef": {
+                                    "name": storage_provider_config_name(req, "provider-minio")
+                                },
                             },
                         },
                     )
@@ -408,6 +440,13 @@ spec:
       kind: Script
       script: |
         from google.protobuf import json_format
+
+        def storage_provider_config_name(req, default=""):
+            environment = (
+                to_dict(req.context).get("apiextensions.crossplane.io/environment") or {}
+            )
+            storage = environment.get("storage") or {}
+            return (storage.get("providerConfigName") or "").strip() or default
 
         def _bucket_grants_access(storage: dict, bucket: str, grantee: str) -> bool | None:
             spec = storage.get("spec") or {}
@@ -530,7 +569,9 @@ spec:
                             "metadata": {"name": user_name},
                             "spec": {
                                 "forProvider": {"userName": user_name, "policies": policies},
-                                "providerConfigRef": {"name": "provider-minio"},
+                                "providerConfigRef": {
+                                    "name": storage_provider_config_name(req, "provider-minio")
+                                },
                                 "writeConnectionSecretToRef": {
                                     "name": connection_secret_name,
                                     "namespace": ns,

@@ -7,6 +7,7 @@ from composition.helpers import (
     credential_suffixes,
     extract_ids,
     kubernetes_object,
+    storage_provider_config_name,
     to_dict,
 )
 
@@ -46,7 +47,9 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
                     "metadata": {"name": f"aksk-{user_name}"},
                     "spec": {
                         "forProvider": {"userId": user_id},
-                        "providerConfigRef": {"name": "provider-otc"},
+                        "providerConfigRef": {
+                            "name": storage_provider_config_name(req, "provider-otc")
+                        },
                         "writeConnectionSecretToRef": {
                             "name": connection_secret_name,
                             "namespace": ns,

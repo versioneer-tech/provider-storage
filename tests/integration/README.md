@@ -176,8 +176,11 @@ export CROSSPLANE_CLOUDFERRO_IT2_PROJECT_ID=<project-two-id>
 tests/integration/run.bash cloudferro
 ```
 
-Both Storages select `storage-cloudferro` through their environment
-annotation. The test checks owned-bucket access, cross-project grants,
+`deploy-providers.bash cloudferro` creates an OpenStack ProviderConfig and
+EnvironmentConfig for each project. Each Storage selects
+`storage-cloudferro-<project-id>` through its environment annotation.
+This manual setup does not need Kyverno. The test checks owned-bucket access,
+cross-project grants,
 lifecycle cleanup, EC2 credential creation, and bucket-policy management
 through the AWS S3 provider.
 

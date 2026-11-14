@@ -6,10 +6,13 @@ import re
 from crossplane.function import response
 from crossplane.function.proto.v1 import run_function_pb2 as fnv1
 
-from composition.helpers import credential_suffixes, to_dict
+from composition.helpers import (
+    credential_suffixes,
+    storage_provider_config_name,
+    to_dict,
+)
 
 ENVIRONMENT_KEY = "apiextensions.crossplane.io/environment"
-PROJECT_ID_ANNOTATION = "storages.pkg.internal/cloudferro-project-id"
 
 
 def managed(
@@ -50,21 +53,21 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
     spec = xr.get("spec") or {}
     namespace = metadata.get("namespace") or "default"
     principal = (spec.get("principal") or metadata.get("name") or "").strip()
-    project_id = (
-        (metadata.get("annotations") or {}).get(PROJECT_ID_ANNOTATION) or ""
-    ).strip()
     env = (to_dict(req.context).get(ENVIRONMENT_KEY) or {}).get("storage") or {}
+    project_id = (env.get("projectId") or "").strip()
+    provider_config_name = storage_provider_config_name(req)
     region = (env.get("region") or "").strip()
     s3_region = (env.get("s3Region") or "").strip()
     if (
         not principal
         or not re.fullmatch(r"[0-9a-f]{32}", project_id)
+        or not provider_config_name
         or not region
         or not s3_region
     ):
         response.fatal(
             rsp,
-            "CloudFerro environment or project ID annotation is incomplete or invalid.",
+            "CloudFerro environment must define a valid projectId, providerConfigName, region, and s3Region.",
         )
         return
     selected_provider = (
@@ -76,33 +79,6 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
     if selected_provider != "cloudferro":
         response.fatal(rsp, "CloudFerro Storage must select provider cloudferro.")
         return
-
-    provider_config_name = f"cloudferro-{principal}"
-    provider_config_key = "provider-config-openstack"
-    rsp.desired.resources[provider_config_key].ready = fnv1.READY_TRUE
-    rsp.desired.resources[provider_config_key].resource.update(
-        {
-            "apiVersion": "openstack.m.crossplane.io/v1beta1",
-            "kind": "ProviderConfig",
-            "metadata": {
-                "name": provider_config_name,
-                "namespace": namespace,
-                "annotations": {
-                    "crossplane.io/composition-resource-name": provider_config_key
-                },
-            },
-            "spec": {
-                "credentials": {
-                    "source": "Secret",
-                    "secretRef": {
-                        "name": f"cloudferro-project-{project_id}",
-                        "namespace": namespace,
-                        "key": "config",
-                    },
-                }
-            },
-        }
-    )
 
     own_buckets = sorted(
         {

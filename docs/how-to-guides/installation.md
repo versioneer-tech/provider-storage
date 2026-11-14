@@ -66,8 +66,8 @@ Replace `ovh`, its namespace variable, and `storage-cluster` for your backend
 and deployment. The Secret name, namespace, and key must match the
 ProviderConfig. See [Deploy controller Secrets](cloud-iam-bootstrap.md#deploy-controller-secrets)
 for all four backends. AWS workload identity uses external trust instead of
-a static controller Secret. CloudFerro creates its project-scoped
-ProviderConfigs when a Storage is created.
+a static controller Secret. CloudFerro needs a project ProviderConfig and
+EnvironmentConfig before Storage reconciliation.
 
 Follow the dependency guide for your backend to edit the manifests:
 
@@ -93,6 +93,10 @@ The dependency manifests use the same order for every backend:
 
 Edit all placeholders before you apply a manifest. Apply the numbered files
 in order, then apply `functions.yaml` and `rbac.yaml`.
+
+Keep the ProviderConfig's cloud account or project consistent with the
+EnvironmentConfig. See [Select a backend](usage_concepts.md#select-a-backend)
+for environment and provider selection.
 
 Consumer Secrets are native composed resources. A namespaced Storage can
 compose these Secrets even when its cloud provider has only cluster-scoped

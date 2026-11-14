@@ -9,6 +9,24 @@ from crossplane.function.proto.v1 import run_function_pb2 as fnv1
 from google.protobuf import json_format
 
 
+def storage_environment_name(metadata):
+    annotations = metadata.get("annotations") or {}
+    labels = metadata.get("labels") or {}
+    return (
+        annotations.get("storages.pkg.internal/environment")
+        or labels.get("storages.pkg.internal/environment")
+        or "storage"
+    ).strip() or "storage"
+
+
+def storage_provider_config_name(req, default=""):
+    environment = (
+        to_dict(req.context).get("apiextensions.crossplane.io/environment") or {}
+    )
+    storage = environment.get("storage") or {}
+    return (storage.get("providerConfigName") or "").strip() or default
+
+
 def retain_resources(req, rsp, keys):
     # Omitted resources are deleted, so keep the last output during rollover.
     for key in keys:

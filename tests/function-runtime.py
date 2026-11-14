@@ -41,7 +41,9 @@ with grpc.insecure_channel('localhost:9443') as channel:
                 req.observed.composite.resource.update(xr)
                 req.context.update({'apiextensions.crossplane.io/environment': {
                     'storage': {'region': 'RegionOne', 's3Region': 'RegionOne',
-                                'endpoint': 'https://s3.example.test'},
+                    'endpoint': 'https://s3.example.test',
+                    'projectId': '0123456789abcdef0123456789abcdef',
+                    'providerConfigName': 'test-project-provider'},
                 }, 'storages.pkg.internal/credential-time': '2026-11-13T12:00:00+00:00',
                    'storages.pkg.internal/credential-generations': ['']})
                 req.input.update(step['input'])

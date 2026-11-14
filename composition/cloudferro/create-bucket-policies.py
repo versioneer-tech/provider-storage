@@ -7,7 +7,7 @@ import re
 from crossplane.function import request, response
 from crossplane.function.proto.v1 import run_function_pb2 as fnv1
 
-from composition.helpers import credential_suffixes, to_dict
+from composition.helpers import credential_suffixes, storage_environment_name, to_dict
 
 
 def statements(bucket, project_id, permission):
@@ -77,7 +77,7 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
     if not peer_storages:
         return
 
-    projects = {}
+    environments = {}
     for grantee in sorted({(grant.get("grantee") or "").strip() for grant in active}):
         matches = [
             peer
@@ -107,19 +107,34 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
                 f"CloudFerro grantee principal {grantee} does not use the cloudferro backend.",
             )
             return
-        project_id = (
-            (peer_metadata.get("annotations") or {}).get(
-                "storages.pkg.internal/cloudferro-project-id"
-            )
-            or ""
-        ).strip()
+        environments[grantee] = storage_environment_name(peer_metadata)
+
+    projects = {}
+    pending = False
+    for env_name in sorted(set(environments.values())):
+        key = f"cloudferro-grantee-environment-{env_name}"
+        response.require_resources(
+            rsp,
+            name=key,
+            api_version="apiextensions.crossplane.io/v1beta1",
+            kind="EnvironmentConfig",
+            match_name=env_name,
+        )
+        environment = request.get_required_resource(req, key)
+        if environment is None:
+            pending = True
+            continue
+        env = (environment.get("data") or {}).get("storage") or {}
+        project_id = (env.get("projectId") or "").strip()
         if not re.fullmatch(r"[0-9a-f]{32}", project_id):
             response.fatal(
                 rsp,
-                f"CloudFerro grantee principal {grantee} has an invalid project ID.",
+                f"CloudFerro grantee environment {env_name} has an invalid projectId.",
             )
             return
-        projects[grantee] = project_id
+        projects[env_name] = project_id
+    if pending:
+        return
 
     by_bucket = {}
     for grant in active:
@@ -127,7 +142,7 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
         grantee = (grant.get("grantee") or "").strip()
         permission = (grant.get("permission") or "None").strip()
         by_bucket.setdefault(bucket, []).extend(
-            statements(bucket, projects[grantee], permission)
+            statements(bucket, projects[environments[grantee]], permission)
         )
 
     for bucket, bucket_statements in sorted(by_bucket.items()):

@@ -4,9 +4,11 @@
 apiVersion: apiextensions.crossplane.io/v1beta1
 kind: EnvironmentConfig
 metadata:
-  name: storage
+  name: storage-cloudferro-__CLOUDFERRO_PROJECT_ID__
 data:
   storage:
+    projectId: __CLOUDFERRO_PROJECT_ID__
+    providerConfigName: cloudferro-project-__CLOUDFERRO_PROJECT_ID__
     endpoint: https://s3.waw3-2.cloudferro.com
     force_path_style: "true"
     provider: Other

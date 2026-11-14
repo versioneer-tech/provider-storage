@@ -33,12 +33,8 @@ Keep the local controller credential file private and outside Git.
 
 ## Deployment
 
-Set the CloudFerro endpoint, OpenStack region, and S3 signing region in the
-default `storage` EnvironmentConfig in
-[`04-environmentConfigs.yaml`](04-environmentConfigs.yaml).
-
-Set `CROSSPLANE_CLOUDFERRO_NAMESPACE` to the target namespace. Create one
-controller Secret for each selected project:
+Set `CROSSPLANE_CLOUDFERRO_NAMESPACE` to the target namespace and create the
+controller Secrets:
 
 ```bash
 bootstrap-iam.sh cloudferro render-secrets |
@@ -46,14 +42,50 @@ bootstrap-iam.sh cloudferro render-secrets |
 ```
 
 Replace `storage-cluster` with the deployment context. IAM `apply` prepares
-cloud resources only. The Secret names use `cloudferro-project-<project-id>`
-and the `config` key.
+cloud resources only. Each project Secret uses the name
+`cloudferro-project-<project-id>` and the `config` key.
 
-The Composition creates a project-scoped OpenStack `ProviderConfig` for each
-`Storage`. Restrict who can set the project ID annotation and who can read the
-controller Secrets.
+For each project, copy [`03-providerConfigs.yaml`](03-providerConfigs.yaml)
+and [`04-environmentConfigs.yaml`](04-environmentConfigs.yaml). Replace
+`__CLOUDFERRO_PROJECT_ID__` and `__STORAGE_NAMESPACE__`, then set the endpoint,
+OpenStack region, and S3 signing region. Apply the copies before the Storage.
+Follow the [installation order](../../docs/how-to-guides/installation.md#1-install-backend-dependencies)
+for the remaining dependencies.
 
-Apply [`03-providerConfigs.yaml`](03-providerConfigs.yaml) in every namespace
-that contains a CloudFerro `Storage` resource. Apply the remaining manifests
-in the order given in the
-[installation guide](../../docs/how-to-guides/installation.md#1-install-backend-dependencies).
+The EnvironmentConfig defines `storage.projectId` and
+`storage.providerConfigName`. The project ID must match `tenant_id` in the
+referenced Secret. The ProviderConfig and Secret must exist in each Storage
+namespace. Storages in one namespace can share the ProviderConfig.
+EnvironmentConfigs are cluster-scoped.
+
+Set `storages.pkg.internal/environment: storage-cloudferro-<project-id>` on
+each Storage and select `provider: cloudferro`. Cross-project grants resolve
+the grantee Storage's EnvironmentConfig and use its `storage.projectId`.
+Restrict who can select or change project environments, change ProviderConfigs,
+or read controller Secrets. The Composition still creates its internal AWS
+ProviderConfig from generated S3 credentials for bucket policies.
+
+On upgrade, create the project configuration first and set each Storage's
+project environment selector. Keep the old project annotation until the
+updated Composition is applied, then remove it. Keep project, principal,
+bucket names, endpoint, and regions unchanged.
+
+## Optional automation example
+
+The [Kyverno policy](../kyverno/project-configs.yaml) and
+[RBAC manifest](../kyverno/rbac.yaml) show how a deployment can generate
+project configuration from Secrets named `cloudferro-project-<project-id>`.
+Manual setup and tests do not need Kyverno.
+
+Copy the example to the cluster's deployment source. Set
+`__STORAGE_NAMESPACE__` to one trusted source namespace and check the endpoint,
+regions, and Kyverno ServiceAccount binding. Apply RBAC before the policy,
+after the provider CRDs are ready. Configure `provider-kubernetes` separately.
+Use one source namespace for each shared EnvironmentConfig; create additional
+namespaced ProviderConfigs separately.
+
+The example processes existing Secrets and retains generated configuration
+after Secret or policy removal. Policy edits do not update existing generated
+configuration. Update credentials in place and remove project configuration
+only after its Storages are deleted. See
+[Kyverno generation](https://kyverno.io/docs/policy-types/cluster-policy/generate/).

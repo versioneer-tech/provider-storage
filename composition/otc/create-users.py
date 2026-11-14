@@ -6,6 +6,7 @@ from crossplane.function.proto.v1 import run_function_pb2 as fnv1
 from composition.helpers import (
     credential_suffixes,
     kubernetes_object,
+    storage_provider_config_name,
     to_dict,
 )
 
@@ -40,7 +41,9 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
                             "enabled": True,
                             "accessType": "programmatic",
                         },
-                        "providerConfigRef": {"name": "provider-otc"},
+                        "providerConfigRef": {
+                            "name": storage_provider_config_name(req, "provider-otc")
+                        },
                     },
                 },
                 readiness={"policy": "DeriveFromObject"},

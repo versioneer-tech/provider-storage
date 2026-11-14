@@ -152,9 +152,12 @@ Use the matching backend and `CROSSPLANE_<BACKEND>_NAMESPACE` variable:
 | CloudFerro | `cloudferro-project-<project-id>` for each selected project | `config` |
 
 Set `credentials.secretRef.name`, `namespace`, and `key` in the ProviderConfig
-to these values. CloudFerro creates its project-scoped OpenStack
-ProviderConfigs from each Storage's project annotation. The project Secret
-must exist in that Storage's namespace first.
+to these values. For CloudFerro, create the project Secret and OpenStack
+ProviderConfig in each Storage namespace. The project EnvironmentConfig
+selects that ProviderConfig with `storage.providerConfigName` and records
+its project as `storage.projectId`. See the
+[CloudFerro dependency guide](https://github.com/versioneer-tech/provider-storage/blob/main/cloudferro/dependencies/README.md)
+for project setup.
 
 AWS `assume-role` mode uses an external workload identity and role trust
 instead of a static controller Secret. Both AWS modes need the runtime role
@@ -297,10 +300,10 @@ project IDs; it does not revoke earlier grants. There is no separate project
 registration command.
 
 Each `cloudferro-project-<project-id>` Secret contains the controller identity
-with one project scope. The Composition creates the Storage's OpenStack
-ProviderConfig. Restrict who can select the project annotation and read its
-controller Secret. A user with S3 access in a project can access its containers;
-a bucket policy cannot isolate users within that project.
+with one project scope. Create its OpenStack ProviderConfig and project
+EnvironmentConfig before the Storage. Restrict who can select the environment
+and read its controller Secret. A user with S3 access in a project can access
+its containers; a bucket policy cannot isolate users within that project.
 
 `verify` reads each saved project's name, domain, and enabled state with the
 controller login. It rejects a project outside the configured name pattern

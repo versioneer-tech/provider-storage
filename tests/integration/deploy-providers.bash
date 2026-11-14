@@ -183,13 +183,22 @@ install_ovh() {
 }
 
 install_cloudferro() {
+  local project_id
   log "Deploying shared CloudFerro providers"
   install_dependencies cloudferro
   kube wait provider.pkg.crossplane.io/provider-openstack \
     --for=condition=Healthy --timeout=10m
-  kube apply --namespace "${INTEGRATION_NAMESPACE}" \
-    -f "${REPO_ROOT}/cloudferro/dependencies/03-providerConfigs.yaml"
-  kube apply -f "${MANIFEST_DIR}/environment-configs/cloudferro.yaml"
+  for project_id in \
+    "${CROSSPLANE_CLOUDFERRO_PROJECT_ID}" \
+    "${CROSSPLANE_CLOUDFERRO_IT2_PROJECT_ID}"; do
+    apply_template \
+      "${REPO_ROOT}/cloudferro/dependencies/03-providerConfigs.yaml" \
+      STORAGE_NAMESPACE "${INTEGRATION_NAMESPACE}" \
+      CLOUDFERRO_PROJECT_ID "${project_id}"
+    apply_template \
+      "${MANIFEST_DIR}/environment-configs/cloudferro.yaml" \
+      CLOUDFERRO_PROJECT_ID "${project_id}"
+  done
   kube apply -f "${REPO_ROOT}/cloudferro/composition.yaml"
 }
 

@@ -5,7 +5,7 @@ import json
 
 from crossplane.function.proto.v1 import run_function_pb2 as fnv1
 
-from composition.helpers import to_dict
+from composition.helpers import storage_provider_config_name, to_dict
 
 ENVIRONMENT_KEY = "apiextensions.crossplane.io/environment"
 
@@ -51,7 +51,7 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
                         "policy": json.dumps(policy_doc, indent=2),
                     },
                     "providerConfigRef": {
-                        "name": "provider-aws",
+                        "name": storage_provider_config_name(req, "provider-aws"),
                         "kind": "ProviderConfig",
                     },
                 },

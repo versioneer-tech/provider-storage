@@ -5,6 +5,7 @@ from crossplane.function.proto.v1 import run_function_pb2 as fnv1
 
 from composition.helpers import (
     credential_suffixes,
+    storage_provider_config_name,
     to_dict,
 )
 
@@ -41,7 +42,7 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
                 "spec": {
                     "forProvider": {"path": user_path},
                     "providerConfigRef": {
-                        "name": "provider-aws",
+                        "name": storage_provider_config_name(req, "provider-aws"),
                         "kind": "ProviderConfig",
                     },
                 },

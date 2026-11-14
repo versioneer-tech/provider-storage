@@ -31,8 +31,7 @@ patches:
       - op: add
         path: /metadata/annotations
         value:
-          storages.pkg.internal/cloudferro-project-id: 0123456789abcdef0123456789abcdef
-          storages.pkg.internal/environment: storage-cloudferro
+          storages.pkg.internal/environment: storage-cloudferro-0123456789abcdef0123456789abcdef
   - target:
       group: pkg.internal
       version: v1beta1
@@ -42,8 +41,7 @@ patches:
       - op: add
         path: /metadata/annotations
         value:
-          storages.pkg.internal/cloudferro-project-id: 0123456789abcdef0123456789abcdef
-          storages.pkg.internal/environment: storage-cloudferro
+          storages.pkg.internal/environment: storage-cloudferro-0123456789abcdef0123456789abcdef
       - op: remove
         path: /spec/bucketAccessGrants
   - target:
@@ -55,8 +53,7 @@ patches:
       - op: add
         path: /metadata/annotations
         value:
-          storages.pkg.internal/cloudferro-project-id: fedcba9876543210fedcba9876543210
-          storages.pkg.internal/environment: storage-cloudferro
+          storages.pkg.internal/environment: storage-cloudferro-fedcba9876543210fedcba9876543210
       - op: remove
         path: /spec/bucketAccessGrants
       - op: remove
@@ -70,7 +67,6 @@ patches:
       - op: add
         path: /metadata/annotations
         value:
-          storages.pkg.internal/cloudferro-project-id: fedcba9876543210fedcba9876543210
-          storages.pkg.internal/environment: storage-cloudferro
+          storages.pkg.internal/environment: storage-cloudferro-fedcba9876543210fedcba9876543210
       - op: remove
         path: /spec/bucketAccessGrants

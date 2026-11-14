@@ -1,0 +1,80 @@
+# Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: cloudferro-project-configs
+spec:
+  # Keep project configuration during Secret or policy replacement.
+  rules:
+    - name: project-provider-config
+      match:
+        any:
+          - resources:
+              kinds: [v1/Secret]
+              namespaces: [__STORAGE_NAMESPACE__]
+              names: [cloudferro-project-*]
+      context:
+        - name: projectId
+          variable:
+            jmesPath: "regex_replace_all('^cloudferro-project-', request.object.metadata.name, '')"
+      preconditions:
+        all:
+          - key: "{{ regex_match('^cloudferro-project-[0-9a-f]{32}$', request.object.metadata.name) }}"
+            operator: Equals
+            value: true
+          - key: "{{ contains(keys(request.object.data || `{}`), 'config') }}"
+            operator: Equals
+            value: true
+      generate:
+        generateExisting: true
+        synchronize: false
+        apiVersion: openstack.m.crossplane.io/v1beta1
+        kind: ProviderConfig
+        name: "cloudferro-project-{{ projectId }}"
+        namespace: "{{ request.object.metadata.namespace }}"
+        data:
+          spec:
+            credentials:
+              source: Secret
+              secretRef:
+                name: "{{ request.object.metadata.name }}"
+                namespace: "{{ request.object.metadata.namespace }}"
+                key: config
+    - name: project-environment-config
+      match:
+        any:
+          - resources:
+              kinds: [v1/Secret]
+              namespaces: [__STORAGE_NAMESPACE__]
+              names: [cloudferro-project-*]
+      context:
+        - name: projectId
+          variable:
+            jmesPath: "regex_replace_all('^cloudferro-project-', request.object.metadata.name, '')"
+      preconditions:
+        all:
+          - key: "{{ regex_match('^cloudferro-project-[0-9a-f]{32}$', request.object.metadata.name) }}"
+            operator: Equals
+            value: true
+          - key: "{{ contains(keys(request.object.data || `{}`), 'config') }}"
+            operator: Equals
+            value: true
+      generate:
+        generateExisting: true
+        synchronize: false
+        apiVersion: apiextensions.crossplane.io/v1beta1
+        kind: EnvironmentConfig
+        name: "storage-cloudferro-{{ projectId }}"
+        data:
+          data:
+            storage:
+              projectId: "{{ projectId }}"
+              providerConfigName: "cloudferro-project-{{ projectId }}"
+              endpoint: https://s3.waw3-2.cloudferro.com
+              force_path_style: "true"
+              provider: Other
+              region: WAW3-2
+              s3Region: RegionOne
+              type: s3

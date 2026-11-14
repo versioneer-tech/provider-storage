@@ -8,7 +8,7 @@ kind: Storage
 metadata:
   name: s-joe
   annotations:
-    storages.pkg.internal/cloudferro-project-id: 0123456789abcdef0123456789abcdef
+    storages.pkg.internal/environment: storage-cloudferro-0123456789abcdef0123456789abcdef
   labels:
     storages.pkg.internal/discoverable: "true"
 spec:

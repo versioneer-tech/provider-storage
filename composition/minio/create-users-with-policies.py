@@ -8,6 +8,7 @@ from composition.helpers import (
     _bucket_grants_access,
     credential_suffixes,
     kubernetes_object,
+    storage_provider_config_name,
     to_dict,
 )
 
@@ -73,7 +74,9 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
                     "metadata": {"name": user_name},
                     "spec": {
                         "forProvider": {"userName": user_name, "policies": policies},
-                        "providerConfigRef": {"name": "provider-minio"},
+                        "providerConfigRef": {
+                            "name": storage_provider_config_name(req, "provider-minio")
+                        },
                         "writeConnectionSecretToRef": {
                             "name": connection_secret_name,
                             "namespace": ns,

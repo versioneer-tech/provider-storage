@@ -8,7 +8,7 @@ kind: Storage
 metadata:
   name: s-jeff
   annotations:
-    storages.pkg.internal/cloudferro-project-id: fedcba9876543210fedcba9876543210
+    storages.pkg.internal/environment: storage-cloudferro-fedcba9876543210fedcba9876543210
   labels:
     storages.pkg.internal/discoverable: "true"
 spec:
