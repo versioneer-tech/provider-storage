@@ -46,7 +46,7 @@ other principals.
 
 - `bucketName`: requested bucket.
 - `reason`: optional free-text justification.
-- `requestedAt`: RFC3339 timestamp for the request.
+- `requestedAt`: required RFC3339 timestamp supplied by the requester.
 
 Requests do not carry a permission field. The effective permission is recorded
 only on the owner's matching `bucketAccessGrants[]` entry.
@@ -58,7 +58,7 @@ only on the owner's matching `bucketAccessGrants[]` entry.
 - `bucketName`: bucket being shared.
 - `grantee`: principal receiving access.
 - `permission`: `ReadWrite`, `ReadOnly`, `WriteOnly`, or `None`.
-- `grantedAt`: RFC3339 timestamp for the grant.
+- `grantedAt`: required RFC3339 timestamp supplied by the owner.
 
 ### Credential rollover
 

@@ -11,7 +11,7 @@ Accepted
 ## Context
 
 The `Storage` API supports `Delete` and `Notify` rules. A rule can select
-objects by age, UTC cutoff, and prefix. Native lifecycle features differ
+objects by age, activation time, and prefix. Native lifecycle features differ
 between backends and do not provide the same behavior.
 
 ## Decision
@@ -29,7 +29,7 @@ The rules work as follows:
 - `Notify` lists matching objects and does not change them;
 - `Delete` removes matching objects;
 - `minAge` selects objects by relative age;
-- `at` is a UTC cutoff, not a one-time schedule;
+- `at` starts repeated processing after that time;
 - a target selects a bucket or a prefix in that bucket.
 
 The default schedule is `17 2 * * *`. Operators can change it in the storage
@@ -39,12 +39,8 @@ Jobs use the current consumer Secret and the backend settings from the
 `EnvironmentConfig`. They do not receive a Kubernetes service-account token.
 `concurrencyPolicy: Forbid` prevents two scheduled Jobs from running at the
 same time.
-Each Job has a one-hour deadline and permits two retries by default. Failed
-Pods do not restart in place. The EnvironmentConfig can set
-`storage.lifecycle.activeDeadlineSeconds` from 1 through 86400 and
-`storage.lifecycle.backoffLimit` from 0 through 10. The deadline includes
-retry time. A Job that exceeds either limit fails and permits a later
-scheduled Job to run.
+Jobs have a deadline and a finite retry limit. Failed Pods do not restart in
+place. These limits prevent a failed Job from blocking later scheduled runs.
 
 ## Consequences
 

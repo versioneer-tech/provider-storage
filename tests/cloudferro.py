@@ -1,9 +1,10 @@
 # Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
 # SPDX-License-Identifier: Apache-2.0
 
-"""Check project binding, credential publication, and deletion dependencies."""
+"""Check CloudFerro project isolation and policy-provider dependencies."""
 
 import base64
+import configparser
 import json
 import sys
 import unittest
@@ -79,33 +80,32 @@ class CloudFerroTests(unittest.TestCase):
                         {item["Principal"]["AWS"] for item in statements},
                         {f"arn:aws:iam::{peer_project}:root"},
                     )
-                self.assertFalse(
-                    any(
-                        resource.get("spec", {}).get("managementPolicies")
-                        for resource in documents
-                    )
-                )
-
-    def test_credentials_are_published_only_after_the_provider_returns_them(self):
-        self.assertEqual(manifests(BASE), {})
-        secret = manifests(READY)["secret-s-joe"]
-        self.assertEqual(secret["metadata"]["name"], "s-joe")
-        self.assertEqual((secret["kind"], secret["type"]), ("Secret", "Opaque"))
-        self.assertEqual(
-            {
-                key: base64.b64decode(value).decode()
-                for key, value in secret["data"].items()
-            },
-            {
-                "AWS_ACCESS_KEY_ID": "EXAMPLEACCESSKEY",
-                "AWS_SECRET_ACCESS_KEY": "EXAMPLESECRETKEY",
-                "AWS_ENDPOINT_URL": "https://s3.example.cloudferro.test",
-                "AWS_REGION": "RegionOne",
-                "AWS_S3_FORCE_PATH_STYLE": "true",
-            },
-        )
 
     def test_bucket_policy_dependencies_keep_credentials_until_deletion(self):
+        profile = next(
+            item
+            for item in resources(READY, "Secret")
+            if item["metadata"]["name"] == "s-joe-cloudferro-aws"
+        )
+        credentials = configparser.ConfigParser()
+        credentials.read_string(
+            base64.b64decode(profile["data"]["credentials"]).decode()
+        )
+        self.assertEqual(
+            credentials["default"]["aws_access_key_id"], "EXAMPLEACCESSKEY"
+        )
+        self.assertEqual(
+            credentials["default"]["aws_secret_access_key"], "EXAMPLESECRETKEY"
+        )
+        provider = manifests(READY)["cloudferro-s3-s-joe"]
+        self.assertEqual(
+            provider["spec"]["credentials"]["secretRef"],
+            {
+                "name": profile["metadata"]["name"],
+                "namespace": "default",
+                "key": "credentials",
+            },
+        )
         dependencies = {
             (usage["spec"]["of"]["kind"], usage["spec"]["of"]["resourceRef"]["name"])
             for usage in resources(READY, "Usage")
@@ -123,8 +123,12 @@ class CloudFerroTests(unittest.TestCase):
             if usage["metadata"]["name"] == "usage-aws-provider-s-joe"
         )
         self.assertEqual(
-            credential_use["spec"]["of"]["resourceRef"]["name"],
-            "aws-provider-secret-s-joe",
+            credential_use["spec"]["of"],
+            {
+                "apiVersion": "v1",
+                "kind": "Secret",
+                "resourceRef": {"name": profile["metadata"]["name"]},
+            },
         )
         self.assertEqual(
             credential_use["spec"]["by"]["resourceRef"]["name"], "cloudferro-s3-s-joe"

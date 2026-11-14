@@ -9,7 +9,7 @@ from composition.helpers import (
     encoded,
     publish_consumer_secret,
     ready_user_id,
-    retain_resources,
+    require_secret,
     to_dict,
 )
 
@@ -22,36 +22,37 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
     spec = xr.get("spec") or {}
     namespace = metadata.get("namespace") or "default"
     principal = (spec.get("principal") or metadata.get("name") or "").strip()
-    retain_resources(req, rsp, [f"secret-{principal}"])
+    if not principal:
+        return
+    publish_consumer_secret(req, rsp, principal, metadata.get("namespace") or "default")
     generation = f"{principal}{credential_suffixes(req)[0]}"
     context = to_dict(req.context)
     storage_env = (context.get(ENVIRONMENT_KEY) or {}).get("storage") or {}
     endpoint = (storage_env.get("endpoint") or "").strip()
     region = (storage_env.get("region") or "").strip()
     force_path_style = storage_env.get("force_path_style")
-    if not principal or not endpoint or not region or force_path_style in (None, ""):
+    if not endpoint or not region or force_path_style in (None, ""):
         return
     observed = req.observed.resources
     user_id = ready_user_id(observed, f"user-{generation}")
     if not user_id:
         return
     dependent_name = f"{generation}-u{user_id}"
-    observer_key = f"observe-secret-{dependent_name}"
-    rsp.desired.resources[observer_key].ready = fnv1.READY_FALSE
     credential = observed.get(f"credentials-{dependent_name}")
-    secret = observed.get(observer_key)
-    if credential is None or secret is None:
+    secret = require_secret(
+        req,
+        rsp,
+        f"credential-secret-{principal}",
+        f"{dependent_name}-credentials",
+        namespace,
+    )
+    if credential is None:
         return
     credential_data = to_dict(credential.resource)
     access_key = ((credential_data.get("status") or {}).get("atProvider") or {}).get(
         "accessKeyId"
     )
-    secret_data = (
-        ((to_dict(secret.resource).get("status") or {}).get("atProvider") or {}).get(
-            "manifest"
-        )
-        or {}
-    ).get("data") or {}
+    secret_data = secret.get("data") or {}
     if (
         not isinstance(access_key, str)
         or not access_key
@@ -69,5 +70,4 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
         "AWS_REGION": encoded(region),
         "AWS_S3_FORCE_PATH_STYLE": encoded(str(force_path_style).lower()),
     }
-    publish_consumer_secret(rsp, principal, namespace, data)
-    rsp.desired.resources[observer_key].ready = fnv1.READY_TRUE
+    publish_consumer_secret(req, rsp, principal, namespace, data)

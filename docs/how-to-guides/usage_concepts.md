@@ -7,7 +7,7 @@ without owned buckets.
 
 ## Select a backend
 
-Set a selector when more than one backend Composition is installed:
+Set a selector to choose the backend explicitly:
 
 ```yaml
 spec:
@@ -18,6 +18,10 @@ spec:
 ```
 
 Provider values are `aws`, `cloudferro`, `minio`, `otc`, and `ovh`.
+The selector is required when several compatible Compositions are installed.
+Release packages each own the shared XRD; install one backend package per
+cluster. Several Compositions can be installed from source against that XRD.
+
 All backends use the `storage` EnvironmentConfig by default. Set the
 `storages.pkg.internal/environment` annotation or label to select another.
 The multi-backend examples use `storage-<backend>`.

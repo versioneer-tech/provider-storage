@@ -5,7 +5,6 @@ from crossplane.function import request, resource, response
 from crossplane.function.proto.v1 import run_function_pb2 as fnv1
 
 from composition.helpers import (
-    credential_suffixes,
     credential_time,
     kubernetes_object,
     rollover_suffixes,
@@ -21,26 +20,6 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
     principal = (spec.get("principal") or meta.get("name") or "").strip()
     if not principal:
         return
-
-    suffixes = credential_suffixes(req)
-    current_user_name = f"{principal}{suffixes[0] if suffixes else ''}"
-    current_secret_name = (
-        current_user_name if suffixes and suffixes[0] else f"{principal}-credentials"
-    )
-
-    key = f"observe-secret-{principal}"
-    rsp.desired.resources[key].resource.update(
-        kubernetes_object(
-            key,
-            ns,
-            {
-                "apiVersion": "v1",
-                "kind": "Secret",
-                "metadata": {"name": current_secret_name, "namespace": ns},
-            },
-            managementPolicies=["Observe"],
-        )
-    )
 
     grantees = []
     for g in spec.get("bucketAccessGrants") or []:

@@ -61,10 +61,6 @@ spec:
       namespace: default
     - apiVersion: kubernetes.m.crossplane.io/v1alpha1
       kind: Object
-      name: observe-secret-s-jeff
-      namespace: default
-    - apiVersion: kubernetes.m.crossplane.io/v1alpha1
-      kind: Object
       name: observe-user-s-joe
       namespace: default
     - apiVersion: kubernetes.m.crossplane.io/v1alpha1
@@ -87,8 +83,6 @@ status:
     status: "True"
     type: Synced
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: bucket-s-jeff, bucket-s-jeff-shared, bucketpolicy-s-jeff,
-      and 7 more'
     reason: Creating
     status: "False"
     type: Ready
@@ -439,36 +433,6 @@ spec:
                   name: scratch
         schedule: 17 2 * * *
         successfulJobsHistoryLimit: 1
-  providerConfigRef:
-    kind: ProviderConfig
-    name: provider-kubernetes
----
-apiVersion: kubernetes.m.crossplane.io/v1alpha1
-kind: Object
-metadata:
-  annotations:
-    crossplane.io/composition-resource-name: observe-secret-s-jeff
-  labels:
-    crossplane.io/composite: s-jeff
-  name: observe-secret-s-jeff
-  namespace: default
-  ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-jeff
-    uid: a86e0716-04c4-5977-b127-01a60791e5c2
-spec:
-  forProvider:
-    manifest:
-      apiVersion: v1
-      kind: Secret
-      metadata:
-        name: s-jeff-2026w39
-        namespace: default
-  managementPolicies:
-  - Observe
   providerConfigRef:
     kind: ProviderConfig
     name: provider-kubernetes

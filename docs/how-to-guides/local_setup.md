@@ -4,20 +4,16 @@ Use the [test guide](https://github.com/versioneer-tech/provider-storage/blob/ma
 to select checks and install local test tools. The unit suite uses Docker
 and needs no Kubernetes cluster.
 
-## Unit tests
-
-From the repository root, build the Compositions and run all backends:
+From the repository root, run all backends:
 
 ```bash
-python3 -m pip install -r scripts/requirements.txt
-python3 scripts/build-composition.py
 docker ps
 tests/unit.bash
 ```
 
 ## Integration tests
 
-Install Kind, kubectl, and Helm. Tests use the dedicated `provider-storage-it`
+Tests use the dedicated `provider-storage-it`
 cluster and the explicit `kind-provider-storage-it` context. Use a separate
 `KUBECONFIG` file to keep this setup apart from other clusters.
 

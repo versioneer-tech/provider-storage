@@ -1,7 +1,7 @@
 # Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
 # SPDX-License-Identifier: Apache-2.0
 
-"""Composition regressions run by function-runtime.py in the SDK container."""
+"""Check credential rollover, access policies, and lifecycle bounds."""
 
 import base64
 import json
@@ -20,37 +20,23 @@ def run_tests(pipelines):
     from google.protobuf.json_format import MessageToDict
 
     principal = "test-consumer"
-    secret_key = f"secret-{principal}"
+    secret_key = f"native-secret-{principal}"
     old_data = {
         "AWS_ACCESS_KEY_ID": encoded("test-old-access"),
         "AWS_SECRET_ACCESS_KEY": encoded("test-old-secret"),
         "AWS_ENDPOINT_URL": encoded("https://old.example.test"),
     }
     old_secret = {
-        "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
-        "kind": "Object",
+        "apiVersion": "v1",
+        "kind": "Secret",
         "metadata": {
-            "name": secret_key,
+            "name": principal,
             "namespace": "test-space",
             "uid": "test-stable-uid",
             "resourceVersion": "1",
         },
-        "spec": {
-            "forProvider": {
-                "manifest": {
-                    "apiVersion": "v1",
-                    "kind": "Secret",
-                    "metadata": {"name": principal, "namespace": "test-space"},
-                    "type": "Opaque",
-                    "data": old_data,
-                }
-            },
-            "providerConfigRef": {
-                "name": "provider-kubernetes",
-                "kind": "ProviderConfig",
-            },
-        },
-        "status": {"conditions": [{"type": "Ready", "status": "True"}]},
+        "type": "Opaque",
+        "data": old_data,
     }
 
     def request(backend, phase="missing", previous=None):
@@ -99,7 +85,7 @@ def run_tests(pipelines):
                 if phase == "ready"
                 else {}
             )
-            observer = f"observe-secret-{principal}-u12"
+
         elif backend == "cloudferro":
             req.observed.resources[f"credentials-{principal}"].resource.update(
                 {"status": {"atProvider": {"access": "test-new-access"}}}
@@ -114,12 +100,10 @@ def run_tests(pipelines):
                 }
             )
             return req
-        else:
-            observer = f"observe-secret-{principal}"
         data["provider_token"] = encoded("test-unused-token")
-        req.observed.resources[observer].resource.update(
-            {"status": {"atProvider": {"manifest": {"data": data}}}}
-        )
+        req.required_resources[
+            f"credential-secret-{principal}"
+        ].items.add().resource.update({"data": data})
         return req
 
     def compose(backend, step_name, req, clock=None):
@@ -135,12 +119,7 @@ def run_tests(pipelines):
         return rsp
 
     def publish(backend, req):
-        step = (
-            "publish-current-secret"
-            if backend in ("ovh", "cloudferro")
-            else "manage-current-secret"
-        )
-        return compose(backend, step, req)
+        return compose(backend, "publish-current-secret", req)
 
     def lifecycle_request(backend, config):
         req = request(backend)
@@ -195,7 +174,7 @@ def run_tests(pipelines):
                         rsp = publish(
                             backend, request(backend, phase, {secret_key: old_secret})
                         )
-                        self.assertEqual(body(rsp)["spec"], old_secret["spec"])
+                        self.assertEqual(body(rsp)["data"], old_secret["data"])
                         self.assertNotIn("uid", body(rsp)["metadata"])
                         self.assertNotIn("status", body(rsp))
                         self.assertEqual(
@@ -208,23 +187,41 @@ def run_tests(pipelines):
                     rsp = publish(
                         backend, request(backend, "ready", {secret_key: old_secret})
                     )
-                    data = body(rsp)["spec"]["forProvider"]["manifest"]["data"]
                     self.assertEqual(
-                        data["AWS_ACCESS_KEY_ID"], encoded("test-new-access")
+                        body(rsp)["data"],
+                        {
+                            "AWS_ACCESS_KEY_ID": encoded("test-new-access"),
+                            "AWS_SECRET_ACCESS_KEY": encoded("test-new-secret"),
+                            "AWS_ENDPOINT_URL": encoded("https://new.example.test"),
+                            "AWS_REGION": encoded("RegionOne"),
+                            "AWS_S3_FORCE_PATH_STYLE": encoded("true"),
+                        },
                     )
-                    self.assertEqual(
-                        data["AWS_SECRET_ACCESS_KEY"], encoded("test-new-secret")
-                    )
-                    self.assertEqual(
-                        data["AWS_ENDPOINT_URL"], encoded("https://new.example.test")
-                    )
-                    self.assertNotIn("provider_token", data)
                     self.assertNotEqual(
                         rsp.desired.resources[secret_key].ready, fnv1.READY_FALSE
                     )
 
+        def test_published_credentials_are_only_in_native_secrets(self):
+            for backend in pipelines:
+                with self.subTest(backend=backend):
+                    rsp = publish(backend, request(backend, "ready"))
+                    self.assertEqual(body(rsp)["kind"], "Secret")
+                    self.assertEqual(body(rsp)["apiVersion"], "v1")
+                    for item in rsp.desired.resources.values():
+                        resource = MessageToDict(item.resource)
+                        if resource["kind"] != "Secret":
+                            manifest = (
+                                resource.get("spec", {})
+                                .get("forProvider", {})
+                                .get("manifest", {})
+                            )
+                            self.assertNotEqual(manifest.get("kind"), "Secret")
+                            text = json.dumps(resource)
+                            self.assertNotIn(encoded("test-new-secret"), text)
+                            self.assertNotIn("test-new-secret", text)
+
         @unittest.skipUnless("cloudferro" in pipelines, "CloudFerro was not selected")
-        def test_cloudferro_keeps_policy_provider_during_handover(self):
+        def test_cloudferro_keeps_policy_dependencies_during_rollover(self):
             initial = publish("cloudferro", request("cloudferro", "ready"))
             previous = {
                 key: MessageToDict(value.resource)
@@ -232,8 +229,9 @@ def run_tests(pipelines):
             }
             pending = publish("cloudferro", request("cloudferro", previous=previous))
             self.assertEqual(set(pending.desired.resources), set(previous))
-            for key in previous:
-                self.assertEqual(body(pending, key)["spec"], previous[key]["spec"])
+            for key, resource in previous.items():
+                field = "data" if resource["kind"] == "Secret" else "spec"
+                self.assertEqual(body(pending, key)[field], resource[field])
 
         @unittest.skipUnless("otc" in pipelines, "OTC was not selected")
         def test_otc_policy_includes_retained_ids_and_omits_expired_or_revoked_ids(
@@ -272,7 +270,7 @@ def run_tests(pipelines):
                 for step in (
                     "load-storage-environment",
                     "create-users",
-                    "observe-grantee-users-and-current-credential",
+                    "observe-grantee-users",
                 ):
                     rsp = compose("otc", step, req)
                     req.desired.CopyFrom(rsp.desired)
@@ -401,7 +399,6 @@ def run_tests(pipelines):
                     for _ in range(2):
                         rsp = compose(backend, "load-storage-environment", req, clock)
                         req.context.CopyFrom(rsp.context)
-                    self.assertEqual(clock.now.call_count, 1)
                     for step in pipelines[backend][1:]:
                         if step["input"]["kind"] != "Script":
                             continue

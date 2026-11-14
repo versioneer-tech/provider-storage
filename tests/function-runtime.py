@@ -55,7 +55,7 @@ with grpc.insecure_channel('localhost:9443') as channel:
                 assert (rsp.meta.ttl.seconds, rsp.meta.ttl.nanos) == (case['seconds'], 0), (
                     case['backend'], step['step'], rsp.meta.ttl)
 scope = {}
-exec(compile(data['checks'], 'tests/functions.py', 'exec'), scope)
+exec(compile(data['checks'], 'tests/composition-behavior.py', 'exec'), scope)
 raise SystemExit(scope['run_tests'](pipelines))
 """
 
@@ -93,33 +93,29 @@ class FunctionRuntimeTests(unittest.TestCase):
             root = Path(directory)
             shutil.copytree(ROOT / "composition", root / "composition")
             (root / "composition/settings.yaml").write_text("responseTTL: 5m\n")
-            for backend in BACKENDS:
+            builds = [(backend, ROOT, None, 60) for backend in BACKENDS]
+            # File and command overrides use the same builder for every backend.
+            # Expected seconds must not depend on the parser under test.
+            builds.extend(
+                [(BACKENDS[0], root, None, 300), (BACKENDS[0], root, "90s", 90)]
+            )
+            for backend, source_root, override, seconds in builds:
                 fixture = (
                     ROOT / "cloudferro/tests/fixtures/001-buckets.yaml"
                     if backend == "cloudferro"
                     else ROOT / "examples/base/002-buckets.yaml"
                 )
-                for ttl in (None, "5m", "90s"):
-                    composition = yaml.safe_load(
-                        BUILDER["build"](
-                            backend,
-                            root=ROOT if ttl is None else root,
-                            response_ttl="90s" if ttl == "90s" else None,
-                        )
-                    )
-                    settings = yaml.safe_load(
-                        (ROOT / "composition/settings.yaml").read_text()
-                    )
-                    cases.append(
-                        {
-                            "backend": backend,
-                            "pipeline": composition["spec"]["pipeline"],
-                            "xr": yaml.safe_load(fixture.read_text()),
-                            "seconds": BUILDER["response_ttl_seconds"](
-                                ttl or settings["responseTTL"]
-                            ),
-                        }
-                    )
+                composition = yaml.safe_load(
+                    BUILDER["build"](backend, root=source_root, response_ttl=override)
+                )
+                cases.append(
+                    {
+                        "backend": backend,
+                        "pipeline": composition["spec"]["pipeline"],
+                        "xr": yaml.safe_load(fixture.read_text()),
+                        "seconds": seconds,
+                    }
+                )
         functions = list(
             yaml.safe_load_all((ROOT / "minio/dependencies/functions.yaml").read_text())
         )
@@ -163,7 +159,7 @@ class FunctionRuntimeTests(unittest.TestCase):
                 input=json.dumps(
                     {
                         "cases": cases,
-                        "checks": (ROOT / "tests/functions.py").read_text(),
+                        "checks": (ROOT / "tests/composition-behavior.py").read_text(),
                     }
                 ),
                 capture_output=True,

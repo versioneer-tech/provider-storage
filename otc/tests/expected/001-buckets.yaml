@@ -33,10 +33,6 @@ spec:
       namespace: default
     - apiVersion: kubernetes.m.crossplane.io/v1alpha1
       kind: Object
-      name: observe-secret-s-joe
-      namespace: default
-    - apiVersion: kubernetes.m.crossplane.io/v1alpha1
-      kind: Object
       name: observe-user-s-jeff
       namespace: default
     - apiVersion: kubernetes.m.crossplane.io/v1alpha1
@@ -55,8 +51,6 @@ status:
     status: "True"
     type: Synced
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: bucket-s-joe, bucketpolicy-s-joe, observe-secret-s-joe,
-      and 2 more'
     reason: Creating
     status: "False"
     type: Ready
@@ -134,36 +128,6 @@ spec:
     name: provider-kubernetes
   readiness:
     policy: DeriveFromObject
----
-apiVersion: kubernetes.m.crossplane.io/v1alpha1
-kind: Object
-metadata:
-  annotations:
-    crossplane.io/composition-resource-name: observe-secret-s-joe
-  labels:
-    crossplane.io/composite: s-joe
-  name: observe-secret-s-joe
-  namespace: default
-  ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-joe
-    uid: 24a08e59-0c26-5e84-9bfa-ba05aa9ae080
-spec:
-  forProvider:
-    manifest:
-      apiVersion: v1
-      kind: Secret
-      metadata:
-        name: s-joe-credentials
-        namespace: default
-  managementPolicies:
-  - Observe
-  providerConfigRef:
-    kind: ProviderConfig
-    name: provider-kubernetes
 ---
 apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object

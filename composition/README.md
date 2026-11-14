@@ -8,6 +8,8 @@ clock again.
 AWS, MinIO, and OTC share the current-Secret step. OVHcloud and CloudFerro
 resolve their provider-specific credential sources, then use the same consumer
 Secret writer.
+The writer composes native Secrets and reads connection Secrets through
+required resources.
 `kubernetes_object` builds the common provider-kubernetes envelope. Keep the
 native manifest and provider-specific settings in each backend step.
 

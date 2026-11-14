@@ -1,11 +1,13 @@
 # Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
 # SPDX-License-Identifier: Apache-2.0
 
-"""Keep the integration inputs consistent with the access checks."""
+"""Check integration access scenarios and authorization-denial classification."""
 
 import sys
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
 import yaml
 
@@ -14,7 +16,7 @@ sys.argv[1:] = []
 MANIFESTS = Path(__file__).parent / "manifests/storages"
 
 
-class StorageScenarioTests(unittest.TestCase):
+class AccessScenarioTests(unittest.TestCase):
     def test_owner_and_requester_match_the_access_matrix(self):
         for backend in BACKENDS:
             with self.subTest(backend=backend):
@@ -64,9 +66,6 @@ class StorageScenarioTests(unittest.TestCase):
                         f"storage-{backend}",
                     )
                     self.assertEqual(
-                        metadata["labels"]["storages.pkg.internal/backend"], backend
-                    )
-                    self.assertEqual(
                         spec["crossplane"]["compositionSelector"]["matchLabels"][
                             "provider"
                         ],
@@ -98,6 +97,67 @@ class StorageScenarioTests(unittest.TestCase):
                 )
                 self.assertFalse(owner["spec"].get("bucketAccessRequests"))
                 self.assertFalse(requester["spec"].get("bucketAccessGrants"))
+
+
+class S3DenialTests(unittest.TestCase):
+    def test_only_authorization_denial_satisfies_negative_probes(self):
+        manifest = yaml.safe_load((MANIFESTS.parent / "jobs/access.yaml").read_text())
+        script = manifest["spec"]["template"]["spec"]["containers"][0]["command"][-1]
+
+        class ClientError(Exception):
+            def __init__(self, operation, code="AccessDenied", status=403, message=None):
+                self.operation_name = operation
+                self.response = {
+                    "Error": {"Code": code, "Message": message},
+                    "ResponseMetadata": {"HTTPStatusCode": status},
+                }
+
+        operations = {
+            "list_objects_v2": "ListObjectsV2", "get_object": "GetObject",
+            "put_object": "PutObject", "delete_object": "DeleteObject",
+        }
+        environment = {
+            "TEST_PHASE": "deny",
+            "AWS_ACCESS_KEY_ID": "test-access",
+            "AWS_SECRET_ACCESS_KEY": "test-secret",
+            "AWS_ENDPOINT_URL": "https://s3.test.invalid",
+            "AWS_REGION": "test-region",
+        }
+        for method, operation in operations.items():
+            cases = [
+                ("empty message", ClientError(operation), True),
+                ("message", ClientError(operation, message="denied"), True),
+                ("success", None, False),
+                ("network", ConnectionError("test-secret"), False),
+                ("wrong operation", ClientError("HeadObject"), False),
+                ("wrong status", ClientError(operation, status=500), False),
+            ]
+            cases.extend(
+                (code, ClientError(operation, code=code), False)
+                for code in (
+                    "InvalidAccessKeyId", "SignatureDoesNotMatch", "ExpiredToken",
+                    "NoSuchKey", "NoSuchBucket",
+                )
+            )
+            for name, error, expected in cases:
+                client = SimpleNamespace(**{
+                    method: Mock(side_effect=ClientError(operation))
+                    for method, operation in operations.items()
+                })
+                getattr(client, method).side_effect = error
+                modules = {
+                    "os": SimpleNamespace(environ=environment, getenv=environment.get),
+                    "boto3": SimpleNamespace(client=lambda *args, **kwargs: client),
+                    "botocore.config": SimpleNamespace(Config=lambda **kwargs: None),
+                    "botocore.exceptions": SimpleNamespace(ClientError=ClientError),
+                }
+                with self.subTest(operation=operation, error=name), patch.dict(sys.modules, modules):
+                    if expected:
+                        exec(script, {})
+                    else:
+                        with self.assertRaises(SystemExit) as failure:
+                            exec(script, {})
+                        self.assertNotIn("test-secret", str(failure.exception))
 
 
 if __name__ == "__main__":

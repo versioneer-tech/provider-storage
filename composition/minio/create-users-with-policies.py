@@ -82,22 +82,3 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
                 },
             )
         )
-
-    current_user_name = f"{principal}{suffixes[0] if suffixes else ''}"
-    current_secret_name = (
-        current_user_name if suffixes and suffixes[0] else f"{principal}-credentials"
-    )
-    obs_key = f"observe-secret-{principal}"
-    rsp.desired.resources[obs_key].ready = fnv1.READY_TRUE
-    rsp.desired.resources[obs_key].resource.update(
-        kubernetes_object(
-            obs_key,
-            ns,
-            {
-                "apiVersion": "v1",
-                "kind": "Secret",
-                "metadata": {"name": current_secret_name, "namespace": ns},
-            },
-            managementPolicies=["Observe"],
-        )
-    )

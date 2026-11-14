@@ -34,7 +34,7 @@ preflight_storage() {
       fi
       for project_id in "${CROSSPLANE_CLOUDFERRO_PROJECT_ID}" "${CROSSPLANE_CLOUDFERRO_IT2_PROJECT_ID}"; do
         if ! kube get "secret/cloudferro-project-${project_id}" --namespace "${INTEGRATION_NAMESPACE}" >/dev/null 2>&1; then
-          printf 'CloudFerro project Secret for %s is missing. Apply the manifests printed by cloudferro/dependencies/iam.sh render-secrets.\n' "${project_id}" >&2
+          printf 'CloudFerro project Secret for %s is missing. Apply the manifests printed by bootstrap-iam.sh cloudferro render-secrets.\n' "${project_id}" >&2
           exit 1
         fi
       done

@@ -17,8 +17,8 @@ Other cloud permissions can still provide access.
 ## Discoverable buckets
 
 `spec.buckets[].discoverable` lets clients show a bucket to potential
-requesters. It does not grant access. Compositions that find peer Storage
-resources require this label on the owner:
+requesters. It does not grant access or restrict grants. Peer lookup uses
+this label on the Storage resource:
 
 ```yaml
 metadata:
@@ -26,17 +26,63 @@ metadata:
     storages.pkg.internal/discoverable: "true"
 ```
 
-The Composition checks that the peer owns the bucket and has a grant for
-the requester. OTC uses the owner's grants and observed grantee IDs to build
-bucket policies; a request does not change that policy.
+AWS and MinIO look up the owner and check bucket ownership and its grant.
+OTC and CloudFerro look up grantees to resolve their identities. Label both
+Storages when sharing access. OTC builds policies from the owner's grants
+and observed grantee IDs; a request does not change that policy.
 
 ## Request and grant access
 
-1. The requester adds `bucketName`, `requestedAt`, and an optional `reason`
-   to `spec.bucketAccessRequests`.
-2. The owner adds a matching grant with the chosen permission.
-3. To withdraw the grant, the owner sets `None` or removes the grant. Cloud
-   policy changes take time to affect access.
+This MinIO example gives `analyst` read-only access to `reports`. Both
+Storages are in the same namespace. Set the timestamps when you record the
+request and grant:
+
+```yaml
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  name: reports-owner
+  namespace: workspace
+  labels:
+    storages.pkg.internal/discoverable: "true"
+spec:
+  crossplane:
+    compositionSelector:
+      matchLabels:
+        provider: minio
+  principal: reporter
+  buckets:
+    - bucketName: reports
+      discoverable: true
+  bucketAccessGrants:
+    - bucketName: reports
+      grantee: analyst
+      permission: ReadOnly
+      grantedAt: "2026-01-01T12:05:00Z"
+---
+apiVersion: pkg.internal/v1beta1
+kind: Storage
+metadata:
+  name: reports-reader
+  namespace: workspace
+  labels:
+    storages.pkg.internal/discoverable: "true"
+spec:
+  crossplane:
+    compositionSelector:
+      matchLabels:
+        provider: minio
+  principal: analyst
+  buckets: []
+  bucketAccessRequests:
+    - bucketName: reports
+      reason: Read reports for analysis
+      requestedAt: "2026-01-01T12:00:00Z"
+```
+
+Apply both resources after installation. The consumer Secrets are `reporter`
+and `analyst` in `workspace`. To withdraw access, set the owner's grant to
+`None` or remove it. Cloud policy changes take time to affect access.
 
 A request has no permission field. Its reason can describe the desired
 access, but the owner chooses the permission. Requests and grants remain on

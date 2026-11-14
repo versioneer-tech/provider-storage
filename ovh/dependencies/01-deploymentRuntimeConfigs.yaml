@@ -56,6 +56,7 @@ spec:
           - name: package-runtime
             args:
             - --poll=1m
+            - --sanitize-secrets
             resources:
               requests:
                 cpu: 100m

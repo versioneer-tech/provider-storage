@@ -24,6 +24,7 @@ nav:
       - ADR-003 Lifecycle Cleanup Jobs: architecture/0003-run-portable-lifecycle-cleanup-jobs.md
       - ADR-004 OVHcloud S3 Backend: architecture/0004-add-an-ovhcloud-s3-backend.md
       - ADR-005 CloudFerro Project Boundaries: architecture/0005-add-a-cloudferro-s3-backend.md
+      - ADR-006 Standalone IAM Bootstrap: architecture/0006-use-one-standalone-iam-bootstrap-script.md
 plugins:
   - search
   - mike

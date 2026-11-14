@@ -24,8 +24,8 @@ Each Composition must:
 1. create the declared buckets;
 2. create the consumer identity, credentials, and permissions;
 3. grant access only after it verifies the bucket owner and the matching grant;
-4. publish the consumer Secret defined in the
-   [Consumer Credential Strategy](credential-strategy.md).
+4. publish a consumer Secret named `spec.principal` in the Storage namespace,
+   with `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
 
 An access request is intent only. Access becomes active only when the verified
 bucket owner sets a matching grant.
@@ -49,5 +49,7 @@ or observed directly.
 
 ## Current limits
 
+- Peer lookup uses the Storage discovery label. It does not enforce the
+  per-bucket `discoverable` flag as a condition for a grant.
 - Provider-kubernetes has broad access to provider resources and Secrets.
   Platform RBAC is part of the security boundary.

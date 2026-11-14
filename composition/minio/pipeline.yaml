@@ -48,13 +48,13 @@ spec:
       apiVersion: python.fn.crossplane.io/v1beta1
       kind: Script
       scriptFile: minio/create-users-with-policies.py
-  - step: manage-current-secret
+  - step: publish-current-secret
     functionRef:
       name: crossplane-contrib-function-python
     input:
       apiVersion: python.fn.crossplane.io/v1beta1
       kind: Script
-      scriptFile: shared/manage-current-secret.py
+      scriptFile: shared/publish-current-secret.py
       backend: minio
   - step: manage-lifecycle-rules
     functionRef:

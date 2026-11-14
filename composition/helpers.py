@@ -4,12 +4,13 @@
 import base64
 from datetime import datetime, timedelta
 
+from crossplane.function import request, response
 from crossplane.function.proto.v1 import run_function_pb2 as fnv1
 from google.protobuf import json_format
 
 
 def retain_resources(req, rsp, keys):
-    # Omitted resources are deleted, so keep the last output during handover.
+    # Omitted resources are deleted, so keep the last output during rollover.
     for key in keys:
         observed = req.observed.resources.get(key)
         if observed is None:
@@ -147,22 +148,49 @@ def kubernetes_object(key, namespace, manifest, *, name=None, **spec_fields):
     }
 
 
-def publish_consumer_secret(rsp, principal, namespace, data):
-    key = f"secret-{principal}"
-    rsp.desired.resources[key].ClearField("ready")
-    rsp.desired.resources[key].resource.update(
-        kubernetes_object(
-            key,
-            namespace,
-            {
-                "apiVersion": "v1",
-                "kind": "Secret",
-                "metadata": {"name": principal, "namespace": namespace},
-                "type": "Opaque",
-                "data": data,
-            },
-        )
+def require_secret(req, rsp, key, name, namespace):
+    response.require_resources(
+        rsp,
+        name=key,
+        api_version="v1",
+        kind="Secret",
+        namespace=namespace,
+        match_name=name,
     )
+    return request.get_required_resource(req, key) or {}
+
+
+def native_secret(req, rsp, key, name, namespace, data=None):
+    native_key = f"native-{key}"
+    observed = req.observed.resources.get(native_key)
+    previous = to_dict(observed.resource) if observed is not None else {}
+    values = data if data is not None else previous.get("data")
+    if not values:
+        return False
+    rsp.desired.resources[native_key].resource.update(
+        {
+            "apiVersion": "v1",
+            "kind": "Secret",
+            "metadata": {
+                "name": name,
+                "namespace": namespace,
+                "annotations": {"crossplane.io/composition-resource-name": native_key},
+            },
+            "type": "Opaque",
+            "data": values,
+        }
+    )
+    if data is None:
+        rsp.desired.resources[native_key].ready = fnv1.READY_FALSE
+    else:
+        rsp.desired.resources[native_key].ClearField("ready")
+    return data is not None
+
+
+def publish_consumer_secret(req, rsp, principal, namespace, data=None):
+    rsp.desired.composite.ClearField("ready")
+    if not native_secret(req, rsp, f"secret-{principal}", principal, namespace, data):
+        rsp.desired.composite.ready = fnv1.READY_FALSE
 
 
 def ready_user_id(observed, key):

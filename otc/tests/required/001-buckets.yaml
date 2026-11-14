@@ -23,3 +23,13 @@ spec:
   principal: s-jeff
   buckets:
     - bucketName: s-jeff-shared
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: s-joe-credentials
+  namespace: default
+data:
+  attribute.access: YWNjZXNzLWtleQ==
+  attribute.secret: c2VjcmV0LWtleQ==
+  attribute.provider_only: bmF0aXZl

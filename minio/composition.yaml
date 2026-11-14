@@ -539,26 +539,7 @@ spec:
                         },
                     )
                 )
-
-            current_user_name = f"{principal}{suffixes[0] if suffixes else ''}"
-            current_secret_name = (
-                current_user_name if suffixes and suffixes[0] else f"{principal}-credentials"
-            )
-            obs_key = f"observe-secret-{principal}"
-            rsp.desired.resources[obs_key].ready = fnv1.READY_TRUE
-            rsp.desired.resources[obs_key].resource.update(
-                kubernetes_object(
-                    obs_key,
-                    ns,
-                    {
-                        "apiVersion": "v1",
-                        "kind": "Secret",
-                        "metadata": {"name": current_secret_name, "namespace": ns},
-                    },
-                    managementPolicies=["Observe"],
-                )
-            )
-  - step: manage-current-secret
+  - step: publish-current-secret
     functionRef:
       name: crossplane-contrib-function-python
     input:
@@ -568,78 +549,56 @@ spec:
       script: |
         import base64
 
+        from crossplane.function import request, response
+
         from crossplane.function.proto.v1 import run_function_pb2 as fnv1
 
         from google.protobuf import json_format
 
-        def retain_resources(req, rsp, keys):
-            # Omitted resources are deleted, so keep the last output during handover.
-            for key in keys:
-                observed = req.observed.resources.get(key)
-                if observed is None:
-                    continue
-                body = to_dict(observed.resource)
-                if not body.get("spec"):
-                    continue
-                metadata = body.get("metadata") or {}
-                rsp.desired.resources[key].resource.update(
-                    {
-                        "apiVersion": body["apiVersion"],
-                        "kind": body["kind"],
-                        "metadata": {
-                            field: metadata[field]
-                            for field in ("name", "namespace")
-                            if field in metadata
-                        }
-                        | {"annotations": {"crossplane.io/composition-resource-name": key}},
-                        "spec": body["spec"],
-                    }
-                )
-                rsp.desired.resources[key].ready = fnv1.READY_FALSE
+        def credential_suffixes(req):
+            return to_dict(req.context)["storages.pkg.internal/credential-generations"]
 
-        def dig(d, *keys):
-            cur = d
-            for k in keys:
-                if not isinstance(cur, dict):
-                    return None
-                cur = cur.get(k)
-            return cur
-
-        def kubernetes_object(key, namespace, manifest, *, name=None, **spec_fields):
-            return {
-                "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
-                "kind": "Object",
-                "metadata": {
-                    "name": key if name is None else name,
-                    "namespace": namespace,
-                    "annotations": {"crossplane.io/composition-resource-name": key},
-                },
-                "spec": {
-                    "forProvider": {"manifest": manifest},
-                    "providerConfigRef": {
-                        "name": "provider-kubernetes",
-                        "kind": "ProviderConfig",
-                    },
-                    **spec_fields,
-                },
-            }
-
-        def publish_consumer_secret(rsp, principal, namespace, data):
-            key = f"secret-{principal}"
-            rsp.desired.resources[key].ClearField("ready")
-            rsp.desired.resources[key].resource.update(
-                kubernetes_object(
-                    key,
-                    namespace,
-                    {
-                        "apiVersion": "v1",
-                        "kind": "Secret",
-                        "metadata": {"name": principal, "namespace": namespace},
-                        "type": "Opaque",
-                        "data": data,
-                    },
-                )
+        def require_secret(req, rsp, key, name, namespace):
+            response.require_resources(
+                rsp,
+                name=key,
+                api_version="v1",
+                kind="Secret",
+                namespace=namespace,
+                match_name=name,
             )
+            return request.get_required_resource(req, key) or {}
+
+        def native_secret(req, rsp, key, name, namespace, data=None):
+            native_key = f"native-{key}"
+            observed = req.observed.resources.get(native_key)
+            previous = to_dict(observed.resource) if observed is not None else {}
+            values = data if data is not None else previous.get("data")
+            if not values:
+                return False
+            rsp.desired.resources[native_key].resource.update(
+                {
+                    "apiVersion": "v1",
+                    "kind": "Secret",
+                    "metadata": {
+                        "name": name,
+                        "namespace": namespace,
+                        "annotations": {"crossplane.io/composition-resource-name": native_key},
+                    },
+                    "type": "Opaque",
+                    "data": values,
+                }
+            )
+            if data is None:
+                rsp.desired.resources[native_key].ready = fnv1.READY_FALSE
+            else:
+                rsp.desired.resources[native_key].ClearField("ready")
+            return data is not None
+
+        def publish_consumer_secret(req, rsp, principal, namespace, data=None):
+            rsp.desired.composite.ClearField("ready")
+            if not native_secret(req, rsp, f"secret-{principal}", principal, namespace, data):
+                rsp.desired.composite.ready = fnv1.READY_FALSE
 
         def encoded(value):
             return base64.b64encode(value.encode("utf-8")).decode("ascii")
@@ -668,18 +627,20 @@ spec:
             principal = (spec.get("principal") or metadata.get("name") or "").strip()
             if not principal:
                 return
-            retain_resources(req, rsp, [f"secret-{principal}"])
+            publish_consumer_secret(req, rsp, principal, metadata.get("namespace") or "default")
 
             backend = req.input["backend"]
-            observer_key = f"observe-secret-{principal}"
-            observer = req.observed.resources.get(observer_key)
-            data = (
-                dig(to_dict(observer.resource), "status", "atProvider", "manifest", "data")
-                if observer is not None
-                else None
+            suffix = credential_suffixes(req)[0]
+            generation = f"{principal}{suffix}"
+            source_name = generation if suffix else f"{principal}-credentials"
+            source = require_secret(
+                req,
+                rsp,
+                f"credential-secret-{principal}",
+                source_name,
+                metadata.get("namespace") or "default",
             )
-            if not isinstance(data, dict):
-                data = {}
+            data = source.get("data") or {}
             access = data.get("AWS_ACCESS_KEY_ID")
             secret = data.get("AWS_SECRET_ACCESS_KEY")
             if backend == "aws":
@@ -689,8 +650,6 @@ spec:
                 access = access or data.get("attribute.access") or data.get("access")
                 secret = secret or data.get("attribute.secret") or data.get("secret")
             if not access or not secret:
-                if backend == "aws":
-                    rsp.desired.resources[observer_key].ready = fnv1.READY_FALSE
                 return
 
             settings = (to_dict(req.context).get(ENVIRONMENT_KEY) or {}).get("storage") or {}
@@ -714,7 +673,7 @@ spec:
             if force_path_style not in (None, ""):
                 data["AWS_S3_FORCE_PATH_STYLE"] = encoded(str(force_path_style))
             publish_consumer_secret(
-                rsp, principal, metadata.get("namespace") or "default", data
+                req, rsp, principal, metadata.get("namespace") or "default", data
             )
   - step: manage-lifecycle-rules
     functionRef:

@@ -4,7 +4,7 @@ These manifests configure the providers used by the `storage-aws`
 Composition.
 
 See [Cloud IAM bootstrap](../../docs/how-to-guides/cloud-iam-bootstrap.md#aws)
-for controller permissions and authentication modes.
+for script installation, controller permissions, and authentication modes.
 
 ## IAM bootstrap
 
@@ -18,9 +18,10 @@ resource prefix or IAM names. For `assume-role`, also set
 `CROSSPLANE_AWS_TRUST_PRINCIPAL_ARN`. Then run:
 
 ```bash
-aws/dependencies/iam.sh status
-aws/dependencies/iam.sh apply
-aws/dependencies/iam.sh verify
+bootstrap-iam.sh aws configure
+bootstrap-iam.sh aws show
+bootstrap-iam.sh aws apply
+bootstrap-iam.sh aws verify
 ```
 
 For `static-user`, keep the local credential file private and outside Git.
@@ -29,7 +30,7 @@ For `static-user`, keep the local credential file private and outside Git.
 
 Both authentication modes use the controller runtime role. In
 [`03-providerConfigs.yaml`](03-providerConfigs.yaml), uncomment
-`assumeRoleChain` and set the role ARN printed by `iam.sh apply`.
+`assumeRoleChain` and set the role ARN printed by `bootstrap-iam.sh aws apply`.
 
 Then configure the base controller identity:
 
@@ -44,9 +45,13 @@ For `static-user`, set `CROSSPLANE_AWS_NAMESPACE` to that namespace and
 create the controller Secret:
 
 ```bash
-aws/dependencies/iam.sh render-secrets |
-  kubectl apply -f -
+bootstrap-iam.sh aws render-secrets |
+  kubectl --context storage-cluster apply --server-side -f -
 ```
+
+Replace `storage-cluster` with the deployment context. The ProviderConfig's
+Secret reference must use `aws-provider-creds`, the selected namespace, and
+the `credentials` key. IAM `apply` prepares cloud resources only.
 
 Set the AWS region in
 [`04-environmentConfigs.yaml`](04-environmentConfigs.yaml).

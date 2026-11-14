@@ -1,7 +1,6 @@
 # Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
 # SPDX-License-Identifier: Apache-2.0
 
-from crossplane.function import request, response
 from crossplane.function.proto.v1 import run_function_pb2 as fnv1
 
 from composition.helpers import (
@@ -9,7 +8,9 @@ from composition.helpers import (
     decoded,
     encoded,
     kubernetes_object,
+    native_secret,
     publish_consumer_secret,
+    require_secret,
     retain_resources,
     to_dict,
 )
@@ -23,30 +24,32 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
     spec = xr.get("spec") or {}
     namespace = metadata.get("namespace") or "default"
     principal = (spec.get("principal") or metadata.get("name") or "").strip()
+    if not principal:
+        return
     retained_keys = [
-        f"secret-{principal}",
-        f"aws-provider-secret-{principal}",
         f"aws-provider-config-{principal}",
         f"usage-aws-provider-{principal}",
     ]
     retain_resources(req, rsp, retained_keys)
+    publish_consumer_secret(req, rsp, principal, namespace)
+    provider_secret = f"{principal}-cloudferro-aws"
+    native_secret(
+        req, rsp, f"aws-provider-secret-{principal}", provider_secret, namespace
+    )
     generation = f"{principal}{credential_suffixes(req)[0]}"
     env = (to_dict(req.context).get(ENVIRONMENT_KEY) or {}).get("storage") or {}
     endpoint = (env.get("endpoint") or "").strip()
     region = (env.get("s3Region") or "").strip()
-    if not principal or not endpoint or not region:
+    if not endpoint or not region:
         return
-    secret_key = f"credential-secret-{principal}"
-    response.require_resources(
+    secret = require_secret(
+        req,
         rsp,
-        name=secret_key,
-        api_version="v1",
-        kind="Secret",
-        namespace=namespace,
-        match_name=f"{generation}-credentials",
+        f"credential-secret-{principal}",
+        f"{generation}-credentials",
+        namespace,
     )
     credential = req.observed.resources.get(f"credentials-{generation}")
-    secret = request.get_required_resource(req, secret_key)
     if credential is None or secret is None:
         return
     credential_data = to_dict(credential.resource)
@@ -68,10 +71,10 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
         "AWS_REGION": encoded(region),
         "AWS_S3_FORCE_PATH_STYLE": encoded("true"),
     }
-    for retained_key in retained_keys[1:]:
+    for retained_key in retained_keys:
         if retained_key in rsp.desired.resources:
             rsp.desired.resources[retained_key].ClearField("ready")
-    publish_consumer_secret(rsp, principal, namespace, data)
+    publish_consumer_secret(req, rsp, principal, namespace, data)
     provider_secret = f"{principal}-cloudferro-aws"
     credentials = "\n".join(
         [
@@ -82,18 +85,13 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
         ]
     )
     secret_key = f"aws-provider-secret-{principal}"
-    rsp.desired.resources[secret_key].resource.update(
-        kubernetes_object(
-            secret_key,
-            namespace,
-            {
-                "apiVersion": "v1",
-                "kind": "Secret",
-                "metadata": {"name": provider_secret, "namespace": namespace},
-                "type": "Opaque",
-                "data": {"credentials": encoded(credentials)},
-            },
-        )
+    native_secret(
+        req,
+        rsp,
+        secret_key,
+        provider_secret,
+        namespace,
+        {"credentials": encoded(credentials)},
     )
     provider_key = f"aws-provider-config-{principal}"
     provider_name = f"cloudferro-s3-{principal}"
@@ -147,9 +145,9 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
             "spec": {
                 "replayDeletion": True,
                 "of": {
-                    "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
-                    "kind": "Object",
-                    "resourceRef": {"name": secret_key},
+                    "apiVersion": "v1",
+                    "kind": "Secret",
+                    "resourceRef": {"name": provider_secret},
                 },
                 "by": {
                     "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",

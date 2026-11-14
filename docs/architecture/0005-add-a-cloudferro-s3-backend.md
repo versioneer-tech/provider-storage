@@ -28,21 +28,14 @@ project in that configuration.
 Use the OpenStack project as the CloudFerro team and S3 authorization
 boundary. Assign separate projects to teams that need isolation.
 
-Before Storage reconciliation, `cloudferro/dependencies/iam.sh apply` selects
-existing projects by an anchored project-name pattern. It creates one
-controller user without a default project, assigns the configured member role
-in each selected project, and verifies project-scoped Object Storage access.
-The bootstrap administrator login must be able to list these projects, create
-the controller user in the domain, and assign the project role. The controller
-user needs only the configured project role.
-Project creation, portal activation, wallet configuration, and billing remain
-outside the script.
+Before Storage reconciliation, an administrator creates a controller user
+without a default project, assigns the configured member role in each
+selected project, and verifies project-scoped Object Storage access. The
+administrator must have permission to create the controller user in the
+domain and assign the project role. The controller user needs only the
+configured project role.
 
-`apply` writes one private local credential file that contains the shared
-controller identity and an array of selected project IDs. It updates the
-project array after all project checks pass. The `render-secrets` action reads
-only that file and prints one
-namespaced Secret manifest for each project. Its name is
+Operators provide one namespaced controller Secret for each project. Its name is
 `cloudferro-project-<project-id>` and its key is `config`. The JSON value
 contains the controller credentials and the project ID as `tenant_id`. A
 static `storage` EnvironmentConfig contains only endpoint and region settings.
@@ -94,17 +87,9 @@ must be limited to provider workloads and trusted operators.
   that user. Separate per-project Secrets reduce Kubernetes access scope but
   do not change the OpenStack identity scope.
 - The Composition owns per-Storage ProviderConfigs. The IAM bootstrap owns
-  only OpenStack identities and role assignments. Operators apply the rendered
-  project Secrets and the static EnvironmentConfig.
-- The bootstrap script does not remove users, role assignments, or Secrets.
-  Operators must review dependent Storage resources before manual cleanup.
+  only OpenStack identities and role assignments. Operators apply the project
+  Secrets and the static EnvironmentConfig.
+- Operators must review dependent Storage resources before removing controller
+  users, role assignments, or project Secrets.
 - Removing a bucket requests deletion under Crossplane's default management
   policy. The Composition does not force deletion of a non-empty bucket.
-
-## Implementation checks
-
-Test bootstrap idempotency, project binding, ownership checks, and credential
-recovery. Verify that the runtime user can create an EC2 credential for itself
-in the Secret's project but cannot administer users or roles. Test bucket
-creation, credential authentication, cross-project grants, `None` grants, and
-same-project access. Keep credentials out of Git, logs, and resource specs.

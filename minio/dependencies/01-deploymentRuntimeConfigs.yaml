@@ -22,6 +22,8 @@ spec:
         spec:
           containers:
           - name: package-runtime
+            # This provider logs user credentials at Info level.
+            args: [--log-level=-1, operator]
             resources:
               requests:
                 cpu: 100m
@@ -54,6 +56,7 @@ spec:
           - name: package-runtime
             args:
             - --poll=1m
+            - --sanitize-secrets
             # - --debug
             resources:
               requests:

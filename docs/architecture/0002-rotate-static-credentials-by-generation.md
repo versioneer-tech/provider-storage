@@ -52,8 +52,3 @@ set.
 - Rotation occurs during reconciliation after the period changes. It does not
   occur at an exact time.
 - This decision applies only to static access keys.
-
-The shared environment step records one UTC time and the desired generations
-in the pipeline context. All later steps use these generations. OTC resolves
-retained grantee generations with the same time and includes each observed
-retained owner and grantee identity in its bucket policies.

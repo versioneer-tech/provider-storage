@@ -4,7 +4,7 @@ These manifests configure the providers used by the `storage-otc`
 Composition.
 
 See [Cloud IAM bootstrap](../../docs/how-to-guides/cloud-iam-bootstrap.md#otc)
-for the required domain and project permissions.
+to install the script and check the required domain and project permissions.
 
 ## IAM bootstrap
 
@@ -13,9 +13,10 @@ target namespace, and any optional resource prefix or IAM names. Use the
 bootstrap administrator login, then run:
 
 ```bash
-otc/dependencies/iam.sh status
-otc/dependencies/iam.sh apply
-otc/dependencies/iam.sh verify
+bootstrap-iam.sh otc configure
+bootstrap-iam.sh otc show
+bootstrap-iam.sh otc apply
+bootstrap-iam.sh otc verify
 ```
 
 Keep the local credential file private and outside Git.
@@ -30,11 +31,15 @@ Set `CROSSPLANE_OTC_NAMESPACE` to that namespace and create the controller
 Secret:
 
 ```bash
-otc/dependencies/iam.sh render-secrets |
-  kubectl apply -f -
+bootstrap-iam.sh otc render-secrets |
+  kubectl --context storage-cluster apply --server-side -f -
 ```
 
-After `rotate-credential`, run this command again to update the Secret.
+Replace `storage-cluster` with the deployment context. The ProviderConfig's
+Secret reference must match the rendered Secret name, namespace, and key.
+For rotation, prepare the replacement, publish it with the same pipe, then
+run `bootstrap-iam.sh otc complete-rotation`. See
+[controller rotation](../../docs/how-to-guides/cloud-iam-bootstrap.md#rotate-controller-credentials).
 
 Apply [`03-providerConfigs.yaml`](03-providerConfigs.yaml) in every namespace
 that contains an OTC `Storage` resource. Apply the remaining manifests in the

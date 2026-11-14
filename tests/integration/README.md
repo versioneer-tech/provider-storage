@@ -43,6 +43,12 @@ for `d`.
 It checks the portable Secret keys, runs object round trips in every owned
 bucket, and checks the access matrix. Read-only access must reject write and
 delete operations. No access must reject list, read, write, and delete.
+Access probes call each S3 operation directly with Boto3. The Python image is
+pinned by digest and includes the SDK. Each negative probe requires
+`AccessDenied`, HTTP 403, and the requested operation. It does not depend on
+the optional error message, which CloudFerro can leave empty.
+Network errors, invalid credentials, missing objects, and failures from another
+operation fail the test.
 
 The request `reason` describes intended access. The request has no permission
 field; the owner's grant sets the permission. The local manifest test keeps
@@ -54,6 +60,10 @@ consumer Secret keeps its UID and receives both keys from the requested
 generation's native Secret. The fixture must start without rollover.
 The test restores that setting and repeats the requester's owned-bucket
 round trip.
+The full MinIO run also checks Storage ownership and credential copies in
+Objects and current provider logs. A separate Storage with no buckets checks
+Secret and User deletion. These checks do not inspect retained logs from
+older provider pods.
 
 ## Prepare the cluster
 
@@ -86,8 +96,8 @@ For each cloud backend, set `CROSSPLANE_<CLOUD>_NAMESPACE=provider-storage-it`
 before `render-secrets`. Apply its output only to the dedicated context:
 
 ```bash
-<backend>/dependencies/iam.sh render-secrets |
-  kubectl --context kind-provider-storage-it apply -f -
+bootstrap-iam.sh <backend> render-secrets |
+  kubectl --context kind-provider-storage-it apply --server-side -f -
 ```
 
 Replace `<backend>` with `aws`, `otc`, `ovh`, or `cloudferro`. The default
@@ -156,8 +166,8 @@ Create and activate the projects first. Limit the project-name pattern to
 the projects under test. The bootstrap login needs permission to create the
 controller user and assign its project role.
 
-Inspect the projects returned by `iam.sh status` before `apply`. Then run
-`verify` and apply the rendered project Secrets. Select two different
+Review the project pattern with `bootstrap-iam.sh cloudferro show`, then run
+`apply` and `verify`. Apply the rendered project Secrets. Select two different
 bootstrapped projects:
 
 ```bash
@@ -171,9 +181,23 @@ annotation. The test checks owned-bucket access, cross-project grants,
 lifecycle cleanup, EC2 credential creation, and bucket-policy management
 through the AWS S3 provider.
 
-## CI
+## Run all backends
 
-Pull requests and pushes to `main` always check documentation. Code and
-runtime changes also run the full unit suite and MinIO integration. Manual
-workflow runs use the full suite. Cloud integrations remain manual and need
-operator bootstrap and provider credentials.
+Prepare and verify all four cloud controller identities first. Use
+`provider-storage-it` as the bootstrap target namespace and pipe
+`render-secrets` into kubectl with `--context kind-provider-storage-it`.
+Keep the account, project, region, prefix, and role settings in the shell that
+starts the tests. The CloudFerro fixture uses WAW3-2 and the RegionOne S3
+signing region.
+
+After the complete local suite passes, run the backends in order:
+
+```bash
+bash -euo pipefail <<'BASH'
+for backend in minio aws otc ovh cloudferro; do
+  tests/integration/run.bash "$backend"
+done
+BASH
+```
+
+The loop stops at the first failure. Inspect that failure before restarting.

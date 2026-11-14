@@ -25,27 +25,27 @@ spec:
     resourceRefs:
     - apiVersion: kubernetes.m.crossplane.io/v1alpha1
       kind: Object
+      name: access-key-s-joe
+      namespace: default
+    - apiVersion: kubernetes.m.crossplane.io/v1alpha1
+      kind: Object
       name: bucket-s-joe
       namespace: default
     - apiVersion: kubernetes.m.crossplane.io/v1alpha1
       kind: Object
-      name: observe-secret-s-joe
+      name: bucketpolicy-s-joe
       namespace: default
     - apiVersion: kubernetes.m.crossplane.io/v1alpha1
       kind: Object
-      name: policy-full-s-joe
-      namespace: default
-    - apiVersion: kubernetes.m.crossplane.io/v1alpha1
-      kind: Object
-      name: policy-s-jeff-s-joe
-      namespace: default
-    - apiVersion: kubernetes.m.crossplane.io/v1alpha1
-      kind: Object
-      name: secret-s-joe
+      name: observe-user-s-jeff
       namespace: default
     - apiVersion: kubernetes.m.crossplane.io/v1alpha1
       kind: Object
       name: user-s-joe
+      namespace: default
+    - apiVersion: v1
+      kind: Secret
+      name: s-joe
       namespace: default
   principal: s-joe
 status:
@@ -59,11 +59,48 @@ status:
     status: "True"
     type: Synced
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: bucket-s-joe, policy-full-s-joe, policy-s-jeff-s-joe,
-      and 2 more'
+    message: 'Unready resources: access-key-s-joe, bucket-s-joe, bucketpolicy-s-joe,
+      and 3 more'
     reason: Creating
     status: "False"
     type: Ready
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: access-key-s-joe
+  labels:
+    crossplane.io/composite: s-joe
+  name: access-key-s-joe
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-joe
+    uid: 24a08e59-0c26-5e84-9bfa-ba05aa9ae080
+spec:
+  forProvider:
+    manifest:
+      apiVersion: identity.opentelekomcloud.crossplane.io/v1alpha1
+      kind: CredentialV3
+      metadata:
+        name: aksk-s-joe
+      spec:
+        forProvider:
+          userId: owner-user-id-joe-1
+        providerConfigRef:
+          name: provider-otc
+        writeConnectionSecretToRef:
+          name: s-joe-credentials
+          namespace: default
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-kubernetes
+  readiness:
+    policy: DeriveFromObject
 ---
 apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
@@ -84,27 +121,30 @@ metadata:
 spec:
   forProvider:
     manifest:
-      apiVersion: minio.crossplane.io/v1
+      apiVersion: obs.opentelekomcloud.crossplane.io/v1alpha1
       kind: Bucket
       metadata:
-        annotations:
-          storages.pkg.internal/discoverable: "true"
         name: s-joe
       spec:
+        forProvider:
+          bucket: s-joe
+          region: acme
         providerConfigRef:
-          name: provider-minio
+          name: provider-otc
   providerConfigRef:
     kind: ProviderConfig
     name: provider-kubernetes
+  readiness:
+    policy: DeriveFromObject
 ---
 apiVersion: kubernetes.m.crossplane.io/v1alpha1
 kind: Object
 metadata:
   annotations:
-    crossplane.io/composition-resource-name: observe-secret-s-joe
+    crossplane.io/composition-resource-name: bucketpolicy-s-joe
   labels:
     crossplane.io/composite: s-joe
-  name: observe-secret-s-joe
+  name: bucketpolicy-s-joe
   namespace: default
   ownerReferences:
   - apiVersion: pkg.internal/v1beta1
@@ -116,146 +156,135 @@ metadata:
 spec:
   forProvider:
     manifest:
-      apiVersion: v1
-      kind: Secret
+      apiVersion: obs.opentelekomcloud.crossplane.io/v1alpha1
+      kind: BucketPolicy
       metadata:
-        name: s-joe-credentials
-        namespace: default
+        name: bucketpolicy-s-joe
+      spec:
+        forProvider:
+          bucket: s-joe
+          policy: |-
+            {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ListBucket"
+                  ],
+                  "Resource": [
+                    "s-joe"
+                  ],
+                  "Principal": {
+                    "ID": [
+                      "domain/owner-domain-id:user/owner-user-id-joe-1"
+                    ]
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "GetObject",
+                    "PutObject",
+                    "DeleteObject"
+                  ],
+                  "Resource": [
+                    "s-joe/*"
+                  ],
+                  "Principal": {
+                    "ID": [
+                      "domain/owner-domain-id:user/owner-user-id-joe-1"
+                    ]
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ListBucket"
+                  ],
+                  "Resource": [
+                    "s-joe"
+                  ],
+                  "Principal": {
+                    "ID": [
+                      "domain/grantee-domain-id:user/grantee-user-id-jeff"
+                    ]
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "GetObject",
+                    "PutObject",
+                    "DeleteObject"
+                  ],
+                  "Resource": [
+                    "s-joe/*"
+                  ],
+                  "Principal": {
+                    "ID": [
+                      "domain/grantee-domain-id:user/grantee-user-id-jeff"
+                    ]
+                  }
+                }
+              ]
+            }
+        providerConfigRef:
+          name: provider-otc
+  providerConfigRef:
+    kind: ProviderConfig
+    name: provider-kubernetes
+  readiness:
+    policy: DeriveFromObject
+---
+apiVersion: v1
+data:
+  AWS_ACCESS_KEY_ID: YWNjZXNzLWtleQ==
+  AWS_ENDPOINT_URL: aHR0cHM6Ly9vYnMuYWNtZQ==
+  AWS_REGION: YWNtZQ==
+  AWS_SECRET_ACCESS_KEY: c2VjcmV0LWtleQ==
+kind: Secret
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: native-secret-s-joe
+  labels:
+    crossplane.io/composite: s-joe
+  name: s-joe
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-joe
+    uid: 24a08e59-0c26-5e84-9bfa-ba05aa9ae080
+type: Opaque
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: observe-user-s-jeff
+  labels:
+    crossplane.io/composite: s-joe
+  name: observe-user-s-jeff
+  namespace: default
+  ownerReferences:
+  - apiVersion: pkg.internal/v1beta1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Storage
+    name: s-joe
+    uid: 24a08e59-0c26-5e84-9bfa-ba05aa9ae080
+spec:
+  forProvider:
+    manifest:
+      apiVersion: identity.opentelekomcloud.crossplane.io/v1alpha1
+      kind: UserV3
+      metadata:
+        name: provider-storage-managed-s-jeff
   managementPolicies:
   - Observe
-  providerConfigRef:
-    kind: ProviderConfig
-    name: provider-kubernetes
----
-apiVersion: kubernetes.m.crossplane.io/v1alpha1
-kind: Object
-metadata:
-  annotations:
-    crossplane.io/composition-resource-name: policy-full-s-joe
-  labels:
-    crossplane.io/composite: s-joe
-  name: policy-full-s-joe
-  namespace: default
-  ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-joe
-    uid: 24a08e59-0c26-5e84-9bfa-ba05aa9ae080
-spec:
-  forProvider:
-    manifest:
-      apiVersion: minio.crossplane.io/v1
-      kind: Policy
-      metadata:
-        name: provider-storage.s-joe
-      spec:
-        forProvider:
-          rawPolicy: |-
-            {
-              "Version": "2012-10-17",
-              "Statement": [
-                {
-                  "Effect": "Allow",
-                  "Action": [
-                    "s3:*"
-                  ],
-                  "Resource": [
-                    "arn:aws:s3:::s-joe",
-                    "arn:aws:s3:::s-joe/*"
-                  ]
-                }
-              ]
-            }
-        providerConfigRef:
-          name: provider-minio
-  providerConfigRef:
-    kind: ProviderConfig
-    name: provider-kubernetes
----
-apiVersion: kubernetes.m.crossplane.io/v1alpha1
-kind: Object
-metadata:
-  annotations:
-    crossplane.io/composition-resource-name: policy-s-jeff-s-joe
-  labels:
-    crossplane.io/composite: s-joe
-  name: policy-s-jeff-s-joe
-  namespace: default
-  ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-joe
-    uid: 24a08e59-0c26-5e84-9bfa-ba05aa9ae080
-spec:
-  forProvider:
-    manifest:
-      apiVersion: minio.crossplane.io/v1
-      kind: Policy
-      metadata:
-        name: provider-storage.s-jeff.s-joe
-      spec:
-        forProvider:
-          rawPolicy: |-
-            {
-              "Version": "2012-10-17",
-              "Statement": [
-                {
-                  "Effect": "Allow",
-                  "Action": [
-                    "s3:GetBucketLocation",
-                    "s3:ListBucket",
-                    "s3:GetObject",
-                    "s3:PutObject",
-                    "s3:DeleteObject"
-                  ],
-                  "Resource": [
-                    "arn:aws:s3:::s-joe",
-                    "arn:aws:s3:::s-joe/*"
-                  ]
-                }
-              ]
-            }
-        providerConfigRef:
-          name: provider-minio
-  providerConfigRef:
-    kind: ProviderConfig
-    name: provider-kubernetes
----
-apiVersion: kubernetes.m.crossplane.io/v1alpha1
-kind: Object
-metadata:
-  annotations:
-    crossplane.io/composition-resource-name: secret-s-joe
-  labels:
-    crossplane.io/composite: s-joe
-  name: secret-s-joe
-  namespace: default
-  ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-joe
-    uid: 24a08e59-0c26-5e84-9bfa-ba05aa9ae080
-spec:
-  forProvider:
-    manifest:
-      apiVersion: v1
-      data:
-        AWS_ACCESS_KEY_ID: YWNjZXNzLWtleQ==
-        AWS_ENDPOINT_URL: aHR0cHM6Ly9zMy5hY21l
-        AWS_REGION: YWNtZQ==
-        AWS_S3_FORCE_PATH_STYLE: dHJ1ZQ==
-        AWS_SECRET_ACCESS_KEY: c2VjcmV0LWtleQ==
-      kind: Secret
-      metadata:
-        name: s-joe
-        namespace: default
-      type: Opaque
   providerConfigRef:
     kind: ProviderConfig
     name: provider-kubernetes
@@ -279,21 +308,19 @@ metadata:
 spec:
   forProvider:
     manifest:
-      apiVersion: minio.crossplane.io/v1
-      kind: User
+      apiVersion: identity.opentelekomcloud.crossplane.io/v1alpha1
+      kind: UserV3
       metadata:
         name: provider-storage-managed-s-joe
       spec:
         forProvider:
-          policies:
-          - provider-storage.s-joe
-          - provider-storage.s-joe.s-jeff-shared
-          userName: provider-storage-managed-s-joe
+          accessType: programmatic
+          enabled: true
+          name: provider-storage-managed-s-joe
         providerConfigRef:
-          name: provider-minio
-        writeConnectionSecretToRef:
-          name: s-joe-credentials
-          namespace: default
+          name: provider-otc
   providerConfigRef:
     kind: ProviderConfig
     name: provider-kubernetes
+  readiness:
+    policy: DeriveFromObject

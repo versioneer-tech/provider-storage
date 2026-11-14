@@ -25,6 +25,19 @@ metadata:
   name: storage
 data:
   storage:
-    provider: AWS
-    region: eu-west-1
+    endpoint: https://s3.acme
+    force_path_style: "true"
+    provider: Other
+    region: acme
+    secretNamespace: datalab
     type: s3
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: s-joe-credentials
+  namespace: default
+data:
+  AWS_ACCESS_KEY_ID: YWNjZXNzLWtleQ==
+  AWS_SECRET_ACCESS_KEY: c2VjcmV0LWtleQ==
+  NATIVE_ONLY: bmF0aXZl

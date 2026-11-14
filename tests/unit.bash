@@ -127,65 +127,16 @@ validate_schemas() {
     printf 'No rendered resources were queued for %s schema validation.\n' "${backend}" >&2
     return 1
   }
+  local extensions="${TMP_DIR}/validation/${backend}-extensions.yaml"
+  "${PROVIDER_STORAGE_PYTHON:-python3}" "${REPO_ROOT}/tests/schemas.py" \
+    "${validation_resources}" "${extensions}"
   crossplane resource validate \
     "${REPO_ROOT}/xrd.yaml,${REPO_ROOT}/${backend}/dependencies/02-providers.yaml" \
-    "${validation_resources}" \
+    "${extensions}" \
     --cache-dir "${PROVIDER_STORAGE_CROSSPLANE_CACHE_DIR}" \
     --crossplane-image "xpkg.crossplane.io/crossplane/crossplane:${CROSSPLANE_VERSION}" \
     --error-on-missing-schemas \
     --skip-success-results
-}
-
-validate_aws_iam_policy() {
-  local policy="${REPO_ROOT}/aws/dependencies/policies/runtime-role-policy.json"
-  local static_user_policy="${REPO_ROOT}/aws/dependencies/policies/static-user-policy.json"
-  local script="${REPO_ROOT}/aws/dependencies/iam.sh"
-  local credentials="${TMP_DIR}/aws-provider.credentials"
-  local rendered_secret="${TMP_DIR}/aws-provider-secret.yaml"
-
-  printf 'Validate AWS runtime IAM policy\n'
-  jq -e '
-    any(.Statement[];
-      .Sid == "ReadUsersForReconciliation" and
-      .Action == "iam:GetUser" and
-      .Resource == "__ACCOUNT_USER_ARN_PATTERN__") and
-    all(.Statement[] | select(.Sid == "ManageUsersAndAccessKeys") | .Action[];
-      . != "iam:GetUser") and
-    any(.Statement[];
-      .Sid == "ManageUsersAndAccessKeys" and
-      any(.Action[]; . == "iam:ListGroupsForUser") and
-      .Resource == "__MANAGED_USER_ARN_PATTERN__") and
-    any(.Statement[];
-      .Sid == "ManagePolicies" and
-      .Resource == "__MANAGED_POLICY_ARN_PATTERN__") and
-    any(.Statement[];
-      .Sid == "ManagePrefixedBuckets" and
-      .Resource == ["__BUCKET_ARN_PATTERN__", "__OBJECT_ARN_PATTERN__"]) and
-    any(.Statement[];
-      .Sid == "ProtectControllerUser" and .Effect == "Deny" and
-      .Resource == "__CONTROLLER_USER_ARN__")
-  ' "${policy}" >/dev/null
-  jq -e '
-    .Statement == [{Sid: "AssumeProviderStorageRuntimeRole", Effect: "Allow",
-      Action: "sts:AssumeRole", Resource: "__RUNTIME_ROLE_ARN__"}]
-  ' "${static_user_policy}" >/dev/null
-
-  jq -n '{access_key_id:"TESTACCESSKEY",secret_access_key:"test-secret-key"}' \
-    >"${credentials}"
-  chmod 600 "${credentials}"
-  env -i PATH=/usr/bin:/bin \
-    CROSSPLANE_AWS_CREDENTIALS_FILE="${credentials}" \
-    CROSSPLANE_AWS_NAMESPACE=workspace \
-    bash "${script}" render-secrets >"${rendered_secret}"
-  assert_yaml "${rendered_secret}" '
-    [.] | (length == 1 and
-    .[0].kind == "Secret" and
-    .[0].metadata.name == "aws-provider-creds" and
-    .[0].metadata.namespace == "workspace" and
-    .[0].type == "Opaque" and
-    (.[0].data.credentials | @base64d) ==
-      "[default]\naws_access_key_id = TESTACCESSKEY\naws_secret_access_key = test-secret-key")
-  ' 'AWS credential Secret content'
 }
 
 validate_aws_secret_readiness() {
@@ -193,7 +144,7 @@ validate_aws_secret_readiness() {
   local rendered="${TMP_DIR}/aws-secret-readiness.yaml"
   local composite="${TMP_DIR}/aws-secret-readiness-composite.yaml"
 
-  printf 'Validate AWS readiness while the credential observer has no data\n'
+  printf 'Validate AWS readiness while the credential Secret is unavailable\n'
   render "aws" "${scenario}/input.yaml" \
     --observed-resources "${scenario}/observed.yaml" \
     >"${rendered}"
@@ -225,23 +176,6 @@ validate_aws_none_grant() {
   queue_schema_validation aws "${rendered}"
 }
 
-validate_ovh_secret_readiness() {
-  local missing="${TMP_DIR}/ovh-missing-credential.yaml"
-
-  printf 'Validate OVHcloud readiness while the credential Secret lacks its secret key\n'
-  render "ovh" "${REPO_ROOT}/examples/base/001-buckets.yaml" \
-    --required-resources "${REPO_ROOT}/ovh/tests/required/001x-buckets.yaml" \
-    --observed-resources "${REPO_ROOT}/ovh/tests/readiness/observed-missing.yaml" \
-    >"${missing}"
-  assert_yaml "${missing}" '
-    [.] | (map(select(
-      .kind == "Object" and
-      .metadata.annotations."crossplane.io/composition-resource-name" == "secret-s-joe"
-    )) | length == 0)
-  ' 'OVHcloud omits a consumer Secret without a secret access key'
-  queue_schema_validation ovh "${missing}"
-}
-
 validate_ovh_provider_identity() {
   local input="${TMP_DIR}/ovh-provider-identity-input.yaml"
   local rendered="${TMP_DIR}/ovh-provider-identity.yaml"
@@ -264,7 +198,7 @@ validate_ovh_provider_identity() {
 
 validate_cloudferro_composition() {
   local input="${REPO_ROOT}/cloudferro/tests/fixtures/001-buckets.yaml"
-  local required="${REPO_ROOT}/cloudferro/tests/required/001x-buckets.yaml"
+  local required="${REPO_ROOT}/cloudferro/tests/required/001-buckets.yaml"
   local base="${TMP_DIR}/cloudferro-base.yaml"
   local credential="${TMP_DIR}/cloudferro-credential.yaml"
   local second="${TMP_DIR}/cloudferro-second-project.yaml"
@@ -274,111 +208,12 @@ validate_cloudferro_composition() {
   render cloudferro "${input}" --required-resources "${required}" \
     --observed-resources "${REPO_ROOT}/cloudferro/tests/observed/credential-ready.yaml" >"${credential}"
   render cloudferro "${REPO_ROOT}/cloudferro/tests/fixtures/002-buckets.yaml" \
-    --required-resources "${REPO_ROOT}/cloudferro/tests/required/002x-buckets.yaml" >"${second}"
+    --required-resources "${REPO_ROOT}/cloudferro/tests/required/002-buckets.yaml" >"${second}"
   "${PROVIDER_STORAGE_PYTHON:-python3}" "${REPO_ROOT}/tests/cloudferro.py" \
     "${base}" "${credential}" "${second}"
   queue_schema_validation cloudferro "${base}"
   queue_schema_validation cloudferro "${credential}"
   queue_schema_validation cloudferro "${second}"
-}
-
-validate_otc_credential_rendering() {
-  local script="${REPO_ROOT}/otc/dependencies/iam.sh"
-  local domain_id=1234567890abcdef1234567890abcdef
-  local credentials="${TMP_DIR}/otc-provider.json"
-  local rendered_secret="${TMP_DIR}/otc-provider-secret.yaml"
-
-  jq -n --arg domain "${domain_id}" --arg project 00112233445566778899aabbccddeeff '
-    {access_key:"TESTACCESSKEY",secret_key:"test-secret-key",
-     auth_url:"https://iam.example.test/v3",domain_name:"example",
-     domain_id:$domain,tenant_id:$project}
-  ' >"${credentials}"
-  chmod 600 "${credentials}"
-  env -i PATH=/usr/bin:/bin \
-    CROSSPLANE_OTC_CREDENTIALS_FILE="${credentials}" \
-    CROSSPLANE_OTC_NAMESPACE=workspace \
-    bash "${script}" render-secrets >"${rendered_secret}"
-  assert_yaml "${rendered_secret}" '
-    [.] | (length == 1 and
-    .[0].kind == "Secret" and
-    .[0].metadata.name == "otc-provider-creds" and
-    .[0].metadata.namespace == "workspace" and
-    .[0].type == "Opaque" and
-    ((.[0].data.credentials | @base64d | from_json | to_json) == ({
-      "access_key":"TESTACCESSKEY",
-      "secret_key":"test-secret-key",
-      "auth_url":"https://iam.example.test/v3",
-      "domain_name":"example",
-      "domain_id":"1234567890abcdef1234567890abcdef",
-      "tenant_id":"00112233445566778899aabbccddeeff"
-    } | to_json)))
-  ' 'OTC credential Secret content'
-}
-
-validate_ovh_credential_rendering() {
-  local script="${REPO_ROOT}/ovh/dependencies/iam.sh"
-  local credentials="${TMP_DIR}/ovh-provider.json"
-  local rendered_secret="${TMP_DIR}/ovh-provider-secret.yaml"
-  jq -n '{endpoint:"ovh-eu",client_id:"client-id",client_secret:"client-secret"}' \
-    >"${credentials}"
-  chmod 600 "${credentials}"
-  env -i PATH=/usr/bin:/bin \
-    CROSSPLANE_OVH_CREDENTIALS_FILE="${credentials}" \
-    CROSSPLANE_OVH_NAMESPACE=workspace \
-    bash "${script}" render-secrets >"${rendered_secret}"
-  assert_yaml "${rendered_secret}" '
-    [.] | (length == 1 and
-    .[0].kind == "Secret" and
-    .[0].metadata.name == "ovh-provider-creds" and
-    .[0].metadata.namespace == "workspace" and
-    .[0].type == "Opaque" and
-    ((.[0].data.credentials | @base64d | from_json | to_json) == ({
-      "endpoint":"ovh-eu",
-      "client_id":"client-id",
-      "client_secret":"client-secret"
-    } | to_json)))
-  ' 'OVHcloud credential Secret content'
-}
-
-validate_cloudferro_credential_rendering() {
-  local script="${REPO_ROOT}/cloudferro/dependencies/iam.sh"
-  local credentials="${TMP_DIR}/cloudferro-provider.json"
-  local rendered_secrets="${TMP_DIR}/cloudferro-provider-secrets.yaml"
-  local first=0123456789abcdef0123456789abcdef
-  local second=fedcba9876543210fedcba9876543210
-  jq -n --arg first "${first}" --arg second "${second}" '
-    {identity:{auth_url:"https://keystone.example.test/v3",region:"RegionOne",
-      domain_id:"1234567890abcdef1234567890abcdef",
-      user_id:"abcdef0123456789abcdef0123456789",
-      user_name:"provider-storage-controller",password:"controller-password"},
-     projects:[$first,$second]}
-  ' >"${credentials}"
-  chmod 600 "${credentials}"
-  env -i PATH=/usr/bin:/bin \
-    CROSSPLANE_CLOUDFERRO_CREDENTIALS_FILE="${credentials}" \
-    CROSSPLANE_CLOUDFERRO_NAMESPACE=workspace \
-    bash "${script}" render-secrets >"${rendered_secrets}"
-  assert_yaml "${rendered_secrets}" '
-    [.] | ({
-      "names": (map(.metadata.name) | sort),
-      "namespaces": (map(.metadata.namespace) | unique),
-      "types": (map(.type) | unique),
-      "tenantIds": (
-        map(.data.config | @base64d | from_json | .tenant_id) | sort
-      )
-    } | to_json) == ({
-      "names": [
-        "cloudferro-project-0123456789abcdef0123456789abcdef",
-        "cloudferro-project-fedcba9876543210fedcba9876543210"
-      ],
-      "namespaces": ["workspace"],
-      "types": ["Opaque"],
-      "tenantIds": [
-        "0123456789abcdef0123456789abcdef",
-        "fedcba9876543210fedcba9876543210"
-      ]
-    } | to_json)
-  ' 'CloudFerro project credential Secrets'
 }
 
 render_and_compare() {
@@ -400,7 +235,7 @@ render_and_compare() {
 
 run_backend() {
   local backend="$1"
-  local source name idx observed required
+  local source name observed required
   local -a render_args base_args
 
   case "${backend}" in
@@ -418,18 +253,16 @@ run_backend() {
 
   for source in "${REPO_ROOT}"/examples/base/00*-buckets.yaml; do
     name="$(basename "${source}")"
-    idx="${name#00}"
-    idx="${idx%-buckets.yaml}"
 
     render_and_compare \
       "${backend}" \
       "${source}" \
-      "${REPO_ROOT}/${backend}/tests/expected/00${idx}-buckets.yaml" \
-      "${TMP_DIR}/${backend}-00${idx}-buckets.yaml" \
+      "${REPO_ROOT}/${backend}/tests/expected/${name}" \
+      "${TMP_DIR}/${backend}-${name}" \
       "${base_args[@]}"
 
-    observed="${REPO_ROOT}/${backend}/tests/observed/00${idx}-buckets.yaml"
-    required="${REPO_ROOT}/${backend}/tests/required/00${idx}x-buckets.yaml"
+    observed="${REPO_ROOT}/${backend}/tests/observed/${name}"
+    required="${REPO_ROOT}/${backend}/tests/required/${name}"
     render_args=()
     [[ ! -f "${observed}" ]] || render_args+=(--observed-resources "${observed}")
     [[ ! -f "${required}" ]] || render_args+=(--required-resources "${required}")
@@ -441,8 +274,8 @@ run_backend() {
       render_and_compare \
         "${backend}" \
         "${source}" \
-        "${REPO_ROOT}/${backend}/tests/expected/00${idx}x-buckets.yaml" \
-        "${TMP_DIR}/${backend}-00${idx}x-buckets.yaml" \
+        "${REPO_ROOT}/${backend}/tests/expected/with-dependencies/${name}" \
+        "${TMP_DIR}/${backend}-with-dependencies-${name}" \
         "${render_args[@]}"
     fi
   done
@@ -452,32 +285,17 @@ main() {
   require_command crossplane
   require_command dyff
   require_command yq
+  require_command jq
 
   "${PROVIDER_STORAGE_PYTHON:-python3}" "${REPO_ROOT}/scripts/build-composition.py" --check
-  "${PROVIDER_STORAGE_PYTHON:-python3}" "${REPO_ROOT}/tests/ci-checks.py"
   "${PROVIDER_STORAGE_PYTHON:-python3}" "${REPO_ROOT}/tests/function-runtime.py" "${BACKENDS[@]}"
-  "${PROVIDER_STORAGE_PYTHON:-python3}" "${REPO_ROOT}/tests/integration/storage-manifests.py" "${BACKENDS[@]}"
+  "${PROVIDER_STORAGE_PYTHON:-python3}" "${REPO_ROOT}/tests/integration/access-checks.py" "${BACKENDS[@]}"
   validate_shell_syntax
+  "${PROVIDER_STORAGE_PYTHON:-python3}" "${REPO_ROOT}/tests/bootstrap-iam.py"
 
   local backend
   for backend in "${BACKENDS[@]}"; do
-    if [[ "${backend}" == "aws" ]]; then
-      require_command jq
-      validate_aws_iam_policy
-    fi
-    if [[ "${backend}" == "otc" ]]; then
-      require_command jq
-      validate_otc_credential_rendering
-    fi
-    if [[ "${backend}" == "ovh" ]]; then
-      require_command jq
-      printf 'Validate OVHcloud IAM credential rendering\n'
-      validate_ovh_credential_rendering
-    fi
     if [[ "${backend}" == "cloudferro" ]]; then
-      require_command jq
-      printf 'Validate CloudFerro IAM credential rendering\n'
-      validate_cloudferro_credential_rendering
       validate_cloudferro_composition
       validate_schemas cloudferro
       continue
@@ -488,7 +306,6 @@ main() {
       validate_aws_none_grant
     fi
     if [[ "${backend}" == "ovh" ]]; then
-      validate_ovh_secret_readiness
       validate_ovh_provider_identity
     fi
     validate_schemas "${backend}"

@@ -24,57 +24,33 @@ principal_name() {
   printf 'provider-storage-%s-it%s\n' "$1" "${2:-}"
 }
 
-second_bucket_name() {
+bucket_prefix() {
   case "$1" in
-    minio)
-      printf '%s\n' minio-default-it2-a
-      ;;
-    aws)
-      printf '%s-it2-a\n' "$(aws_resource_prefix)"
-      ;;
-    otc)
-      printf '%s-it2-a\n' "$(otc_resource_prefix)"
-      ;;
-    ovh)
-      printf 'ovh-%s-it2-a\n' "$(ovh_project_prefix)"
-      ;;
+    minio) printf '%s\n' minio-default ;;
+    aws) aws_resource_prefix ;;
+    otc) otc_resource_prefix ;;
+    ovh) printf 'ovh-%s\n' "$(ovh_project_prefix)" ;;
     cloudferro)
-      printf 'cloudferro-%s-it2-a\n' \
-        "$(cloudferro_project_prefix "$(cloudferro_it2_project_id)")"
+      local project
+      project="$(cloudferro_project_id)"
+      if [[ "${2:-owner}" == requester ]]; then
+        project="$(cloudferro_it2_project_id)"
+      fi
+      printf 'cloudferro-%s\n' "$(cloudferro_project_prefix "${project}")"
       ;;
   esac
 }
 
+second_bucket_name() {
+  printf '%s-it2-a\n' "$(bucket_prefix "$1" requester)"
+}
+
 bucket_names() {
-  case "$1" in
-    minio)
-      printf '%s\n' \
-        minio-default-it-a \
-        minio-default-it-b \
-        minio-default-it-c \
-        minio-default-it-d
-      ;;
-    aws)
-      printf '%s-it-a\n%s-it-b\n%s-it-c\n%s-it-d\n' \
-        "$(aws_resource_prefix)" "$(aws_resource_prefix)" \
-        "$(aws_resource_prefix)" "$(aws_resource_prefix)"
-      ;;
-    otc)
-      printf '%s-it-a\n%s-it-b\n%s-it-c\n%s-it-d\n' \
-        "$(otc_resource_prefix)" "$(otc_resource_prefix)" \
-        "$(otc_resource_prefix)" "$(otc_resource_prefix)"
-      ;;
-    ovh)
-      printf 'ovh-%s-it-a\novh-%s-it-b\novh-%s-it-c\novh-%s-it-d\n' \
-        "$(ovh_project_prefix)" "$(ovh_project_prefix)" \
-        "$(ovh_project_prefix)" "$(ovh_project_prefix)"
-      ;;
-    cloudferro)
-      printf 'cloudferro-%s-it-a\ncloudferro-%s-it-b\ncloudferro-%s-it-c\ncloudferro-%s-it-d\n' \
-        "$(cloudferro_project_prefix)" "$(cloudferro_project_prefix)" \
-        "$(cloudferro_project_prefix)" "$(cloudferro_project_prefix)"
-      ;;
-  esac
+  local prefix suffix
+  prefix="$(bucket_prefix "$1")"
+  for suffix in a b c d; do
+    printf '%s-it-%s\n' "${prefix}" "${suffix}"
+  done
 }
 
 rclone_provider() {
@@ -88,17 +64,10 @@ rclone_provider() {
 
 validate_backend_configuration() {
   case "$1" in
-    minio)
-      ;;
-    aws)
-      aws_resource_prefix >/dev/null
-      ;;
-    otc)
-      otc_resource_prefix >/dev/null
-      ;;
-    ovh)
-      ovh_project_prefix >/dev/null
-      ;;
+    minio) ;;
+    aws) aws_resource_prefix >/dev/null ;;
+    otc) otc_resource_prefix >/dev/null ;;
+    ovh) ovh_project_prefix >/dev/null ;;
     cloudferro)
       cloudferro_project_prefix >/dev/null
       cloudferro_project_prefix "$(cloudferro_it2_project_id)" >/dev/null
@@ -106,26 +75,9 @@ validate_backend_configuration() {
   esac
 }
 
-verify_secret_key() {
-  local secret="$1"
-  local key="$2"
-  local encoded
-  encoded="$(kube get "secret/${secret}" \
-    --namespace "${INTEGRATION_NAMESPACE}" \
-    -o "jsonpath={.data.${key}}")"
-  if [[ -z "${encoded}" ]]; then
-    printf 'Secret %s/%s is missing %s.\n' \
-      "${INTEGRATION_NAMESPACE}" "${secret}" "${key}" >&2
-    exit 1
-  fi
-}
-
 verify_consumer_secret() {
   local secret="$1"
   local key
-
-  verify_secret_key "${secret}" AWS_ACCESS_KEY_ID
-  verify_secret_key "${secret}" AWS_SECRET_ACCESS_KEY
 
   while IFS= read -r key; do
     [[ -z "${key}" ]] || case "${key}" in
@@ -188,45 +140,43 @@ verify_storage_ready() {
   verify_consumer_secret "${principal}"
 }
 
-apply_readonly_job() {
-  local name="$1" phase="$2" principal="$3" bucket="$4" provider="$5"
+run_access_job() {
+  local name="$1" phase="$2" principal="$3" bucket="$4"
   kube delete "job/${name}" \
     --namespace "${INTEGRATION_NAMESPACE}" \
     --ignore-not-found \
     --wait=true
   apply_template \
-    "${MANIFEST_DIR}/jobs/readonly.yaml" \
+    "${MANIFEST_DIR}/jobs/access.yaml" \
     INTEGRATION_NAMESPACE "${INTEGRATION_NAMESPACE}" \
     JOB_NAME "${name}" \
     PRINCIPAL "${principal}" \
     BUCKET "${bucket}" \
-    RCLONE_PROVIDER "${provider}" \
-    RCLONE_IMAGE "${RCLONE_IMAGE}" \
+    S3_PROBE_IMAGE "${S3_PROBE_IMAGE}" \
     TEST_PHASE "${phase}"
   wait_for_job "${name}"
 }
 
 verify_readonly_access() {
-  local backend="$1" owner="$2" grantee="$3" bucket="$4" provider="$5"
+  local backend="$1" owner="$2" grantee="$3" bucket="$4"
   log "Verifying ${backend} ReadOnly access to ${bucket}"
-  apply_readonly_job "storage-${backend}-readonly-seed" seed \
-    "${owner}" "${bucket}" "${provider}"
-  apply_readonly_job "storage-${backend}-readonly-verify" verify \
-    "${grantee}" "${bucket}" "${provider}"
-  apply_readonly_job "storage-${backend}-readonly-cleanup" cleanup \
-    "${owner}" "${bucket}" "${provider}"
+  run_access_job "storage-${backend}-readonly-seed" seed \
+    "${owner}" "${bucket}"
+  run_access_job "storage-${backend}-readonly-verify" readonly \
+    "${grantee}" "${bucket}"
+  run_access_job "storage-${backend}-readonly-cleanup" cleanup \
+    "${owner}" "${bucket}"
 }
 
 verify_no_access() {
   local backend="$1" scenario="$2" owner="$3" principal="$4" bucket="$5"
-  local provider="$6"
   log "Verifying ${backend} no access to ${bucket}"
-  apply_readonly_job "storage-${backend}-${scenario}-seed" seed \
-    "${owner}" "${bucket}" "${provider}"
-  apply_readonly_job "storage-${backend}-${scenario}-verify" deny \
-    "${principal}" "${bucket}" "${provider}"
-  apply_readonly_job "storage-${backend}-${scenario}-cleanup" cleanup \
-    "${owner}" "${bucket}" "${provider}"
+  run_access_job "storage-${backend}-${scenario}-seed" seed \
+    "${owner}" "${bucket}"
+  run_access_job "storage-${backend}-${scenario}-verify" deny \
+    "${principal}" "${bucket}"
+  run_access_job "storage-${backend}-${scenario}-cleanup" cleanup \
+    "${owner}" "${bucket}"
 }
 
 verify_backend() {
@@ -254,16 +204,16 @@ verify_backend() {
   verify_bucket_roundtrip "${second_storage}-roundtrip" \
     "${second_principal}" "${second_bucket}" "${provider}"
   verify_no_access "${backend}" ungranted "${principal}" "${second_principal}" \
-    "${owned_buckets[0]}" "${provider}"
+    "${owned_buckets[0]}"
   verify_readonly_access "${backend}" "${principal}" "${second_principal}" \
-    "${owned_buckets[1]}" "${provider}"
+    "${owned_buckets[1]}"
   verify_no_access "${backend}" denied "${principal}" "${second_principal}" \
-    "${owned_buckets[2]}" "${provider}"
+    "${owned_buckets[2]}"
   verify_no_access "${backend}" pending "${principal}" "${second_principal}" \
-    "${owned_buckets[3]}" "${provider}"
+    "${owned_buckets[3]}"
 }
 
-apply_lifecycle_job() {
+run_lifecycle_job() {
   local name="$1" phase="$2" principal="$3" bucket="$4" provider="$5"
   kube delete "job/${name}" \
     --namespace "${INTEGRATION_NAMESPACE}" \
@@ -281,47 +231,21 @@ apply_lifecycle_job() {
   wait_for_job "${name}"
 }
 
-verify_minio_lifecycle() {
-  local cronjob=provider-storage-minio-it-lifecycle
-  local seed_job=storage-minio-it-lifecycle-seed
-  local cleanup_job=storage-minio-it-lifecycle-cleanup
-  local verify_job=storage-minio-it-lifecycle-verify
-
-  log "Verifying MinIO lifecycle cleanup"
-  kube wait "cronjob/${cronjob}" \
-    --namespace "${INTEGRATION_NAMESPACE}" \
-    --for=create \
-    --timeout=2m
-  apply_lifecycle_job "${seed_job}" seed \
-    provider-storage-minio-it minio-default-it-a Minio
-  printf 'Waiting %s seconds for the lifecycle minimum age.\n' \
-    "${LIFECYCLE_WAIT_SECONDS}"
-  sleep "${LIFECYCLE_WAIT_SECONDS}"
-  kube delete "job/${cleanup_job}" \
-    --namespace "${INTEGRATION_NAMESPACE}" \
-    --ignore-not-found \
-    --wait=true
-  kube create job "${cleanup_job}" \
-    --namespace "${INTEGRATION_NAMESPACE}" \
-    --from="cronjob/${cronjob}"
-  wait_for_job "${cleanup_job}"
-  apply_lifecycle_job "${verify_job}" verify \
-    provider-storage-minio-it minio-default-it-a Minio
-}
-
-verify_cloudferro_lifecycle() {
-  local principal=provider-storage-cloudferro-it
-  local bucket cronjob seed_job cleanup_job verify_job
-  bucket="cloudferro-$(cloudferro_project_prefix)-it-a"
+verify_lifecycle() {
+  local backend="$1" principal bucket cronjob seed_job cleanup_job verify_job
+  local -a buckets
+  principal="$(principal_name "${backend}")"
+  mapfile -t buckets < <(bucket_names "${backend}")
+  bucket="${buckets[0]}"
   cronjob="${principal}-lifecycle"
-  seed_job=storage-cloudferro-it-lifecycle-seed
-  cleanup_job=storage-cloudferro-it-lifecycle-cleanup
-  verify_job=storage-cloudferro-it-lifecycle-verify
+  seed_job="storage-${backend}-it-lifecycle-seed"
+  cleanup_job="storage-${backend}-it-lifecycle-cleanup"
+  verify_job="storage-${backend}-it-lifecycle-verify"
 
-  log "Verifying CloudFerro lifecycle cleanup"
+  log "Verifying ${backend} lifecycle cleanup"
   kube wait "cronjob/${cronjob}" --namespace "${INTEGRATION_NAMESPACE}" \
     --for=create --timeout=2m
-  apply_lifecycle_job "${seed_job}" seed "${principal}" "${bucket}" Other
+  run_lifecycle_job "${seed_job}" seed "${principal}" "${bucket}" "$(rclone_provider "${backend}")"
   printf 'Waiting %s seconds for the lifecycle minimum age.\n' \
     "${LIFECYCLE_WAIT_SECONDS}"
   sleep "${LIFECYCLE_WAIT_SECONDS}"
@@ -330,22 +254,20 @@ verify_cloudferro_lifecycle() {
   kube create job "${cleanup_job}" --namespace "${INTEGRATION_NAMESPACE}" \
     --from="cronjob/${cronjob}"
   wait_for_job "${cleanup_job}"
-  apply_lifecycle_job "${verify_job}" verify "${principal}" "${bucket}" Other
+  run_lifecycle_job "${verify_job}" verify "${principal}" "${bucket}" "$(rclone_provider "${backend}")"
 }
 
 main() {
   require_cluster
-  bucket_names "${backend}" >/dev/null
-  second_bucket_name "${backend}" >/dev/null
   verify_backend "${backend}"
+  case "${backend}" in
+    minio|cloudferro) verify_lifecycle "${backend}" ;;
+  esac
   if [[ "${backend}" == minio ]]; then
-    verify_minio_lifecycle
-    "${PROVIDER_STORAGE_PYTHON:-python3}" "${INTEGRATION_DIR}/credential-handover.py"
+    "${PROVIDER_STORAGE_PYTHON:-python3}" "${INTEGRATION_DIR}/credentials.py" rollover
     verify_storage_ready storage-minio-it2 provider-storage-minio-it2
     verify_bucket_roundtrip storage-minio-it2-roundtrip \
       provider-storage-minio-it2 minio-default-it2-a Minio
-  elif [[ "${backend}" == cloudferro ]]; then
-    verify_cloudferro_lifecycle
   fi
 
   log "Provider Storage integration state"

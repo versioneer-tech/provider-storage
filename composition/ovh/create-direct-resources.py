@@ -8,7 +8,6 @@ from crossplane.function.proto.v1 import run_function_pb2 as fnv1
 
 from composition.helpers import (
     credential_suffixes,
-    kubernetes_object,
     ready_user_id,
     to_dict,
 )
@@ -184,8 +183,6 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
     )
 
     suffixes = credential_suffixes(req)
-    current = f"{principal}{suffixes[0]}"
-    current_dependent_name = None
     for suffix in suffixes:
         generation = f"{principal}{suffix}"
         user_key = f"user-{generation}"
@@ -229,25 +226,4 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
                 "policy": policy,
                 "userId": str(numeric_user),
             },
-        )
-        if generation == current:
-            current_dependent_name = dependent_name
-
-    if current_dependent_name is not None:
-        observer_key = f"observe-secret-{current_dependent_name}"
-        rsp.desired.resources[observer_key].ready = fnv1.READY_FALSE
-        rsp.desired.resources[observer_key].resource.update(
-            kubernetes_object(
-                observer_key,
-                namespace,
-                {
-                    "apiVersion": "v1",
-                    "kind": "Secret",
-                    "metadata": {
-                        "name": f"{current_dependent_name}-credentials",
-                        "namespace": namespace,
-                    },
-                },
-                managementPolicies=["Observe"],
-            )
         )

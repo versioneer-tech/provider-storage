@@ -4,7 +4,7 @@ These manifests configure the providers used by the `storage-cloudferro`
 Composition.
 
 See [Cloud IAM bootstrap](../../docs/how-to-guides/cloud-iam-bootstrap.md#cloudferro)
-for controller permissions and project isolation.
+for script installation, controller permissions, and project isolation.
 
 ## IAM bootstrap
 
@@ -23,9 +23,10 @@ must manage. Set the domain, authentication URL, region, controller name, and
 target namespace. Then run:
 
 ```bash
-cloudferro/dependencies/iam.sh status
-cloudferro/dependencies/iam.sh apply
-cloudferro/dependencies/iam.sh verify
+bootstrap-iam.sh cloudferro configure
+bootstrap-iam.sh cloudferro show
+bootstrap-iam.sh cloudferro apply
+bootstrap-iam.sh cloudferro verify
 ```
 
 Keep the local controller credential file private and outside Git.
@@ -40,11 +41,13 @@ Set `CROSSPLANE_CLOUDFERRO_NAMESPACE` to the target namespace. Create one
 controller Secret for each selected project:
 
 ```bash
-cloudferro/dependencies/iam.sh render-secrets |
-  kubectl apply -f -
+bootstrap-iam.sh cloudferro render-secrets |
+  kubectl --context storage-cluster apply --server-side -f -
 ```
 
-The Secret names use `cloudferro-project-<project-id>`.
+Replace `storage-cluster` with the deployment context. IAM `apply` prepares
+cloud resources only. The Secret names use `cloudferro-project-<project-id>`
+and the `config` key.
 
 The Composition creates a project-scoped OpenStack `ProviderConfig` for each
 `Storage`. Restrict who can set the project ID annotation and who can read the

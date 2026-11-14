@@ -1,6 +1,6 @@
 # Installation
 
-Install the dependencies and configuration package for each storage backend.
+Install the dependencies and configuration package for your storage backend.
 
 ## Namespaces
 
@@ -14,6 +14,12 @@ Choose a target namespace before deployment.
   `Storage` resource. The Secret name is the principal name.
 
 `EnvironmentConfig` and `Composition` resources are cluster-scoped.
+
+For the examples in these guides, create `workspace`:
+
+```bash
+kubectl create namespace workspace
+```
 
 ## Prerequisites
 
@@ -40,8 +46,30 @@ support; older providers activate all their types.
 
 ## 1. Install backend dependencies
 
-Follow the dependency guide for your backend to prepare controller
-credentials and edit the manifests:
+For a cloud backend, install `bootstrap-iam.sh` and run `configure`, `apply`,
+and `verify` as described in [Cloud IAM bootstrap](cloud-iam-bootstrap.md).
+Choose where to run bootstrap: a specific host, a CI/CD pipeline, or a local
+machine.
+Compositions use a `ProviderConfig` to authenticate cloud API calls. For
+static credentials, its `credentials.secretRef` must point to a controller
+Secret. IAM `apply` creates the cloud identity and saves credentials locally.
+Run `verify` and check its result before you render and deploy the Secret.
+Then configure the ProviderConfig reference:
+
+```bash
+export CROSSPLANE_OVH_NAMESPACE=workspace
+bootstrap-iam.sh ovh render-secrets |
+  kubectl --context storage-cluster apply --server-side -f -
+```
+
+Replace `ovh`, its namespace variable, and `storage-cluster` for your backend
+and deployment. The Secret name, namespace, and key must match the
+ProviderConfig. See [Deploy controller Secrets](cloud-iam-bootstrap.md#deploy-controller-secrets)
+for all four backends. AWS workload identity uses external trust instead of
+a static controller Secret. CloudFerro creates its project-scoped
+ProviderConfigs when a Storage is created.
+
+Follow the dependency guide for your backend to edit the manifests:
 
 | Backend | Dependency guide |
 | --- | --- |
@@ -58,17 +86,47 @@ The dependency manifests use the same order for every backend:
 | `00-mrap.yaml` | Cluster | Activates the managed resource types used by the backend. |
 | `01-deploymentRuntimeConfigs.yaml` | Cluster | Configures provider and function deployments. |
 | `02-providers.yaml` | Cluster | Installs the providers. |
-| `03-providerConfigs.yaml` | Target namespace | Configures provider authentication. Apply it in every namespace that contains a `Storage` resource. |
+| `03-providerConfigs.yaml` | Cluster or namespace | Configures provider authentication. Apply namespaced configs in every Storage namespace. |
 | `04-environmentConfigs.yaml` | Cluster | Defines endpoint, region, and backend settings. |
 | `functions.yaml` | Cluster | Installs the Composition functions. |
-| `rbac.yaml` | Cluster | Grants the required provider-kubernetes access. |
+| `rbac.yaml` | Cluster | Grants provider-kubernetes access and Crossplane access to native Secrets. |
 
 Edit all placeholders before you apply a manifest. Apply the numbered files
 in order, then apply `functions.yaml` and `rbac.yaml`.
 
-Lifecycle Jobs have a one-hour deadline and two retries by default. Adjust
-these limits in the backend EnvironmentConfig when needed. See
+Consumer Secrets are native composed resources. A namespaced Storage can
+compose these Secrets even when its cloud provider has only cluster-scoped
+resources. Those cloud resources still need Object adapters. Crossplane
+cannot compose a cluster-scoped resource directly from a namespaced Storage.
+See [Crossplane resource scope](https://docs.crossplane.io/latest/whats-new/).
+
+The provider-kubernetes runtime redacts Secret data from Object status.
+Keep the MinIO runtime's [logging configuration](https://github.com/versioneer-tech/provider-storage/blob/main/minio/dependencies/README.md#deployment)
+to prevent credentials from appearing in provider logs.
+
+For cleanup scheduling and Job limits, see
 [Lifecycle rules](usage_concepts.md#lifecycle-rules).
+
+### Replace a Storage
+
+A new Storage can adopt existing composed resources after the old Storage
+releases them. Before replacing a Storage, prevent its source manifests from
+creating it again. Delete the old Storage with Kubernetes orphan propagation
+(`--cascade=orphan`) to keep its composed resources. Wait until the old
+Storage is gone and its controller references are removed.
+
+Create the replacement in the same namespace. Keep the backend, provider
+configuration, project, region, principal, provider identity, and bucket names
+the same. The Composition can then adopt resources with the same kind and
+name. Preserve their external-name annotations and provider ownership markers.
+Consumer Secrets and credentials can be recreated if needed.
+
+Do not use a failed deletion of a non-empty bucket as a handover method. Its
+managed resource can remain in deletion, which prevents reuse. The pinned
+MinIO provider also rejects an existing bucket when a new Bucket resource
+lacks its ownership marker. Keep the existing Bucket resource and its Object
+adapter. Recreating managed resources from cloud resources requires
+[provider-specific import](https://docs.crossplane.io/latest/guides/import-existing-resources/).
 
 ## 2. Install the configuration package
 
@@ -117,7 +175,12 @@ only one compatible Composition is installed. See
 
 ## 3. Verify the installation
 
-Create a small `Storage` resource in the target namespace. Check that the
-resource becomes ready and that Provider Storage creates its consumer Secret.
-See [Use Storage](usage_concepts.md) for examples and verification
-commands.
+Use the [bucket example](https://github.com/versioneer-tech/provider-storage#readme)
+in the target namespace. Set its selector to your installed backend.
+Check that the Storage becomes ready and that its
+consumer credentials permit the expected S3 operations. See
+[Use Storage](usage_concepts.md) for backend selection, credential rollover,
+lifecycle rules, and verification commands.
+
+For cloud backends, keep the project, endpoint, and region in the
+EnvironmentConfig consistent with the settings saved by `bootstrap-iam.sh`.

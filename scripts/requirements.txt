@@ -1,1 +1,2 @@
 PyYAML>=6.0,<7
+kubernetes-validate>=1.34,<2

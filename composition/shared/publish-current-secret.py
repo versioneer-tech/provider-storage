@@ -4,10 +4,10 @@
 from crossplane.function.proto.v1 import run_function_pb2 as fnv1
 
 from composition.helpers import (
-    dig,
+    credential_suffixes,
     encoded,
     publish_consumer_secret,
-    retain_resources,
+    require_secret,
     to_dict,
 )
 
@@ -21,18 +21,20 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
     principal = (spec.get("principal") or metadata.get("name") or "").strip()
     if not principal:
         return
-    retain_resources(req, rsp, [f"secret-{principal}"])
+    publish_consumer_secret(req, rsp, principal, metadata.get("namespace") or "default")
 
     backend = req.input["backend"]
-    observer_key = f"observe-secret-{principal}"
-    observer = req.observed.resources.get(observer_key)
-    data = (
-        dig(to_dict(observer.resource), "status", "atProvider", "manifest", "data")
-        if observer is not None
-        else None
+    suffix = credential_suffixes(req)[0]
+    generation = f"{principal}{suffix}"
+    source_name = generation if suffix else f"{principal}-credentials"
+    source = require_secret(
+        req,
+        rsp,
+        f"credential-secret-{principal}",
+        source_name,
+        metadata.get("namespace") or "default",
     )
-    if not isinstance(data, dict):
-        data = {}
+    data = source.get("data") or {}
     access = data.get("AWS_ACCESS_KEY_ID")
     secret = data.get("AWS_SECRET_ACCESS_KEY")
     if backend == "aws":
@@ -42,8 +44,6 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
         access = access or data.get("attribute.access") or data.get("access")
         secret = secret or data.get("attribute.secret") or data.get("secret")
     if not access or not secret:
-        if backend == "aws":
-            rsp.desired.resources[observer_key].ready = fnv1.READY_FALSE
         return
 
     settings = (to_dict(req.context).get(ENVIRONMENT_KEY) or {}).get("storage") or {}
@@ -67,5 +67,5 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
     if force_path_style not in (None, ""):
         data["AWS_S3_FORCE_PATH_STYLE"] = encoded(str(force_path_style))
     publish_consumer_secret(
-        rsp, principal, metadata.get("namespace") or "default", data
+        req, rsp, principal, metadata.get("namespace") or "default", data
     )

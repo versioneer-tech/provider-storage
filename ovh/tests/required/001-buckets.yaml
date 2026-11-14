@@ -31,3 +31,12 @@ spec:
       grantee: s-joe
       permission: ReadOnly
       grantedAt: "2025-09-29T10:15:00Z"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: s-joe-u23456-credentials
+  namespace: default
+data:
+  access_key_id: RVhBTVBMRUFDQ0VTU0tFWQ==
+  attribute.secret_access_key: RVhBTVBMRVNFQ1JFVEtFWQ==

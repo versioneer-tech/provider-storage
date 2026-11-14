@@ -35,3 +35,9 @@ that contains a MinIO `Storage` resource. The MinIO controller Secret can stay
 in the `minio` namespace because the ProviderConfig refers to it explicitly.
 Apply the remaining manifests in the order given in the
 [installation guide](../../docs/how-to-guides/installation.md#1-install-backend-dependencies).
+
+Keep the `provider-minio` runtime configuration attached to the Provider.
+The pinned provider logs credentials at Info level. The runtime uses
+`--log-level=-1` to keep warnings and errors while it suppresses Info output.
+Keep this setting until a provider without that defect is verified. Rotate
+any credentials that appear in logs and review log retention.

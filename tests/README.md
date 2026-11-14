@@ -53,26 +53,35 @@ completion.
 
 | Check | Purpose |
 | --- | --- |
-| Build and function checks | Generated files match source; response cache settings reach all steps. |
-| Render comparisons | Bucket, access, credential, and lifecycle resources match expected output. |
-| Readiness and policies | Incomplete credentials do not produce a consumer Secret; `None` grants add no allow. |
-| Credential transitions | The desired Secret remains during handover; OTC policies include retained identities and omit expired identities. |
-| Generation and lifecycle bounds | One generation time reaches all steps; cleanup Jobs have a deadline and finite retries. |
-| CloudFerro | Project binding, credential publication, and deletion dependencies. |
-| IAM helpers | Controller Secret formats and AWS permission scope. |
-| Integration inputs | Owner, requester, and grants match the live access checks. |
-| Schemas | Rendered resources conform to their provider schemas. |
+| [Build and function runtime](function-runtime.py) | Generated files match source; response cache settings reach every pipeline. |
+| [Credential and lifecycle behavior](composition-behavior.py) | Secrets stay available during rollover; policies retain the correct identities; cleanup Jobs have finite limits. |
+| [Render and schema checks](unit.bash) | Bucket, access, credential, and lifecycle resources match expected output and provider schemas. |
+| [CloudFerro](cloudferro.py) | Project isolation, AWS profile wiring, and deletion dependencies. |
+| [IAM bootstrap](bootstrap-iam.py) | Configuration, provider Secret formats, permission scope, credential reuse, and rotation recovery. |
+| [Access checks](integration/access-checks.py) | Owner and requester inputs match the access matrix; only the requested operation's AccessDenied satisfies a negative probe. |
 
 Function checks share one container with the pinned SDK. Render and schema
 checks do not prove cloud enforcement, credential revocation, or tenant
 isolation. Use the integration suite for S3 access checks.
+Bootstrap checks copy the script to a temporary directory and use test
+credentials with local cloud commands. They need no cloud login or cluster.
+Native resources use Kubernetes schemas. Extension resources use the
+Crossplane validator with missing schemas treated as errors.
 
 ## Fixtures
 
 Shared inputs are in `examples/base/`. CloudFerro has project-specific inputs
 in `cloudferro/tests/fixtures/`. Backend `tests/required/` and `tests/observed/`
-files supply peer resources and provider state. Expected renders are in
-`<backend>/tests/expected/`.
+files supply peer resources and provider state. Use the same scenario filename
+in each directory. Expected renders are in `<backend>/tests/expected/`;
+`expected/with-dependencies/` contains the render with supplied state.
+
+| Shared scenario | Purpose |
+| --- | --- |
+| `001-buckets.yaml` | One bucket, a ReadWrite grant, and a request to another owner. |
+| `002-buckets.yaml` | Weekly credentials, ReadOnly sharing, and lifecycle rules. |
+| `003-buckets.yaml` | Credentials and an access request without an owned bucket. |
+| `004-buckets.yaml` | Daily credentials, several requests, and an unresolved owner. |
 
 Review render differences and update only fixtures affected by an intended
 behavior change. Credential generation dates are normalized before comparison.

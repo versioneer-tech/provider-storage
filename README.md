@@ -9,7 +9,8 @@ AWS, Open Telekom Cloud (OTC), OVHcloud, and CloudFerro. Declare buckets,
 access grants, and lifecycle rules in a namespaced `Storage`; Crossplane
 creates the provider resources from the platform's backend settings.
 
-This example creates one MinIO bucket:
+After [installation](docs/how-to-guides/installation.md), save this example
+as `storage.yaml`. It creates one MinIO bucket in the `workspace` namespace:
 
 ```yaml
 apiVersion: pkg.internal/v1beta1
@@ -27,11 +28,19 @@ spec:
     - bucketName: wonderland
 ```
 
-The consumer Secret is named `alice` in `workspace`. Applications use this
-Secret for S3 access. Platform operators configure the backend and its
-controller credentials before users create Storage resources.
-During credential replacement, Provider Storage keeps the previous consumer
-Secret until both replacement keys are available.
+Apply it and check the result:
+
+```bash
+kubectl apply -f storage.yaml
+kubectl get storage team-wonderland -n workspace
+kubectl describe secret alice -n workspace
+```
+
+The consumer Secret is named `alice` in `workspace`. Applications use its S3
+credentials and must reload them during credential rollover. Platform
+operators configure the backend and controller credentials before users
+create Storage resources. They choose where and when to run cloud IAM
+bootstrap: on a specific host, in a CI/CD pipeline, or on a local machine.
 
 ## Get started
 
@@ -48,6 +57,12 @@ or use the guides in this checkout:
 | Look up resource fields | [API reference](docs/reference-guides/api.md) |
 
 Backend examples are in [`examples/overlays`](examples/overlays).
+
+Compositions use a `ProviderConfig` for cloud authentication. For static
+credentials, it references a controller Secret. IAM `apply` prepares the cloud
+identity and saves credentials locally. Run `verify` and check its result
+before you deploy the Secret with
+[`render-secrets | kubectl apply`](docs/how-to-guides/cloud-iam-bootstrap.md#deploy-controller-secrets).
 
 ## Development
 

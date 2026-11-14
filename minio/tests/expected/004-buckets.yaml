@@ -38,10 +38,6 @@ spec:
       namespace: default
     - apiVersion: kubernetes.m.crossplane.io/v1alpha1
       kind: Object
-      name: observe-secret-s-john
-      namespace: default
-    - apiVersion: kubernetes.m.crossplane.io/v1alpha1
-      kind: Object
       name: policy-full-s-john
       namespace: default
     - apiVersion: kubernetes.m.crossplane.io/v1alpha1
@@ -64,8 +60,6 @@ status:
     status: "True"
     type: Synced
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: bucket-s-john, policy-full-s-john, policy-s-jane-s-john,
-      and 1 more'
     reason: Creating
     status: "False"
     type: Ready
@@ -98,36 +92,6 @@ spec:
       spec:
         providerConfigRef:
           name: provider-minio
-  providerConfigRef:
-    kind: ProviderConfig
-    name: provider-kubernetes
----
-apiVersion: kubernetes.m.crossplane.io/v1alpha1
-kind: Object
-metadata:
-  annotations:
-    crossplane.io/composition-resource-name: observe-secret-s-john
-  labels:
-    crossplane.io/composite: s-john
-  name: observe-secret-s-john
-  namespace: default
-  ownerReferences:
-  - apiVersion: pkg.internal/v1beta1
-    blockOwnerDeletion: true
-    controller: true
-    kind: Storage
-    name: s-john
-    uid: b4f4ce7a-c24f-506f-ac18-c5dd3f58626c
-spec:
-  forProvider:
-    manifest:
-      apiVersion: v1
-      kind: Secret
-      metadata:
-        name: s-john-20260922
-        namespace: default
-  managementPolicies:
-  - Observe
   providerConfigRef:
     kind: ProviderConfig
     name: provider-kubernetes

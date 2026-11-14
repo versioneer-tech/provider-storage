@@ -50,7 +50,7 @@ preflight_minio() {
 }
 
 preflight_aws() {
-  : "${CROSSPLANE_AWS_ACCOUNT_ID:?Set CROSSPLANE_AWS_ACCOUNT_ID to the 12-digit account used by aws/dependencies/iam.sh.}"
+  : "${CROSSPLANE_AWS_ACCOUNT_ID:?Set CROSSPLANE_AWS_ACCOUNT_ID to the 12-digit account used by bootstrap-iam.sh aws.}"
   : "${CROSSPLANE_AWS_REGION:=eu-central-1}"
   if [[ ! "${CROSSPLANE_AWS_ACCOUNT_ID}" =~ ^[0-9]{12}$ ]]; then
     printf 'CROSSPLANE_AWS_ACCOUNT_ID must be a 12-digit AWS account ID.\n' >&2
@@ -64,7 +64,7 @@ preflight_aws() {
   fi
   if ! kube get secret/aws-provider-creds --namespace "${INTEGRATION_NAMESPACE}" >/dev/null 2>&1; then
     printf '%s\n' \
-      "Secret ${INTEGRATION_NAMESPACE}/aws-provider-creds is missing. Apply the manifest printed by aws/dependencies/iam.sh." >&2
+      "Secret ${INTEGRATION_NAMESPACE}/aws-provider-creds is missing. Apply the manifest printed by bootstrap-iam.sh aws render-secrets." >&2
     exit 1
   fi
 }
@@ -80,7 +80,7 @@ preflight_otc() {
   fi
   if ! kube get secret/otc-provider-creds --namespace "${INTEGRATION_NAMESPACE}" >/dev/null 2>&1; then
     printf '%s\n' \
-      "Secret ${INTEGRATION_NAMESPACE}/otc-provider-creds is missing. Apply the manifest printed by otc/dependencies/iam.sh." >&2
+      "Secret ${INTEGRATION_NAMESPACE}/otc-provider-creds is missing. Apply the manifest printed by bootstrap-iam.sh otc render-secrets." >&2
     exit 1
   fi
 }
@@ -105,7 +105,7 @@ preflight_cloudferro() {
     if ! kube get "secret/cloudferro-project-${project_id}" \
       --namespace "${INTEGRATION_NAMESPACE}" >/dev/null 2>&1; then
       printf '%s\n' \
-        "Secret ${INTEGRATION_NAMESPACE}/cloudferro-project-${project_id} is missing. Apply the manifests printed by cloudferro/dependencies/iam.sh render-secrets." >&2
+        "Secret ${INTEGRATION_NAMESPACE}/cloudferro-project-${project_id} is missing. Apply the manifests printed by bootstrap-iam.sh cloudferro render-secrets." >&2
       exit 1
     fi
   done

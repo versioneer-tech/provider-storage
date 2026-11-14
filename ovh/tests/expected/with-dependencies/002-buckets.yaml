@@ -67,8 +67,6 @@ status:
     status: "True"
     type: Synced
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: lifecycle-config-s-jeff, lifecycle-cron-s-jeff, owner-s-jeff,
-      and 2 more'
     reason: Creating
     status: "False"
     type: Ready

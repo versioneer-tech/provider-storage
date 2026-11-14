@@ -18,10 +18,6 @@ spec:
       kind: User
       name: s-pending
       namespace: default
-    - apiVersion: kubernetes.m.crossplane.io/v1alpha1
-      kind: Object
-      name: observe-secret-s-pending
-      namespace: default
   principal: s-pending
 status:
   conditions:
@@ -34,7 +30,6 @@ status:
     status: "True"
     type: Synced
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: observe-secret-s-pending'
     reason: Creating
     status: "False"
     type: Ready

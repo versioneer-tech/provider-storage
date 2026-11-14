@@ -7,6 +7,8 @@ metadata:
   name: provider-minio
 spec:
   package: xpkg.upbound.io/vshn/provider-minio:v0.4.5
+  runtimeConfigRef:
+    name: provider-minio
 ---
 apiVersion: pkg.crossplane.io/v1
 kind: Provider

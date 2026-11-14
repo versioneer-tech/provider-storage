@@ -43,7 +43,6 @@ status:
     status: "True"
     type: Synced
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: owner-s-joe, user-s-joe'
     reason: Creating
     status: "False"
     type: Ready

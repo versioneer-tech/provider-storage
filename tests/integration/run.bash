@@ -13,3 +13,7 @@ backend="$(selected_backend "${1:-}" "$0")"
 "${INTEGRATION_DIR}/deploy-providers.bash" "${backend}"
 "${INTEGRATION_DIR}/deploy-storages.bash" "${backend}"
 "${INTEGRATION_DIR}/verify.bash" "${backend}"
+
+if [[ "${backend}" == minio ]]; then
+  "${PROVIDER_STORAGE_PYTHON:-python3}" "${INTEGRATION_DIR}/credentials.py" verify
+fi

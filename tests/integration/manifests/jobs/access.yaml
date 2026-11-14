@@ -1,0 +1,101 @@
+# Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: __JOB_NAME__
+  namespace: __INTEGRATION_NAMESPACE__
+spec:
+  backoffLimit: 1
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      containers:
+        - name: access-test
+          image: __S3_PROBE_IMAGE__
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - secretRef:
+                name: __PRINCIPAL__
+          env:
+            - name: TEST_PHASE
+              value: __TEST_PHASE__
+          command:
+            - /var/lang/bin/python3
+            - -c
+            - |
+              import os
+              import time
+
+              import boto3
+              from botocore.config import Config
+              from botocore.exceptions import ClientError
+
+              client = boto3.client(
+                  "s3",
+                  aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
+                  aws_secret_access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
+                  endpoint_url=os.environ["AWS_ENDPOINT_URL"],
+                  region_name=os.environ["AWS_REGION"],
+                  config=Config(
+                      signature_version="s3v4",
+                      s3={"addressing_style": "path" if os.getenv("AWS_S3_FORCE_PATH_STYLE", "").lower() == "true" else "virtual"},
+                      retries={"total_max_attempts": 1},
+                      connect_timeout=10,
+                      read_timeout=30,
+                      request_checksum_calculation="when_required",
+                      response_checksum_validation="when_required",
+                  ),
+              )
+              bucket = "__BUCKET__"
+              key = "integration/readonly.txt"
+              probe = "integration/readonly-write-probe.txt"
+              content = b"provider-storage readonly integration\n"
+
+              def expect_denied(operation, method, **kwargs):
+                  try:
+                      method(Bucket=bucket, **kwargs)
+                  except ClientError as error:
+                      code = error.response.get("Error", {}).get("Code")
+                      status = error.response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+                      if code == "AccessDenied" and status == 403 and error.operation_name == operation:
+                          return
+                      raise SystemExit(f"S3 {operation}: expected AccessDenied (HTTP 403), got {code} (HTTP {status}).")
+                  raise SystemExit(f"S3 {operation} succeeded; access must be denied.")
+
+              try:
+                  phase = os.environ["TEST_PHASE"]
+                  if phase in ("seed", "cleanup"):
+                      client.delete_object(Bucket=bucket, Key=key)
+                      client.delete_object(Bucket=bucket, Key=probe)
+                      if phase == "seed":
+                          client.put_object(Bucket=bucket, Key=key, Body=content)
+                  elif phase == "readonly":
+                      for attempt in range(12):
+                          try:
+                              response = client.get_object(Bucket=bucket, Key=key)
+                              with response["Body"] as body:
+                                  if body.read() == content:
+                                      break
+                          except ClientError:
+                              pass
+                          time.sleep(5)
+                      else:
+                          raise SystemExit("ReadOnly grantee could not read the owner object.")
+                      expect_denied("PutObject", client.put_object, Key=probe, Body=b"write must fail\n")
+                      expect_denied("DeleteObject", client.delete_object, Key=key)
+                  elif phase == "deny":
+                      expect_denied("ListObjectsV2", client.list_objects_v2, MaxKeys=1)
+                      expect_denied("GetObject", client.get_object, Key=key)
+                      expect_denied("PutObject", client.put_object, Key=probe, Body=b"write must fail\n")
+                      expect_denied("DeleteObject", client.delete_object, Key=key)
+                  else:
+                      raise SystemExit(f"Unknown TEST_PHASE: {phase}")
+              except ClientError as error:
+                  code = error.response.get("Error", {}).get("Code")
+                  raise SystemExit(f"S3 {error.operation_name}: {code}.")
+              except Exception as error:
+                  raise SystemExit(f"S3 probe failed: {type(error).__name__}.")

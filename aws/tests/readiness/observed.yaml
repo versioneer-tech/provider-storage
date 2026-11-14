@@ -14,26 +14,6 @@ status:
     status: 'True'
     reason: Available
 ---
-apiVersion: kubernetes.m.crossplane.io/v1alpha1
-kind: Object
-metadata:
-  name: observe-secret-s-pending
-  namespace: default
-  annotations:
-    crossplane.io/composition-resource-name: observe-secret-s-pending
-status:
-  conditions:
-  - type: Ready
-    status: 'True'
-    reason: Available
-  atProvider:
-    manifest:
-      apiVersion: v1
-      kind: Secret
-      metadata:
-        name: s-pending-credentials
-        namespace: default
----
 apiVersion: iam.aws.m.upbound.io/v1beta1
 kind: User
 metadata:

@@ -11,7 +11,7 @@ spec:
     source: Secret
     secretRef:
       # The credentials key holds JSON with endpoint, client_id, and
-      # client_secret from ovh/dependencies/iam.sh.
+      # client_secret from bootstrap-iam.sh ovh render-secrets.
       name: ovh-provider-creds
       namespace: <storage-namespace>
       key: credentials

@@ -7,8 +7,8 @@ metadata:
   name: provider-aws
   # Apply this manifest with --namespace <storage-namespace>.
 spec:
-  # Required for both iam.sh modes. Run iam.sh apply, then uncomment this block
-  # and replace <account-id> with the account that the script verified:
+  # Both authentication modes need this role. Run bootstrap-iam.sh aws apply,
+  # then set the verified account ID in this block:
   # assumeRoleChain:
   #   - roleARN: arn:aws:iam::<account-id>:role/provider-storage/crossplane
   #

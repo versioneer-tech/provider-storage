@@ -4,18 +4,19 @@ These manifests configure the providers used by the `storage-ovh`
 Composition.
 
 See [Cloud IAM bootstrap](../../docs/how-to-guides/cloud-iam-bootstrap.md#ovhcloud)
-for service-account permissions and project scope.
+to install the script and check service-account permissions and project scope.
 
 ## IAM bootstrap
 
 Install the official `ovhcloud` CLI and `jq`, then run `ovhcloud login` outside
-this repository. Set `CROSSPLANE_OVH_PROJECT_ID`, the API region, and the
+this repository. Set `CROSSPLANE_OVH_PROJECT_ID`, the API region, Object Storage region, and the
 target namespace. Then run:
 
 ```bash
-ovh/dependencies/iam.sh status
-ovh/dependencies/iam.sh apply
-ovh/dependencies/iam.sh verify
+bootstrap-iam.sh ovh configure
+bootstrap-iam.sh ovh show
+bootstrap-iam.sh ovh apply
+bootstrap-iam.sh ovh verify
 ```
 
 Keep the local controller credential file private and outside Git. Do not use
@@ -32,9 +33,13 @@ Set `CROSSPLANE_OVH_NAMESPACE` to that namespace and create the controller
 Secret:
 
 ```bash
-ovh/dependencies/iam.sh render-secrets |
-  kubectl apply -f -
+bootstrap-iam.sh ovh render-secrets |
+  kubectl --context storage-cluster apply --server-side -f -
 ```
+
+Replace `storage-cluster` with the deployment context. The ProviderConfig's
+Secret reference must use `ovh-provider-creds`, the selected namespace, and
+the `credentials` key. IAM `apply` prepares cloud resources only.
 
 Apply [`03-providerConfigs.yaml`](03-providerConfigs.yaml) in every namespace
 that contains an OVHcloud `Storage` resource. Apply the remaining manifests in
