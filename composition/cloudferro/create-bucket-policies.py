@@ -107,7 +107,9 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
                 f"CloudFerro grantee principal {grantee} does not use the cloudferro backend.",
             )
             return
-        environments[grantee] = storage_environment_name(peer_metadata)
+        environments[grantee] = storage_environment_name(
+            peer_metadata, "storage-cloudferro"
+        )
 
     projects = {}
     pending = False

@@ -144,6 +144,46 @@ def run_tests(pipelines):
         return MessageToDict(rsp.desired.resources[key].resource)
 
     class CompositionTests(unittest.TestCase):
+        def test_environment_defaults_to_backend_package_and_accepts_overrides(self):
+            key = "storages.pkg.internal/environment"
+            for backend in pipelines:
+                default = f"storage-{backend}"
+                for metadata, expected in (
+                    ({}, default),
+                    ({"annotations": {key: "  "}}, default),
+                    (
+                        {"labels": {key: "test-label-environment"}},
+                        "test-label-environment",
+                    ),
+                    (
+                        {
+                            "annotations": {key: "test-annotation-environment"},
+                            "labels": {key: "test-label-environment"},
+                        },
+                        "test-annotation-environment",
+                    ),
+                ):
+                    with self.subTest(backend=backend, metadata=metadata):
+                        req = request(backend)
+                        req.observed.composite.resource["metadata"].update(metadata)
+                        environment = {"storage": {"region": "test-region"}}
+                        req.required_resources[
+                            "storage-environment"
+                        ].items.add().resource.update({"data": environment})
+                        rsp = compose(backend, "load-storage-environment", req)
+                        self.assertEqual(
+                            rsp.requirements.resources[
+                                "storage-environment"
+                            ].match_name,
+                            expected,
+                        )
+                        self.assertEqual(
+                            MessageToDict(rsp.context)[
+                                "apiextensions.crossplane.io/environment"
+                            ],
+                            environment,
+                        )
+
         def test_backend_resources_use_selected_provider_config_or_existing_default(
             self,
         ):
@@ -271,11 +311,14 @@ def run_tests(pipelines):
                             "grantee": grantee,
                             "permission": "ReadOnly",
                         }
-                        for grantee in ("test-reader-one", "test-reader-two")
+                        for grantee in (
+                            "test-reader-one", "test-reader-two", "test-reader-default"
+                        )
                     ],
                 }
             )
             for grantee, selector in (
+                ("test-reader-default", {}),
                 (
                     "test-reader-one",
                     {"labels": {"storages.pkg.internal/environment": "test-env-one"}},
@@ -315,13 +358,16 @@ def run_tests(pipelines):
                     for item in pending.requirements.resources.values()
                     if item.kind == "EnvironmentConfig"
                 },
-                {"test-env-one", "test-env-two"},
+                {"test-env-one", "test-env-two", "storage-cloudferro"},
             )
             projects = (
                 "0123456789abcdef0123456789abcdef",
                 "fedcba9876543210fedcba9876543210",
+                "00112233445566778899aabbccddeeff",
             )
-            for name, project in zip(("test-env-one", "test-env-two"), projects):
+            for name, project in zip(
+                ("test-env-one", "test-env-two", "storage-cloudferro"), projects
+            ):
                 req.required_resources[
                     f"cloudferro-grantee-environment-{name}"
                 ].items.add().resource.update(

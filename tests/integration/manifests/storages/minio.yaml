@@ -6,8 +6,6 @@ kind: Storage
 metadata:
   name: storage-minio-it
   namespace: provider-storage-it
-  annotations:
-    storages.pkg.internal/environment: storage-minio
   labels:
     storages.pkg.internal/backend: minio
     storages.pkg.internal/discoverable: "true"
@@ -46,8 +44,6 @@ kind: Storage
 metadata:
   name: storage-minio-it2
   namespace: provider-storage-it
-  annotations:
-    storages.pkg.internal/environment: storage-minio
   labels:
     storages.pkg.internal/backend: minio
     storages.pkg.internal/discoverable: "true"

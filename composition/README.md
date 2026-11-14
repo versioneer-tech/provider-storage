@@ -6,8 +6,9 @@ The shared environment step records the UTC time and credential generations
 in the pipeline context. Later steps use that context instead of reading the
 clock again.
 The environment annotation takes precedence over the label, then defaults
-to `storage`. Backend resources use `storage.providerConfigName` from that
-environment. AWS, MinIO, OTC, and OVHcloud retain their default provider names
+to the backend package name, such as `storage-aws`. Backend resources use
+`storage.providerConfigName` from that environment. AWS, MinIO, OTC, and
+OVHcloud retain their default provider names
 when it is unset or blank. CloudFerro requires a project provider name.
 AWS, MinIO, and OTC share the current-Secret step. OVHcloud and CloudFerro
 resolve their provider-specific credential sources, then use the same consumer

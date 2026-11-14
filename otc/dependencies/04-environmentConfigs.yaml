@@ -4,7 +4,7 @@
 apiVersion: apiextensions.crossplane.io/v1beta1
 kind: EnvironmentConfig
 metadata:
-  name: storage
+  name: storage-otc
 data:
   storage:
     endpoint: https://obs.eu-nl.otc.t-systems.com

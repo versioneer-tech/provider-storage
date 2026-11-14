@@ -24,7 +24,9 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
     rsp.context.MergeFrom(
         resource.dict_to_struct({time_key: timestamp, generations_key: suffixes})
     )
-    env_name = storage_environment_name(meta)
+    env_name = storage_environment_name(
+        meta, to_dict(req.input)["environmentConfigName"]
+    )
 
     response.require_resources(
         rsp,

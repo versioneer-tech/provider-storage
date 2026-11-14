@@ -95,7 +95,11 @@ Edit all placeholders before you apply a manifest. Apply the numbered files
 in order, then apply `functions.yaml` and `rbac.yaml`.
 
 Keep the ProviderConfig's cloud account or project consistent with the
-EnvironmentConfig. See [Select a backend](usage_concepts.md#select-a-backend)
+EnvironmentConfig. The default environment name matches the backend package
+name, such as `storage-aws` or `storage-minio`. An environment annotation is
+needed only to override that name. CloudFerro's supplied project manifests
+need this override to select a project. Manage shared functions and
+provider-kubernetes once. See [Select a backend](usage_concepts.md#select-a-backend)
 for environment and provider selection.
 
 Consumer Secrets are native composed resources. A namespaced Storage can
@@ -134,8 +138,25 @@ adapter. Recreating managed resources from cloud resources requires
 
 ## 2. Install the configuration package
 
-Each backend package includes the shared Storage XRD. Use one backend package
-per cluster; two active packages cannot own the same XRD.
+Install one Configuration package for each backend you need. Each package
+contains its backend Composition and depends on
+`ghcr.io/versioneer-tech/provider-storage/api` from the same release.
+Crossplane installs that API package once. It owns the shared Storage XRD.
+Only the selected backend Compositions are installed. Provider controllers,
+functions, and credentials are installed separately in step 1. Use the same
+release for all installed backend packages.
+
+Keep dependency resolution enabled on the Configuration resources; this is
+the default. Do not set `spec.skipDependencyResolution: true`.
+
+For later upgrades of this package layout, update the existing API
+Configuration to the target release, then update all backend Configurations.
+Crossplane does not upgrade installed dependencies automatically by default.
+
+Older backend packages own the XRD directly. Moving that ownership to the API
+package needs a separate migration before upgrade. Do not delete the XRD or
+its CRD: this can delete existing Storage resources. The ownership migration
+is not provided here.
 
 After the backend dependencies are ready, create a `Configuration` manifest.
 Use the name and package for your backend:

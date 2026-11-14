@@ -9,14 +9,14 @@ from crossplane.function.proto.v1 import run_function_pb2 as fnv1
 from google.protobuf import json_format
 
 
-def storage_environment_name(metadata):
+def storage_environment_name(metadata, default):
     annotations = metadata.get("annotations") or {}
     labels = metadata.get("labels") or {}
     return (
         annotations.get("storages.pkg.internal/environment")
         or labels.get("storages.pkg.internal/environment")
-        or "storage"
-    ).strip() or "storage"
+        or default
+    ).strip() or default
 
 
 def storage_provider_config_name(req, default=""):

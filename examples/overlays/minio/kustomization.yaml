@@ -13,10 +13,6 @@ patches:
       kind: Storage
     patch: |
       - op: add
-        path: /metadata/annotations
-        value:
-          storages.pkg.internal/environment: storage-minio
-      - op: add
         path: /spec/crossplane
         value: {}
       - op: add

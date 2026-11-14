@@ -4,7 +4,7 @@
 apiVersion: apiextensions.crossplane.io/v1beta1
 kind: EnvironmentConfig
 metadata:
-  name: storage
+  name: storage-ovh
 data:
   storage:
     endpoint: https://s3.de.io.cloud.ovh.net

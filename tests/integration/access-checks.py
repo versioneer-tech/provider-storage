@@ -70,7 +70,9 @@ class AccessScenarioTests(unittest.TestCase):
                         )
                         environment += f"-{values[project_key]}"
                     self.assertEqual(
-                        metadata["annotations"]["storages.pkg.internal/environment"],
+                        metadata.get("annotations", {}).get(
+                            "storages.pkg.internal/environment", f"storage-{backend}"
+                        ),
                         environment,
                     )
                     self.assertEqual(

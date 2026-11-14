@@ -22,7 +22,7 @@ spec:
 apiVersion: apiextensions.crossplane.io/v1beta1
 kind: EnvironmentConfig
 metadata:
-  name: storage
+  name: storage-minio
 data:
   storage:
     endpoint: https://s3.acme

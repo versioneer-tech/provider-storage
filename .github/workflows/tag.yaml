@@ -71,7 +71,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        backend: [minio, aws, otc, ovh, cloudferro]
+        package: [api, minio, aws, otc, ovh, cloudferro]
     permissions:
       contents: read
       packages: write
@@ -102,18 +102,24 @@ jobs:
 
       - name: Build and publish Configuration package
         env:
-          BACKEND: ${{ matrix.backend }}
+          PACKAGE: ${{ matrix.package }}
         run: |
           set -euo pipefail
           python3 -m pip install -r scripts/requirements.txt
-          python3 scripts/build-composition.py --check "${BACKEND}"
           package_root="$(mktemp -d)"
-          cp xrd.yaml "${BACKEND}/composition.yaml" "${BACKEND}/crossplane.yaml" "${package_root}/"
+          cp "${PACKAGE}/crossplane.yaml" "${package_root}/"
+          if [[ "${PACKAGE}" == api ]]; then
+            cp xrd.yaml "${package_root}/"
+          else
+            python3 scripts/build-composition.py --check "${PACKAGE}"
+            cp "${PACKAGE}/composition.yaml" "${package_root}/"
+            sed -i "s/<!version!>/${GITHUB_REF_NAME}/g" "${package_root}/crossplane.yaml"
+          fi
           crossplane xpkg build \
             --package-root="${package_root}" \
             --package-file="${package_root}/storage.xpkg"
           crossplane xpkg push --package-files="${package_root}/storage.xpkg" \
-            "ghcr.io/${GITHUB_REPOSITORY,,}/${BACKEND}:${GITHUB_REF_NAME}"
+            "ghcr.io/${GITHUB_REPOSITORY,,}/${PACKAGE}:${GITHUB_REF_NAME}"
 
   build_docs:
     runs-on: ubuntu-24.04

@@ -4,7 +4,7 @@
 apiVersion: apiextensions.crossplane.io/v1beta1
 kind: EnvironmentConfig
 metadata:
-  name: storage
+  name: storage-minio
 data:
   storage:
     endpoint: http://default-hl.minio:9000

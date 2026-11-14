@@ -21,19 +21,20 @@ spec:
     input:
       apiVersion: python.fn.crossplane.io/v1beta1
       kind: Script
+      environmentConfigName: storage-aws
       script: |
         from datetime import datetime, timedelta
 
         from google.protobuf import json_format
 
-        def storage_environment_name(metadata):
+        def storage_environment_name(metadata, default):
             annotations = metadata.get("annotations") or {}
             labels = metadata.get("labels") or {}
             return (
                 annotations.get("storages.pkg.internal/environment")
                 or labels.get("storages.pkg.internal/environment")
-                or "storage"
-            ).strip() or "storage"
+                or default
+            ).strip() or default
 
         def rollover_suffixes(spec, now: datetime) -> list[str]:
             cfg = spec.get("credentialsRollover") or {}
@@ -104,7 +105,9 @@ spec:
             rsp.context.MergeFrom(
                 resource.dict_to_struct({time_key: timestamp, generations_key: suffixes})
             )
-            env_name = storage_environment_name(meta)
+            env_name = storage_environment_name(
+                meta, to_dict(req.input)["environmentConfigName"]
+            )
 
             response.require_resources(
                 rsp,
