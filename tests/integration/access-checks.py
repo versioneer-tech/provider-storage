@@ -120,7 +120,6 @@ class S3DenialTests(unittest.TestCase):
             "TEST_PHASE": "deny",
             "AWS_ACCESS_KEY_ID": "test-access",
             "AWS_SECRET_ACCESS_KEY": "test-secret",
-            "AWS_ENDPOINT_URL": "https://s3.test.invalid",
             "AWS_REGION": "test-region",
         }
         for method, operation in operations.items():
