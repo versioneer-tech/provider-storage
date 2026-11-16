@@ -5,6 +5,8 @@ apiVersion: apiextensions.crossplane.io/v1beta1
 kind: EnvironmentConfig
 metadata:
   name: storage-otc
+  labels:
+    storages.pkg.internal/name: storage-otc
 data:
   storage:
     endpoint: __OTC_ENDPOINT__

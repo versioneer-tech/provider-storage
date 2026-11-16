@@ -6,7 +6,7 @@ Accepted
 
 ## Date
 
-2026-09-14; revised 2026-11-14
+2026-09-14; revised 2026-11-16
 
 ## Context
 
@@ -46,10 +46,8 @@ must match the Secret's authentication scope.
 A Storage selects the generic Composition and its project EnvironmentConfig:
 
 ```yaml
-metadata:
-  annotations:
-    storages.pkg.internal/environment: storage-cloudferro-0123456789abcdef0123456789abcdef
 spec:
+  environmentName: storage-cloudferro-0123456789abcdef0123456789abcdef
   crossplane:
     compositionSelector:
       matchLabels:

@@ -27,22 +27,63 @@ You need:
 
 - a Kubernetes cluster;
 - `kubectl` access to the cluster;
-- Crossplane v2 installed in the cluster.
+- Crossplane 2.4.3 or later in the v2 series installed in the cluster.
 
-For example:
+From this checkout, install the pinned baseline with the supplied Helm values:
 
 ```bash
 helm repo add crossplane-stable https://charts.crossplane.io/stable
 helm repo update
 helm install crossplane crossplane-stable/crossplane \
+  --version 2.4.3 \
   --namespace crossplane \
   --create-namespace \
-  --set provider.defaultActivations={}
+  --values deploy/crossplane-values.yaml
 ```
 
 Each backend's `ManagedResourceActivationPolicy` lists the managed resource
 types it uses. Selective activation requires a provider with `safe-start`
 support; older providers activate all their types.
+
+### Dependency baseline
+
+The shared versions and runtime settings follow the
+[EOEPCA deployment manifests](https://github.com/EOEPCA/eoepca-plus/tree/deploy-develop/argocd/infra/crossplane/parts).
+The backend manifests pin these versions:
+
+| Component | Version | Used by |
+| --- | --- | --- |
+| Crossplane | 2.4.3 | All backends |
+| provider-kubernetes | 1.4.1 | All backends |
+| function-python | 0.6.0 | All backends |
+| function-auto-ready | 0.7.3 | All backends |
+| function-environment-configs | 0.9.2 | All backends |
+| provider-minio | 0.4.5 | MinIO |
+| provider-aws-s3 | 2.7.2 | AWS, CloudFerro |
+| provider-aws-iam, provider-family-aws | 2.7.2 | AWS |
+| provider-opentelekomcloud | 1.0.0 | OTC |
+| provider-ovh | 2.23.1 | OVHcloud |
+| provider-openstack | 0.10.0 | CloudFerro |
+
+All Configuration packages require Crossplane 2.4.3 or later in the v2 series.
+For an upgrade, update Crossplane first, then the shared providers, runtimes,
+and functions. Check their health before updating the backend Configurations.
+
+AWS IAM, the AWS provider family, OTC, and OVHcloud retain their existing
+pins because the EOEPCA Crossplane setup does not declare them. EOEPCA also
+installs provider-keycloak 2.24.1, which Provider Storage does not use.
+
+The Helm values disable default resource activation and configure Crossplane
+and its RBAC manager to run as non-root users with read-only root filesystems.
+The MinIO, Kubernetes, and function runtimes use the default seccomp profile,
+drop Linux capabilities, and disable privilege escalation.
+The Kubernetes provider enables watches, polls every five minutes, limits
+reconciliation to 10 per second, sanitizes Secret data, and has a 1 GiB memory
+limit. Keep each Provider's and Function's `runtimeConfigRef` when applying
+these settings. Manage shared packages and runtime configs under one owner.
+
+The build and test workflows use Crossplane CLI 2.4.1. The CLI has a separate
+release cycle; renders and schema checks target Crossplane 2.4.3.
 
 ## 1. Install backend dependencies
 
@@ -94,13 +135,60 @@ The dependency manifests use the same order for every backend:
 Edit all placeholders before you apply a manifest. Apply the numbered files
 in order, then apply `functions.yaml` and `rbac.yaml`.
 
-Keep the ProviderConfig's cloud account or project consistent with the
-EnvironmentConfig. The default environment name matches the backend package
-name, such as `storage-aws` or `storage-minio`. An environment annotation is
-needed only to override that name. CloudFerro's supplied project manifests
-need this override to select a project. Manage shared functions and
-provider-kubernetes once. See [Select a backend](usage_concepts.md#select-a-backend)
-for environment and provider selection.
+Manage shared functions and provider-kubernetes once. Keep the ProviderConfig's
+cloud account or project consistent with the EnvironmentConfig.
+
+### Environment settings
+
+`function-environment-configs` merges config data in this order:
+
+1. `default`.
+2. `spec.crossplane.compositionRef.name`.
+3. `spec.environmentName`, when set.
+4. The Storage's `metadata.name`.
+
+Later values override earlier values. Nested maps retain fields that later
+configs do not set. Missing configs are skipped. Local renders without
+`compositionRef` use the backend Composition name.
+
+The function selects configs from XR fields by matching labels. Set
+`storages.pkg.internal/name` to the config's own name and keep that label
+value unique. The EnvironmentConfig named `default` is read directly by
+name and does not need this label.
+For example:
+
+```yaml
+apiVersion: apiextensions.crossplane.io/v1beta1
+kind: EnvironmentConfig
+metadata:
+  name: team-storage
+  labels:
+    storages.pkg.internal/name: team-storage
+data:
+  storage:
+    providerConfigName: team-minio
+```
+
+Select this config on a Storage with:
+
+```yaml
+spec:
+  environmentName: team-storage
+```
+
+Apply the updated Storage XRD before setting `spec.environmentName`. Use a
+lowercase DNS name with 1 through 63 characters. Config names used in labels
+must also be valid label values. EnvironmentConfigs are cluster-scoped, so
+Storages with the same name use the same config for the final layer across
+namespaces.
+
+`storage.providerConfigName` selects an existing backend ProviderConfig.
+When unset or blank, AWS, MinIO, OTC, and OVHcloud use `provider-aws`,
+`provider-minio`, `provider-otc`, and `provider-ovh`. CloudFerro requires an
+explicit provider name. Its project manifests use
+`spec.environmentName: storage-cloudferro-<project-id>`.
+
+### Resource scope and credentials
 
 Consumer Secrets are native composed resources. A namespaced Storage can
 compose these Secrets even when its cloud provider has only cluster-scoped

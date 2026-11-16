@@ -19,7 +19,7 @@ install_crossplane() {
     --kube-context "${KUBECTL_CONTEXT}" \
     --namespace "${CROSSPLANE_NAMESPACE}" \
     --version "${CROSSPLANE_VERSION}" \
-    --set 'provider.defaultActivations={}' \
+    --values "${REPO_ROOT}/deploy/crossplane-values.yaml" \
     --wait \
     --timeout 10m
 }
@@ -42,6 +42,8 @@ install_dependencies() {
   kube wait function.pkg.crossplane.io/crossplane-contrib-function-python \
     --for=condition=Healthy --timeout=10m
   kube wait function.pkg.crossplane.io/crossplane-contrib-function-auto-ready \
+    --for=condition=Healthy --timeout=10m
+  kube wait function.pkg.crossplane.io/function-environment-configs \
     --for=condition=Healthy --timeout=10m
 }
 

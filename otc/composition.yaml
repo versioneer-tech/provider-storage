@@ -15,26 +15,63 @@ spec:
     kind: Storage
   mode: Pipeline
   pipeline:
-  - step: load-storage-environment
+  - step: environmentConfigs
+    functionRef:
+      name: function-environment-configs
+    input:
+      apiVersion: environmentconfigs.fn.crossplane.io/v1beta1
+      kind: Input
+      spec:
+        policy:
+          resolution: Optional
+        environmentConfigs:
+        - type: Reference
+          ref:
+            name: default
+        - type: Selector
+          selector:
+            mode: Multiple
+            minMatch: 0
+            maxMatch: 1
+            matchLabels:
+            - type: Value
+              key: storages.pkg.internal/name
+              value: storage-otc
+            - type: FromCompositeFieldPath
+              key: storages.pkg.internal/name
+              valueFromFieldPath: spec.crossplane.compositionRef.name
+              fromFieldPathPolicy: Optional
+        - type: Selector
+          selector:
+            mode: Multiple
+            minMatch: 0
+            maxMatch: 1
+            matchLabels:
+            - type: FromCompositeFieldPath
+              key: storages.pkg.internal/name
+              valueFromFieldPath: spec.environmentName
+              fromFieldPathPolicy: Optional
+        - type: Selector
+          selector:
+            mode: Multiple
+            minMatch: 0
+            maxMatch: 1
+            matchLabels:
+            - type: FromCompositeFieldPath
+              key: storages.pkg.internal/name
+              valueFromFieldPath: metadata.name
+              fromFieldPathPolicy: Optional
+      ttl: 60s
+  - step: set-credential-time
     functionRef:
       name: crossplane-contrib-function-python
     input:
       apiVersion: python.fn.crossplane.io/v1beta1
       kind: Script
-      environmentConfigName: storage-otc
       script: |
         from datetime import datetime, timedelta
 
         from google.protobuf import json_format
-
-        def storage_environment_name(metadata, default):
-            annotations = metadata.get("annotations") or {}
-            labels = metadata.get("labels") or {}
-            return (
-                annotations.get("storages.pkg.internal/environment")
-                or labels.get("storages.pkg.internal/environment")
-                or default
-            ).strip() or default
 
         def rollover_suffixes(spec, now: datetime) -> list[str]:
             cfg = spec.get("credentialsRollover") or {}
@@ -84,17 +121,14 @@ spec:
 
         from datetime import datetime, timezone
 
-        from crossplane.function import request, resource, response
+        from crossplane.function import resource
         from crossplane.function.proto.v1 import run_function_pb2 as fnv1
 
-
-        ENVIRONMENT_KEY = "apiextensions.crossplane.io/environment"
 
 
         def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
             rsp.meta.ttl.FromSeconds(60)
             xr = to_dict(req.observed.composite.resource)
-            meta = xr.get("metadata", {}) or {}
             context = to_dict(req.context)
             time_key = "storages.pkg.internal/credential-time"
             generations_key = "storages.pkg.internal/credential-generations"
@@ -105,21 +139,6 @@ spec:
             rsp.context.MergeFrom(
                 resource.dict_to_struct({time_key: timestamp, generations_key: suffixes})
             )
-            env_name = storage_environment_name(
-                meta, to_dict(req.input)["environmentConfigName"]
-            )
-
-            response.require_resources(
-                rsp,
-                name="storage-environment",
-                api_version="apiextensions.crossplane.io/v1beta1",
-                kind="EnvironmentConfig",
-                match_name=env_name,
-            )
-
-            environment = request.get_required_resource(req, "storage-environment") or {}
-            environment_data = environment.get("data") or {}
-            rsp.context.MergeFrom(resource.dict_to_struct({ENVIRONMENT_KEY: environment_data}))
   - step: create-users
     functionRef:
       name: crossplane-contrib-function-python

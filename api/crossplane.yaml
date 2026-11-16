@@ -13,4 +13,4 @@ metadata:
     meta.crossplane.io/readme: "github.com/versioneer-tech/provider-storage/blob/main/README.md"
 spec:
   crossplane:
-    version: ">=v2.0.0-0 <v3.0.0-0"
+    version: ">=v2.4.3 <v3.0.0-0"

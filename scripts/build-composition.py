@@ -132,6 +132,8 @@ def build(backend, root=ROOT, response_ttl=None):
             data.update(
                 apiVersion="autoready.fn.crossplane.io/v1beta1", kind="Input", ttl=ttl
             )
+        elif function == "function-environment-configs":
+            data["ttl"] = ttl
         elif function == "crossplane-contrib-function-python":
             path = (source / data.pop("scriptFile")).resolve()
             path.relative_to(source.resolve())

@@ -28,9 +28,8 @@ It resolves each grantee through a discoverable peer Storage and observes
 each of that peer's retained credential users. Policies include the observed
 retained owner and grantee identities and omit expired generations.
 
-CloudFerro selects a project EnvironmentConfig with the
-`storages.pkg.internal/environment` annotation or label. Its `storage.projectId`
-and `storage.providerConfigName` define the project and an existing OpenStack
+CloudFerro's `storage.projectId` and `storage.providerConfigName` settings
+define the project and an existing OpenStack
 ProviderConfig. Operators create the ProviderConfig and its project Secret
 before Storage reconciliation. Every user with S3 access in that project can
 access its containers.

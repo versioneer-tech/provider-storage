@@ -68,6 +68,9 @@ spec:
         kind: EnvironmentConfig
         name: "storage-cloudferro-{{ projectId }}"
         data:
+          metadata:
+            labels:
+              storages.pkg.internal/name: "storage-cloudferro-{{ projectId }}"
           data:
             storage:
               projectId: "{{ projectId }}"

@@ -13,14 +13,59 @@ spec:
     kind: Storage
   mode: Pipeline
   pipeline:
-  - step: load-storage-environment
+  - step: environmentConfigs
+    functionRef:
+      name: function-environment-configs
+    input:
+      apiVersion: environmentconfigs.fn.crossplane.io/v1beta1
+      kind: Input
+      spec:
+        policy:
+          resolution: Optional
+        environmentConfigs:
+        - type: Reference
+          ref:
+            name: default
+        - type: Selector
+          selector:
+            mode: Multiple
+            minMatch: 0
+            maxMatch: 1
+            matchLabels:
+            - type: Value
+              key: storages.pkg.internal/name
+              value: storage-otc
+            - type: FromCompositeFieldPath
+              key: storages.pkg.internal/name
+              valueFromFieldPath: spec.crossplane.compositionRef.name
+              fromFieldPathPolicy: Optional
+        - type: Selector
+          selector:
+            mode: Multiple
+            minMatch: 0
+            maxMatch: 1
+            matchLabels:
+            - type: FromCompositeFieldPath
+              key: storages.pkg.internal/name
+              valueFromFieldPath: spec.environmentName
+              fromFieldPathPolicy: Optional
+        - type: Selector
+          selector:
+            mode: Multiple
+            minMatch: 0
+            maxMatch: 1
+            matchLabels:
+            - type: FromCompositeFieldPath
+              key: storages.pkg.internal/name
+              valueFromFieldPath: metadata.name
+              fromFieldPathPolicy: Optional
+  - step: set-credential-time
     functionRef:
       name: crossplane-contrib-function-python
     input:
       apiVersion: python.fn.crossplane.io/v1beta1
       kind: Script
-      scriptFile: shared/load-storage-environment.py
-      environmentConfigName: storage-otc
+      scriptFile: shared/set-credential-time.py
   - step: create-users
     functionRef:
       name: crossplane-contrib-function-python

@@ -8,6 +8,7 @@ metadata:
   labels:
     storages.pkg.internal/discoverable: "true"
 spec:
+  # Use environmentName for shared settings before the Storage override.
   principal: s-joe
   buckets:
     - bucketName: s-joe

@@ -38,6 +38,9 @@ publishing.
 ## Unit suite
 
 Install Docker, the Crossplane CLI, dyff, yq, jq, Python, and pre-commit.
+CI uses Crossplane CLI 2.4.1. Renders and schema checks target Crossplane
+2.4.3 and use the provider and function packages in each backend's dependency
+manifests. See the [dependency baseline](../docs/how-to-guides/installation.md#dependency-baseline).
 Start Docker, then build and test:
 
 ```bash
@@ -53,14 +56,14 @@ completion.
 
 | Check | Purpose |
 | --- | --- |
-| [Build and function runtime](function-runtime.py) | Generated files match source; response cache settings reach every pipeline. |
+| [Build and function runtime](function-runtime.py) | Generated files match source; response cache settings reach every pipeline; environment layers merge in order and allow missing configs. |
 | [Credential and lifecycle behavior](composition-behavior.py) | Secrets stay available during rollover; policies retain the correct identities; cleanup Jobs have finite limits. |
 | [Render and schema checks](unit.bash) | Bucket, access, credential, and lifecycle resources match expected output and provider schemas. |
 | [CloudFerro](cloudferro.py) | External project ProviderConfig selection, cross-project grants, AWS profile wiring, and deletion dependencies. |
 | [IAM bootstrap](bootstrap-iam.py) | Configuration, provider Secret formats, permission scope, credential reuse, and rotation recovery. |
 | [Access checks](integration/access-checks.py) | Owner and requester inputs match the access matrix; only the requested operation's AccessDenied satisfies a negative probe. |
 
-Function checks share one container with the pinned SDK. Render and schema
+Function checks use the pinned SDK and function containers. Render and schema
 checks do not prove cloud enforcement, credential revocation, or tenant
 isolation. Use the integration suite for S3 access checks.
 Bootstrap checks copy the script to a temporary directory and use test

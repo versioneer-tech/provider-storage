@@ -10,12 +10,14 @@ apiVersion: pkg.internal/v1beta1
 kind: Storage
 ```
 
-### Identity
+### Settings
 
 - `spec.principal`: required logical user or service principal. Provider
   Storage also uses it as the consumer Secret name.
 - `spec.providerIdentity`: optional short provider-native user name. It does
   not change the principal or consumer Secret name.
+- `spec.environmentName`: optional EnvironmentConfig name. See
+  [installation](../how-to-guides/installation.md#environment-settings) for setup.
 
 ### Buckets
 

@@ -7,7 +7,6 @@ metadata:
   name: storage-minio-it
   namespace: provider-storage-it
   labels:
-    storages.pkg.internal/backend: minio
     storages.pkg.internal/discoverable: "true"
 spec:
   principal: provider-storage-minio-it
@@ -45,7 +44,6 @@ metadata:
   name: storage-minio-it2
   namespace: provider-storage-it
   labels:
-    storages.pkg.internal/backend: minio
     storages.pkg.internal/discoverable: "true"
 spec:
   principal: provider-storage-minio-it2

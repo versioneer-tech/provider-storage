@@ -6,12 +6,10 @@ kind: Storage
 metadata:
   name: storage-cloudferro-it
   namespace: provider-storage-it
-  annotations:
-    storages.pkg.internal/environment: storage-cloudferro-__CLOUDFERRO_PROJECT_ID__
   labels:
-    storages.pkg.internal/backend: cloudferro
     storages.pkg.internal/discoverable: "true"
 spec:
+  environmentName: storage-cloudferro-__CLOUDFERRO_PROJECT_ID__
   principal: provider-storage-cloudferro-it
   providerIdentity: it
   buckets:
@@ -42,12 +40,10 @@ kind: Storage
 metadata:
   name: storage-cloudferro-it2
   namespace: provider-storage-it
-  annotations:
-    storages.pkg.internal/environment: storage-cloudferro-__CLOUDFERRO_IT2_PROJECT_ID__
   labels:
-    storages.pkg.internal/backend: cloudferro
     storages.pkg.internal/discoverable: "true"
 spec:
+  environmentName: storage-cloudferro-__CLOUDFERRO_IT2_PROJECT_ID__
   principal: provider-storage-cloudferro-it2
   providerIdentity: it2
   buckets:

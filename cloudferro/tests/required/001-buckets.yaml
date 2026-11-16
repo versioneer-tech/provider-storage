@@ -5,6 +5,8 @@ apiVersion: apiextensions.crossplane.io/v1beta1
 kind: EnvironmentConfig
 metadata:
   name: storage-cloudferro-0123456789abcdef0123456789abcdef
+  labels:
+    storages.pkg.internal/name: storage-cloudferro-0123456789abcdef0123456789abcdef
 data:
   storage:
     projectId: 0123456789abcdef0123456789abcdef
@@ -20,6 +22,8 @@ apiVersion: apiextensions.crossplane.io/v1beta1
 kind: EnvironmentConfig
 metadata:
   name: storage-cloudferro-fedcba9876543210fedcba9876543210
+  labels:
+    storages.pkg.internal/name: storage-cloudferro-fedcba9876543210fedcba9876543210
 data:
   storage:
     projectId: fedcba9876543210fedcba9876543210
@@ -36,11 +40,10 @@ kind: Storage
 metadata:
   name: s-jeff
   namespace: default
-  annotations:
-    storages.pkg.internal/environment: storage-cloudferro-fedcba9876543210fedcba9876543210
   labels:
     storages.pkg.internal/discoverable: "true"
 spec:
+  environmentName: storage-cloudferro-fedcba9876543210fedcba9876543210
   crossplane:
     compositionSelector:
       matchLabels:

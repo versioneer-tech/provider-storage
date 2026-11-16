@@ -30,9 +30,11 @@ from crossplane.function.proto.v1 import run_function_pb2_grpc as fnv1_grpc
 
 data = json.load(sys.stdin)
 pipelines = {}
-with grpc.insecure_channel('localhost:9443') as channel:
+with grpc.insecure_channel('localhost:9443') as channel, grpc.insecure_channel('localhost:9444') as environment_channel:
     grpc.channel_ready_future(channel).result(timeout=30)
+    grpc.channel_ready_future(environment_channel).result(timeout=30)
     stub = fnv1_grpc.FunctionRunnerServiceStub(channel)
+    environment_stub = fnv1_grpc.FunctionRunnerServiceStub(environment_channel)
     for case in data['cases']:
         pipelines.setdefault(case['backend'], case['pipeline'])
         for xr in ({}, case['xr']):
@@ -53,12 +55,13 @@ with grpc.insecure_channel('localhost:9443') as channel:
                     rsp = response.to(req)
                     namespace['compose'](req, rsp)
                 else:
-                    rsp = stub.RunFunction(req, timeout=10)
+                    runner = environment_stub if step['step'] == 'environmentConfigs' else stub
+                    rsp = runner.RunFunction(req, timeout=10)
                 assert (rsp.meta.ttl.seconds, rsp.meta.ttl.nanos) == (case['seconds'], 0), (
                     case['backend'], step['step'], rsp.meta.ttl)
-scope = {}
-exec(compile(data['checks'], 'tests/composition-behavior.py', 'exec'), scope)
-raise SystemExit(scope['run_tests'](pipelines))
+    scope = {}
+    exec(compile(data['checks'], 'tests/composition-behavior.py', 'exec'), scope)
+    raise SystemExit(scope['run_tests'](pipelines, environment_stub))
 """
 
 
@@ -143,7 +146,26 @@ class FunctionRuntimeTests(unittest.TestCase):
             capture_output=True,
             text=True,
         )
+        environment_name = name + "-environment"
         try:
+            subprocess.run(
+                [
+                    "docker",
+                    "run",
+                    "--detach",
+                    "--rm",
+                    "--network",
+                    f"container:{name}",
+                    "--name",
+                    environment_name,
+                    images["function-environment-configs"],
+                    "--insecure",
+                    "--address=:9444",
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
             result = subprocess.run(
                 [
                     "docker",
@@ -171,7 +193,9 @@ class FunctionRuntimeTests(unittest.TestCase):
             print(result.stderr, end="")
         finally:
             subprocess.run(
-                ["docker", "rm", "--force", name], check=True, capture_output=True
+                ["docker", "rm", "--force", environment_name, name],
+                check=True,
+                capture_output=True,
             )
 
 

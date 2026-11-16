@@ -29,9 +29,8 @@ patches:
       name: s-jane
     patch: |
       - op: add
-        path: /metadata/annotations
-        value:
-          storages.pkg.internal/environment: storage-cloudferro-0123456789abcdef0123456789abcdef
+        path: /spec/environmentName
+        value: storage-cloudferro-0123456789abcdef0123456789abcdef
   - target:
       group: pkg.internal
       version: v1beta1
@@ -39,9 +38,8 @@ patches:
       name: s-joe
     patch: |
       - op: add
-        path: /metadata/annotations
-        value:
-          storages.pkg.internal/environment: storage-cloudferro-0123456789abcdef0123456789abcdef
+        path: /spec/environmentName
+        value: storage-cloudferro-0123456789abcdef0123456789abcdef
       - op: remove
         path: /spec/bucketAccessGrants
   - target:
@@ -51,9 +49,8 @@ patches:
       name: s-jeff
     patch: |
       - op: add
-        path: /metadata/annotations
-        value:
-          storages.pkg.internal/environment: storage-cloudferro-fedcba9876543210fedcba9876543210
+        path: /spec/environmentName
+        value: storage-cloudferro-fedcba9876543210fedcba9876543210
       - op: remove
         path: /spec/bucketAccessGrants
       - op: remove
@@ -65,8 +62,7 @@ patches:
       name: s-john
     patch: |
       - op: add
-        path: /metadata/annotations
-        value:
-          storages.pkg.internal/environment: storage-cloudferro-fedcba9876543210fedcba9876543210
+        path: /spec/environmentName
+        value: storage-cloudferro-fedcba9876543210fedcba9876543210
       - op: remove
         path: /spec/bucketAccessGrants

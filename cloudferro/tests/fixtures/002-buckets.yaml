@@ -7,11 +7,10 @@ apiVersion: pkg.internal/v1beta1
 kind: Storage
 metadata:
   name: s-jeff
-  annotations:
-    storages.pkg.internal/environment: storage-cloudferro-fedcba9876543210fedcba9876543210
   labels:
     storages.pkg.internal/discoverable: "true"
 spec:
+  environmentName: storage-cloudferro-fedcba9876543210fedcba9876543210
   crossplane:
     compositionSelector:
       matchLabels:

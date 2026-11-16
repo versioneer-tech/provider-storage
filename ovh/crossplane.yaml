@@ -16,4 +16,4 @@ spec:
     - configuration: ghcr.io/versioneer-tech/provider-storage/api
       version: "<!version!>"
   crossplane:
-    version: ">=v2.0.0-0 <v3.0.0-0"
+    version: ">=v2.4.3 <v3.0.0-0"

@@ -23,6 +23,8 @@ apiVersion: apiextensions.crossplane.io/v1beta1
 kind: EnvironmentConfig
 metadata:
   name: storage-aws
+  labels:
+    storages.pkg.internal/name: storage-aws
 data:
   storage:
     provider: AWS

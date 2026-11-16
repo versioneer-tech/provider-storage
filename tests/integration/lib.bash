@@ -12,7 +12,7 @@ readonly KIND_CLUSTER_NAME=provider-storage-it
 readonly KUBECTL_CONTEXT=kind-provider-storage-it
 readonly INTEGRATION_NAMESPACE=provider-storage-it
 readonly CROSSPLANE_NAMESPACE=crossplane
-: "${CROSSPLANE_VERSION:=2.4.1}"
+: "${CROSSPLANE_VERSION:=2.4.3}"
 : "${RCLONE_IMAGE:=rclone/rclone:1.75.1}"
 : "${S3_PROBE_IMAGE:=public.ecr.aws/lambda/python:3.13@sha256:4cac7d0b1755f3a217b2a156c9ccb752ef31fd49ae56539a11bba4e398f1accb}"
 

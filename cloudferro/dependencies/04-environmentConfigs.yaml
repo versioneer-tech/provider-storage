@@ -5,6 +5,8 @@ apiVersion: apiextensions.crossplane.io/v1beta1
 kind: EnvironmentConfig
 metadata:
   name: storage-cloudferro-__CLOUDFERRO_PROJECT_ID__
+  labels:
+    storages.pkg.internal/name: storage-cloudferro-__CLOUDFERRO_PROJECT_ID__
 data:
   storage:
     projectId: __CLOUDFERRO_PROJECT_ID__

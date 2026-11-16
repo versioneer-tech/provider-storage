@@ -6,10 +6,7 @@ kind: Storage
 metadata:
   name: storage-ovh-it
   namespace: provider-storage-it
-  annotations:
-    storages.pkg.internal/environment: storage-ovh
   labels:
-    storages.pkg.internal/backend: ovh
     storages.pkg.internal/discoverable: "true"
 spec:
   principal: provider-storage-ovh-it
@@ -42,10 +39,7 @@ kind: Storage
 metadata:
   name: storage-ovh-it2
   namespace: provider-storage-it
-  annotations:
-    storages.pkg.internal/environment: storage-ovh
   labels:
-    storages.pkg.internal/backend: ovh
     storages.pkg.internal/discoverable: "true"
 spec:
   principal: provider-storage-ovh-it2

@@ -12,7 +12,7 @@ else
 fi
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "${TMP_DIR}"' EXIT
-: "${CROSSPLANE_VERSION:=v2.4.1}"
+: "${CROSSPLANE_VERSION:=v2.4.3}"
 if [[ -z "${PROVIDER_STORAGE_CROSSPLANE_CACHE_DIR:-}" ]]; then
   [[ "${HOME:-}" == /* ]] || {
     printf 'HOME must be an absolute path for the default Crossplane cache.\n' >&2

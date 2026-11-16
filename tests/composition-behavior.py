@@ -4,6 +4,7 @@
 """Check credential rollover, access policies, and lifecycle bounds."""
 
 import base64
+import itertools
 import json
 import unittest
 from datetime import datetime, timezone
@@ -14,7 +15,7 @@ def encoded(value):
     return base64.b64encode(value.encode()).decode()
 
 
-def run_tests(pipelines):
+def run_tests(pipelines, environment_stub):
     from crossplane.function import response
     from crossplane.function.proto.v1 import run_function_pb2 as fnv1
     from google.protobuf.json_format import MessageToDict
@@ -94,9 +95,11 @@ def run_tests(pipelines):
                 f"credential-secret-{principal}"
             ].items.add().resource.update(
                 {
-                    "data": {"attribute.secret": encoded("test-new-secret")}
-                    if phase == "ready"
-                    else {}
+                    "data": (
+                        {"attribute.secret": encoded("test-new-secret")}
+                        if phase == "ready"
+                        else {}
+                    )
                 }
             )
             return req
@@ -144,45 +147,128 @@ def run_tests(pipelines):
         return MessageToDict(rsp.desired.resources[key].resource)
 
     class CompositionTests(unittest.TestCase):
-        def test_environment_defaults_to_backend_package_and_accepts_overrides(self):
-            key = "storages.pkg.internal/environment"
+        def test_environment_layers_merge_in_order_and_allow_missing_configs(self):
             for backend in pipelines:
-                default = f"storage-{backend}"
-                for metadata, expected in (
-                    ({}, default),
-                    ({"annotations": {key: "  "}}, default),
-                    (
-                        {"labels": {key: "test-label-environment"}},
-                        "test-label-environment",
-                    ),
-                    (
-                        {
-                            "annotations": {key: "test-annotation-environment"},
-                            "labels": {key: "test-label-environment"},
-                        },
-                        "test-annotation-environment",
-                    ),
+                for explicit, environment_name in itertools.product(
+                    (False, True), (None, "test-environment")
                 ):
-                    with self.subTest(backend=backend, metadata=metadata):
+                    composition = (
+                        "test-composition" if explicit else f"storage-{backend}"
+                    )
+                    layers = (
+                        (
+                            "default",
+                            {
+                                "region": "default-region",
+                                "endpoint": "default-endpoint",
+                            },
+                        ),
+                        (
+                            composition,
+                            {
+                                "region": "composition-region",
+                                "providerConfigName": "test-provider",
+                            },
+                        ),
+                        (
+                            "test-environment",
+                            {
+                                "region": "environment-region",
+                                "endpoint": "environment-endpoint",
+                            },
+                        ),
+                        ("test-storage", {"region": "xr-region"}),
+                    )
+                    for present in itertools.product((False, True), repeat=4):
                         req = request(backend)
-                        req.observed.composite.resource["metadata"].update(metadata)
-                        environment = {"storage": {"region": "test-region"}}
-                        req.required_resources[
-                            "storage-environment"
-                        ].items.add().resource.update({"data": environment})
-                        rsp = compose(backend, "load-storage-environment", req)
-                        self.assertEqual(
-                            rsp.requirements.resources[
-                                "storage-environment"
-                            ].match_name,
-                            expected,
+                        req.context.Clear()
+                        if environment_name is not None:
+                            req.observed.composite.resource["spec"].update(
+                                {"environmentName": environment_name}
+                            )
+                        if explicit:
+                            req.observed.composite.resource["spec"].update(
+                                {
+                                    "crossplane": {
+                                        "compositionRef": {"name": composition}
+                                    }
+                                }
+                            )
+                        req.input.update(
+                            next(
+                                step["input"]
+                                for step in pipelines[backend]
+                                if step["step"] == "environmentConfigs"
+                            )
                         )
-                        self.assertEqual(
-                            MessageToDict(rsp.context)[
-                                "apiextensions.crossplane.io/environment"
-                            ],
-                            environment,
+                        configs, expected = [], {}
+                        for enabled, (name, storage) in zip(present, layers):
+                            if enabled:
+                                configs.append(
+                                    {
+                                        "apiVersion": "apiextensions.crossplane.io/v1beta1",
+                                        "kind": "EnvironmentConfig",
+                                        "metadata": {
+                                            "name": name,
+                                            "labels": {
+                                                "storages.pkg.internal/name": name
+                                            },
+                                        },
+                                        "data": {"storage": storage},
+                                    }
+                                )
+                                if (
+                                    name != "test-environment"
+                                    or environment_name is not None
+                                ):
+                                    expected.update(storage)
+                        configs.append(
+                            {
+                                "metadata": {
+                                    "name": "test-unrelated",
+                                    "labels": {
+                                        "storages.pkg.internal/name": "test-unrelated"
+                                    },
+                                },
+                                "data": {"storage": {"region": "wrong-region"}},
+                            }
                         )
+                        rsp = environment_stub.RunFunction(req, timeout=10)
+                        for key, selector in rsp.requirements.resources.items():
+                            selected = req.required_resources[key]
+                            selected.SetInParent()
+                            for config in configs:
+                                metadata = config["metadata"]
+                                matches = (
+                                    metadata["name"] == selector.match_name
+                                    if selector.WhichOneof("match") == "match_name"
+                                    else all(
+                                        metadata.get("labels", {}).get(k) == v
+                                        for k, v in selector.match_labels.labels.items()
+                                    )
+                                )
+                                if matches:
+                                    selected.items.add().resource.update(config)
+                        rsp = environment_stub.RunFunction(req, timeout=10)
+                        with self.subTest(
+                            backend=backend,
+                            explicit=explicit,
+                            environment_name=environment_name,
+                            present=present,
+                        ):
+                            self.assertFalse(
+                                any(
+                                    result.severity == fnv1.SEVERITY_FATAL
+                                    for result in rsp.results
+                                ),
+                                rsp.results,
+                            )
+                            self.assertEqual(
+                                MessageToDict(rsp.context)[
+                                    "apiextensions.crossplane.io/environment"
+                                ].get("storage", {}),
+                                expected,
+                            )
 
         def test_backend_resources_use_selected_provider_config_or_existing_default(
             self,
@@ -255,9 +341,11 @@ def run_tests(pipelines):
                             if ref is not None:
                                 self.assertEqual(
                                     ref["name"],
-                                    selected.strip()
-                                    if selected and selected.strip()
-                                    else f"provider-{backend}",
+                                    (
+                                        selected.strip()
+                                        if selected and selected.strip()
+                                        else f"provider-{backend}"
+                                    ),
                                 )
                                 checked.add(item["kind"])
                         self.assertTrue(kinds[backend].issubset(checked), checked)
@@ -312,40 +400,37 @@ def run_tests(pipelines):
                             "permission": "ReadOnly",
                         }
                         for grantee in (
-                            "test-reader-one", "test-reader-two", "test-reader-default"
+                            "test-reader-one",
+                            "test-reader-two",
+                            "test-reader-default",
                         )
                     ],
                 }
             )
-            for grantee, selector in (
-                ("test-reader-default", {}),
-                (
-                    "test-reader-one",
-                    {"labels": {"storages.pkg.internal/environment": "test-env-one"}},
-                ),
-                (
-                    "test-reader-two",
-                    {
-                        "annotations": {
-                            "storages.pkg.internal/environment": "test-env-two"
-                        },
-                        "labels": {
-                            "storages.pkg.internal/environment": "test-unused-env"
-                        },
-                    },
-                ),
+            for grantee in (
+                "test-reader-default",
+                "test-reader-one",
+                "test-reader-two",
             ):
                 req.required_resources[
                     "cloudferro-grantee-storages"
                 ].items.add().resource.update(
                     {
-                        "metadata": {"name": grantee, **selector},
+                        "metadata": {"name": grantee},
                         "spec": {
+                            **(
+                                {
+                                    "environmentName": f"test-env-{grantee.rsplit('-', 1)[-1]}"
+                                }
+                                if grantee != "test-reader-default"
+                                else {}
+                            ),
                             "principal": grantee,
                             "crossplane": {
                                 "compositionSelector": {
                                     "matchLabels": {"provider": "cloudferro"}
-                                }
+                                },
+                                "compositionRef": {"name": "storage-cloudferro"},
                             },
                         },
                     }
@@ -358,15 +443,32 @@ def run_tests(pipelines):
                     for item in pending.requirements.resources.values()
                     if item.kind == "EnvironmentConfig"
                 },
-                {"test-env-one", "test-env-two", "storage-cloudferro"},
+                {
+                    "default",
+                    "storage-cloudferro",
+                    "test-reader-one",
+                    "test-reader-two",
+                    "test-reader-default",
+                    "test-env-one",
+                    "test-env-two",
+                },
             )
             projects = (
                 "0123456789abcdef0123456789abcdef",
                 "fedcba9876543210fedcba9876543210",
                 "00112233445566778899aabbccddeeff",
             )
+            for name in (
+                "default",
+                "test-reader-default",
+                "test-reader-one",
+                "test-env-two",
+            ):
+                req.required_resources[
+                    f"cloudferro-grantee-environment-{name}"
+                ].SetInParent()
             for name, project in zip(
-                ("test-env-one", "test-env-two", "storage-cloudferro"), projects
+                ("test-env-one", "test-reader-two", "storage-cloudferro"), projects
             ):
                 req.required_resources[
                     f"cloudferro-grantee-environment-{name}"
@@ -516,7 +618,7 @@ def run_tests(pipelines):
                     peer
                 )
                 for step in (
-                    "load-storage-environment",
+                    "set-credential-time",
                     "create-users",
                     "observe-grantee-users",
                 ):
@@ -616,11 +718,9 @@ def run_tests(pipelines):
                             },
                         }
                     )
-                    req.required_resources[
-                        "storage-environment"
-                    ].items.add().resource.update(
+                    req.context.update(
                         {
-                            "data": {
+                            "apiextensions.crossplane.io/environment": {
                                 "storage": {
                                     "endpoint": "https://s3.example.test",
                                     "region": "RegionOne",
@@ -640,7 +740,7 @@ def run_tests(pipelines):
                     ]
                     clock.fromisoformat.side_effect = datetime.fromisoformat
                     for _ in range(2):
-                        rsp = compose(backend, "load-storage-environment", req, clock)
+                        rsp = compose(backend, "set-credential-time", req, clock)
                         req.context.CopyFrom(rsp.context)
                     for step in pipelines[backend][1:]:
                         if step["input"]["kind"] != "Script":
@@ -678,7 +778,7 @@ def run_tests(pipelines):
                     clock = Mock(wraps=datetime)
                     clock.now.return_value = datetime(2027, 1, 1, tzinfo=timezone.utc)
                     clock.fromisoformat.side_effect = datetime.fromisoformat
-                    rsp = compose(backend, "load-storage-environment", req, clock)
+                    rsp = compose(backend, "set-credential-time", req, clock)
                     self.assertEqual(
                         MessageToDict(rsp.context)[
                             "storages.pkg.internal/credential-generations"

@@ -15,26 +15,63 @@ spec:
     kind: Storage
   mode: Pipeline
   pipeline:
-  - step: load-storage-environment
+  - step: environmentConfigs
+    functionRef:
+      name: function-environment-configs
+    input:
+      apiVersion: environmentconfigs.fn.crossplane.io/v1beta1
+      kind: Input
+      spec:
+        policy:
+          resolution: Optional
+        environmentConfigs:
+        - type: Reference
+          ref:
+            name: default
+        - type: Selector
+          selector:
+            mode: Multiple
+            minMatch: 0
+            maxMatch: 1
+            matchLabels:
+            - type: Value
+              key: storages.pkg.internal/name
+              value: storage-cloudferro
+            - type: FromCompositeFieldPath
+              key: storages.pkg.internal/name
+              valueFromFieldPath: spec.crossplane.compositionRef.name
+              fromFieldPathPolicy: Optional
+        - type: Selector
+          selector:
+            mode: Multiple
+            minMatch: 0
+            maxMatch: 1
+            matchLabels:
+            - type: FromCompositeFieldPath
+              key: storages.pkg.internal/name
+              valueFromFieldPath: spec.environmentName
+              fromFieldPathPolicy: Optional
+        - type: Selector
+          selector:
+            mode: Multiple
+            minMatch: 0
+            maxMatch: 1
+            matchLabels:
+            - type: FromCompositeFieldPath
+              key: storages.pkg.internal/name
+              valueFromFieldPath: metadata.name
+              fromFieldPathPolicy: Optional
+      ttl: 60s
+  - step: set-credential-time
     functionRef:
       name: crossplane-contrib-function-python
     input:
       apiVersion: python.fn.crossplane.io/v1beta1
       kind: Script
-      environmentConfigName: storage-cloudferro
       script: |
         from datetime import datetime, timedelta
 
         from google.protobuf import json_format
-
-        def storage_environment_name(metadata, default):
-            annotations = metadata.get("annotations") or {}
-            labels = metadata.get("labels") or {}
-            return (
-                annotations.get("storages.pkg.internal/environment")
-                or labels.get("storages.pkg.internal/environment")
-                or default
-            ).strip() or default
 
         def rollover_suffixes(spec, now: datetime) -> list[str]:
             cfg = spec.get("credentialsRollover") or {}
@@ -84,17 +121,14 @@ spec:
 
         from datetime import datetime, timezone
 
-        from crossplane.function import request, resource, response
+        from crossplane.function import resource
         from crossplane.function.proto.v1 import run_function_pb2 as fnv1
 
-
-        ENVIRONMENT_KEY = "apiextensions.crossplane.io/environment"
 
 
         def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
             rsp.meta.ttl.FromSeconds(60)
             xr = to_dict(req.observed.composite.resource)
-            meta = xr.get("metadata", {}) or {}
             context = to_dict(req.context)
             time_key = "storages.pkg.internal/credential-time"
             generations_key = "storages.pkg.internal/credential-generations"
@@ -105,21 +139,6 @@ spec:
             rsp.context.MergeFrom(
                 resource.dict_to_struct({time_key: timestamp, generations_key: suffixes})
             )
-            env_name = storage_environment_name(
-                meta, to_dict(req.input)["environmentConfigName"]
-            )
-
-            response.require_resources(
-                rsp,
-                name="storage-environment",
-                api_version="apiextensions.crossplane.io/v1beta1",
-                kind="EnvironmentConfig",
-                match_name=env_name,
-            )
-
-            environment = request.get_required_resource(req, "storage-environment") or {}
-            environment_data = environment.get("data") or {}
-            rsp.context.MergeFrom(resource.dict_to_struct({ENVIRONMENT_KEY: environment_data}))
   - step: create-project-resources
     functionRef:
       name: crossplane-contrib-function-python
@@ -541,15 +560,6 @@ spec:
       script: |
         from google.protobuf import json_format
 
-        def storage_environment_name(metadata, default):
-            annotations = metadata.get("annotations") or {}
-            labels = metadata.get("labels") or {}
-            return (
-                annotations.get("storages.pkg.internal/environment")
-                or labels.get("storages.pkg.internal/environment")
-                or default
-            ).strip() or default
-
         def credential_suffixes(req):
             return to_dict(req.context)["storages.pkg.internal/credential-generations"]
 
@@ -669,13 +679,22 @@ spec:
                         f"CloudFerro grantee principal {grantee} does not use the cloudferro backend.",
                     )
                     return
-                environments[grantee] = storage_environment_name(
-                    peer_metadata, "storage-cloudferro"
-                )
+                environments[grantee] = [
+                    name
+                    for name in (
+                        "default",
+                        ((peer_spec.get("crossplane") or {}).get("compositionRef") or {}).get(
+                            "name", "storage-cloudferro"
+                        ),
+                        peer_spec.get("environmentName"),
+                        peer_metadata["name"],
+                    )
+                    if name
+                ]
 
-            projects = {}
+            configs = {}
             pending = False
-            for env_name in sorted(set(environments.values())):
+            for env_name in sorted({name for names in environments.values() for name in names}):
                 key = f"cloudferro-grantee-environment-{env_name}"
                 response.require_resources(
                     rsp,
@@ -684,21 +703,27 @@ spec:
                     kind="EnvironmentConfig",
                     match_name=env_name,
                 )
-                environment = request.get_required_resource(req, key)
-                if environment is None:
+                if key not in req.required_resources:
                     pending = True
                     continue
-                env = (environment.get("data") or {}).get("storage") or {}
-                project_id = (env.get("projectId") or "").strip()
+                environment = request.get_required_resource(req, key) or {}
+                configs[env_name] = (environment.get("data") or {}).get("storage") or {}
+            if pending:
+                return
+
+            projects = {}
+            for grantee, names in environments.items():
+                project_id = ""
+                for name in names:
+                    if "projectId" in configs[name]:
+                        project_id = (configs[name]["projectId"] or "").strip()
                 if not re.fullmatch(r"[0-9a-f]{32}", project_id):
                     response.fatal(
                         rsp,
-                        f"CloudFerro grantee environment {env_name} has an invalid projectId.",
+                        f"CloudFerro grantee {grantee} must have a valid environment projectId.",
                     )
                     return
-                projects[env_name] = project_id
-            if pending:
-                return
+                projects[grantee] = project_id
 
             by_bucket = {}
             for grant in active:
@@ -706,7 +731,7 @@ spec:
                 grantee = (grant.get("grantee") or "").strip()
                 permission = (grant.get("permission") or "None").strip()
                 by_bucket.setdefault(bucket, []).extend(
-                    statements(bucket, projects[environments[grantee]], permission)
+                    statements(bucket, projects[grantee], permission)
                 )
 
             for bucket, bucket_statements in sorted(by_bucket.items()):

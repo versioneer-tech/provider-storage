@@ -25,6 +25,14 @@ spec:
                 Buckets, access requests, grants, and credential rotation for one
                 storage principal.
               properties:
+                environmentName:
+                  type: string
+                  minLength: 1
+                  maxLength: 63
+                  pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$'
+                  description: >
+                    Optional EnvironmentConfig name. Overrides composition settings.
+                    A config with this Storage's name takes precedence.
                 principal:
                   type: string
                   description: >

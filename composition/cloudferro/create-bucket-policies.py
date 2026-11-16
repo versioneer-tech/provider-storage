@@ -7,7 +7,7 @@ import re
 from crossplane.function import request, response
 from crossplane.function.proto.v1 import run_function_pb2 as fnv1
 
-from composition.helpers import credential_suffixes, storage_environment_name, to_dict
+from composition.helpers import credential_suffixes, to_dict
 
 
 def statements(bucket, project_id, permission):
@@ -107,13 +107,22 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
                 f"CloudFerro grantee principal {grantee} does not use the cloudferro backend.",
             )
             return
-        environments[grantee] = storage_environment_name(
-            peer_metadata, "storage-cloudferro"
-        )
+        environments[grantee] = [
+            name
+            for name in (
+                "default",
+                ((peer_spec.get("crossplane") or {}).get("compositionRef") or {}).get(
+                    "name", "storage-cloudferro"
+                ),
+                peer_spec.get("environmentName"),
+                peer_metadata["name"],
+            )
+            if name
+        ]
 
-    projects = {}
+    configs = {}
     pending = False
-    for env_name in sorted(set(environments.values())):
+    for env_name in sorted({name for names in environments.values() for name in names}):
         key = f"cloudferro-grantee-environment-{env_name}"
         response.require_resources(
             rsp,
@@ -122,21 +131,27 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
             kind="EnvironmentConfig",
             match_name=env_name,
         )
-        environment = request.get_required_resource(req, key)
-        if environment is None:
+        if key not in req.required_resources:
             pending = True
             continue
-        env = (environment.get("data") or {}).get("storage") or {}
-        project_id = (env.get("projectId") or "").strip()
+        environment = request.get_required_resource(req, key) or {}
+        configs[env_name] = (environment.get("data") or {}).get("storage") or {}
+    if pending:
+        return
+
+    projects = {}
+    for grantee, names in environments.items():
+        project_id = ""
+        for name in names:
+            if "projectId" in configs[name]:
+                project_id = (configs[name]["projectId"] or "").strip()
         if not re.fullmatch(r"[0-9a-f]{32}", project_id):
             response.fatal(
                 rsp,
-                f"CloudFerro grantee environment {env_name} has an invalid projectId.",
+                f"CloudFerro grantee {grantee} must have a valid environment projectId.",
             )
             return
-        projects[env_name] = project_id
-    if pending:
-        return
+        projects[grantee] = project_id
 
     by_bucket = {}
     for grant in active:
@@ -144,7 +159,7 @@ def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
         grantee = (grant.get("grantee") or "").strip()
         permission = (grant.get("permission") or "None").strip()
         by_bucket.setdefault(bucket, []).extend(
-            statements(bucket, projects[environments[grantee]], permission)
+            statements(bucket, projects[grantee], permission)
         )
 
     for bucket, bucket_statements in sorted(by_bucket.items()):

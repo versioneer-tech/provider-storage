@@ -272,8 +272,7 @@ main() {
 
   log "Provider Storage integration state"
   kube get storages.pkg.internal \
-    --namespace "${INTEGRATION_NAMESPACE}" \
-    -L storages.pkg.internal/backend
+    --namespace "${INTEGRATION_NAMESPACE}"
 }
 
 main

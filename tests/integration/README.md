@@ -85,6 +85,13 @@ separate `KUBECONFIG` file if your shell has another cluster configured.
 Reuse this cluster during a validation cycle. Remove it only when the
 operator directs you to do so.
 
+The provider runner installs Crossplane 2.4.3 with
+[`deploy/crossplane-values.yaml`](../../deploy/crossplane-values.yaml).
+It uses the backend dependency manifests for provider and function versions,
+runtime security settings, watches, and Secret sanitization. This matches the
+[installation baseline](../../docs/how-to-guides/installation.md#dependency-baseline).
+Set `CROSSPLANE_VERSION` only when testing another Crossplane release.
+
 ## Run a backend
 
 `run.bash` deploys providers, the Composition, and both Storages, then calls
@@ -178,7 +185,7 @@ tests/integration/run.bash cloudferro
 
 `deploy-providers.bash cloudferro` creates an OpenStack ProviderConfig and
 EnvironmentConfig for each project. Each Storage selects
-`storage-cloudferro-<project-id>` through its environment annotation.
+`storage-cloudferro-<project-id>` through its `spec.environmentName` field.
 This manual setup does not need Kyverno. The test checks owned-bucket access,
 cross-project grants,
 lifecycle cleanup, EC2 credential creation, and bucket-policy management

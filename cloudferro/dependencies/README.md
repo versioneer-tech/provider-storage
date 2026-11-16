@@ -58,17 +58,16 @@ referenced Secret. The ProviderConfig and Secret must exist in each Storage
 namespace. Storages in one namespace can share the ProviderConfig.
 EnvironmentConfigs are cluster-scoped.
 
-Set `storages.pkg.internal/environment: storage-cloudferro-<project-id>` on
-each Storage and select `provider: cloudferro`. Cross-project grants resolve
-the grantee Storage's EnvironmentConfig and use its `storage.projectId`.
+Select `provider: cloudferro` and set
+`spec.environmentName: storage-cloudferro-<project-id>` on each Storage.
+Cross-project grants use the grantee Storage's `storage.projectId` setting.
 Restrict who can select or change project environments, change ProviderConfigs,
 or read controller Secrets. The Composition still creates its internal AWS
 ProviderConfig from generated S3 credentials for bucket policies.
 
-On upgrade, create the project configuration first and set each Storage's
-project environment selector. Keep the old project annotation until the
-updated Composition is applied, then remove it. Keep project, principal,
-bucket names, endpoint, and regions unchanged.
+On upgrade, apply the updated Storage XRD and create the project configuration
+before setting each Storage's `spec.environmentName`.
+Keep project, principal, bucket names, endpoint, and regions unchanged.
 
 ## Optional automation example
 

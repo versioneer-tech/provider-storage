@@ -22,22 +22,9 @@ The selector is required when several compatible Compositions are installed.
 Install packages for the backends you need. They share one Storage API package,
 which owns the XRD.
 
-Each backend uses `storage-<backend>` as its default EnvironmentConfig name,
-such as `storage-aws` or `storage-minio`. These names match the backend package
-names. Set the `storages.pkg.internal/environment` annotation or label to
-select another environment. If you keep an existing environment named
-`storage`, select it explicitly.
-
-The EnvironmentConfig can set `storage.providerConfigName` to select an
-existing backend ProviderConfig. When unset or blank, AWS, MinIO, OTC, and
-OVHcloud use `provider-aws`, `provider-minio`, `provider-otc`, and `provider-ovh`.
-
-CloudFerro requires an explicit `provider: cloudferro` selector. Its supplied
-project manifests use separate environment names. Select one with
-`storages.pkg.internal/environment: storage-cloudferro-<project-id>`.
-The EnvironmentConfig defines the project ID and an existing OpenStack
-ProviderConfig name. See the
-[CloudFerro dependency guide](https://github.com/versioneer-tech/provider-storage/blob/main/cloudferro/dependencies/README.md).
+Configure environment and provider settings during
+[installation](installation.md#environment-settings). CloudFerro project setup
+is in its [dependency guide](https://github.com/versioneer-tech/provider-storage/blob/main/cloudferro/dependencies/README.md).
 
 ## Credentials
 

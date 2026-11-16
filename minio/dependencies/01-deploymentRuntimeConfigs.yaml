@@ -20,10 +20,20 @@ spec:
           labels:
             runtime: provider-minio
         spec:
+          securityContext:
+            seccompProfile:
+              type: RuntimeDefault
           containers:
           - name: package-runtime
             # This provider logs user credentials at Info level.
-            args: [--log-level=-1, operator]
+            args:
+            - --log-level=-1
+            - operator
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                - ALL
             resources:
               requests:
                 cpu: 100m
@@ -52,16 +62,115 @@ spec:
             runtime: provider-kubernetes
         spec:
           serviceAccountName: provider-kubernetes
+          securityContext:
+            seccompProfile:
+              type: RuntimeDefault
           containers:
           - name: package-runtime
             args:
-            - --poll=1m
+            - --enable-watches
+            - --poll=5m
+            - --max-reconcile-rate=10
             - --sanitize-secrets
-            # - --debug
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                - ALL
             resources:
               requests:
                 cpu: 100m
                 memory: 128Mi
               limits:
                 cpu: 500m
-                memory: 512Mi
+                memory: 1Gi
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: DeploymentRuntimeConfig
+metadata:
+  name: function-python
+spec:
+  deploymentTemplate:
+    metadata:
+      labels:
+        runtime: function-python
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          runtime: function-python
+      template:
+        metadata:
+          labels:
+            runtime: function-python
+        spec:
+          securityContext:
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+          - name: package-runtime
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                - ALL
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: DeploymentRuntimeConfig
+metadata:
+  name: function-auto-ready
+spec:
+  deploymentTemplate:
+    metadata:
+      labels:
+        runtime: function-auto-ready
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          runtime: function-auto-ready
+      template:
+        metadata:
+          labels:
+            runtime: function-auto-ready
+        spec:
+          securityContext:
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+          - name: package-runtime
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                - ALL
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: DeploymentRuntimeConfig
+metadata:
+  name: function-environment-configs
+spec:
+  deploymentTemplate:
+    metadata:
+      labels:
+        runtime: function-environment-configs
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          runtime: function-environment-configs
+      template:
+        metadata:
+          labels:
+            runtime: function-environment-configs
+        spec:
+          securityContext:
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+          - name: package-runtime
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                - ALL

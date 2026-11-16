@@ -121,7 +121,6 @@ def verify_deletion():
         "metadata": {
             "name": name,
             "namespace": NAMESPACE,
-            "annotations": {"storages.pkg.internal/environment": "storage-minio"},
         },
         "spec": {
             "principal": principal,
