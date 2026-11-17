@@ -20,6 +20,7 @@ BUILDER = runpy.run_path(str(ROOT / "scripts/build-composition.py"))
 BACKENDS = sys.argv[1:] or BUILDER["BACKENDS"]
 sys.argv[1:] = []
 RUNTIME = """
+import itertools
 import json
 import sys
 
@@ -37,7 +38,8 @@ with grpc.insecure_channel('localhost:9443') as channel, grpc.insecure_channel('
     environment_stub = fnv1_grpc.FunctionRunnerServiceStub(environment_channel)
     for case in data['cases']:
         pipelines.setdefault(case['backend'], case['pipeline'])
-        for xr in ({}, case['xr']):
+        for xr, override in itertools.product(
+                ({}, case['xr']), (None, ('30s', 30), ('5m', 300), ('1h', 3600))):
             for step in case['pipeline']:
                 req = fnv1.RunFunctionRequest()
                 req.observed.composite.resource.update(xr)
@@ -48,16 +50,22 @@ with grpc.insecure_channel('localhost:9443') as channel, grpc.insecure_channel('
                     'providerConfigName': 'test-project-provider'},
                 }, 'storages.pkg.internal/credential-time': '2026-11-13T12:00:00+00:00',
                    'storages.pkg.internal/credential-generations': ['']})
+                if override is not None:
+                    req.context['apiextensions.crossplane.io/environment']['storage'].update(
+                        {'responseTTL': override[0]})
                 req.input.update(step['input'])
                 if step['input']['kind'] == 'Script':
                     namespace = {}
                     exec(compile(step['input']['script'], step['step'], 'exec'), namespace)
                     rsp = response.to(req)
                     namespace['compose'](req, rsp)
+                    seconds = case['seconds'] if override is None else override[1]
                 else:
                     runner = environment_stub if step['step'] == 'environmentConfigs' else stub
                     rsp = runner.RunFunction(req, timeout=10)
-                assert (rsp.meta.ttl.seconds, rsp.meta.ttl.nanos) == (case['seconds'], 0), (
+                    seconds = (case['environment_seconds'] if step['step'] == 'environmentConfigs'
+                               else case['ready_seconds'])
+                assert (rsp.meta.ttl.seconds, rsp.meta.ttl.nanos) == (seconds, 0), (
                     case['backend'], step['step'], rsp.meta.ttl)
     scope = {}
     exec(compile(data['checks'], 'tests/composition-behavior.py', 'exec'), scope)
@@ -97,14 +105,26 @@ class FunctionRuntimeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="test-storage-ttl-") as directory:
             root = Path(directory)
             shutil.copytree(ROOT / "composition", root / "composition")
-            (root / "composition/settings.yaml").write_text("responseTTL: 5m\n")
-            builds = [(backend, ROOT, None, 60) for backend in BACKENDS]
+            (root / "composition/settings.yaml").write_text(
+                "responseTTL: 5m\nenvironmentConfigsTTL: 11m\nautoReadyTTL: 12m\n"
+            )
+            builds = [(backend, ROOT, None, 60, 600, 600) for backend in BACKENDS]
             # File and command overrides use the same builder for every backend.
             # Expected seconds must not depend on the parser under test.
             builds.extend(
-                [(BACKENDS[0], root, None, 300), (BACKENDS[0], root, "90s", 90)]
+                [
+                    (BACKENDS[0], root, None, 300, 660, 720),
+                    (BACKENDS[0], root, "90s", 90, 660, 720),
+                ]
             )
-            for backend, source_root, override, seconds in builds:
+            for (
+                backend,
+                source_root,
+                override,
+                seconds,
+                env_seconds,
+                ready_seconds,
+            ) in builds:
                 fixture = (
                     ROOT / "cloudferro/tests/fixtures/001-buckets.yaml"
                     if backend == "cloudferro"
@@ -119,6 +139,8 @@ class FunctionRuntimeTests(unittest.TestCase):
                         "pipeline": composition["spec"]["pipeline"],
                         "xr": yaml.safe_load(fixture.read_text()),
                         "seconds": seconds,
+                        "environment_seconds": env_seconds,
+                        "ready_seconds": ready_seconds,
                     }
                 )
         functions = list(

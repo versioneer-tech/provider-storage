@@ -2,11 +2,34 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import base64
+import re
 from datetime import datetime, timedelta
 
 from crossplane.function import request, response
 from crossplane.function.proto.v1 import run_function_pb2 as fnv1
 from google.protobuf import json_format
+
+
+def set_response_ttl(req, rsp, default_seconds):
+    rsp.meta.ttl.FromSeconds(default_seconds)
+    environment = (
+        to_dict(req.context).get("apiextensions.crossplane.io/environment") or {}
+    )
+    storage = environment.get("storage") or {}
+    if "responseTTL" not in storage:
+        return True
+    match = re.fullmatch(r"([1-9][0-9]*)(s|m|h)", str(storage["responseTTL"]))
+    if match:
+        seconds = int(match[1]) * {"s": 1, "m": 60, "h": 3600}[match[2]]
+        if seconds <= (2**63 - 1) // 1_000_000_000:
+            rsp.meta.ttl.FromSeconds(seconds)
+            return True
+    response.fatal(
+        rsp,
+        "storage.responseTTL must be a positive whole duration, such as 30s, 5m, "
+        "or 1h, within the signed 64-bit nanosecond limit.",
+    )
+    return False
 
 
 def storage_provider_config_name(req, default=""):

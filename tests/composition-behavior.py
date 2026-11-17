@@ -161,6 +161,7 @@ def run_tests(pipelines, environment_stub):
                             {
                                 "region": "default-region",
                                 "endpoint": "default-endpoint",
+                                "responseTTL": "2m",
                             },
                         ),
                         (
@@ -168,6 +169,7 @@ def run_tests(pipelines, environment_stub):
                             {
                                 "region": "composition-region",
                                 "providerConfigName": "test-provider",
+                                "responseTTL": "3m",
                             },
                         ),
                         (
@@ -175,9 +177,10 @@ def run_tests(pipelines, environment_stub):
                             {
                                 "region": "environment-region",
                                 "endpoint": "environment-endpoint",
+                                "responseTTL": "4m",
                             },
                         ),
-                        ("test-storage", {"region": "xr-region"}),
+                        ("test-storage", {"region": "xr-region", "responseTTL": "5m"}),
                     )
                     for present in itertools.product((False, True), repeat=4):
                         req = request(backend)
@@ -269,6 +272,48 @@ def run_tests(pipelines, environment_stub):
                                 ].get("storage", {}),
                                 expected,
                             )
+                            req.context.CopyFrom(rsp.context)
+                            configured = compose(backend, "set-credential-time", req)
+                            self.assertEqual(
+                                configured.meta.ttl.seconds,
+                                {"2m": 120, "3m": 180, "4m": 240, "5m": 300}.get(
+                                    expected.get("responseTTL"), 60
+                                ),
+                            )
+
+        def test_invalid_response_ttl_stops_python_steps(self):
+            for backend, steps in pipelines.items():
+                for step in steps:
+                    if step["input"]["kind"] != "Script":
+                        continue
+                    for value in (
+                        "",
+                        "0s",
+                        "-1m",
+                        "1.5s",
+                        "1d",
+                        "999999999999h",
+                        None,
+                        True,
+                        60,
+                    ):
+                        with self.subTest(
+                            backend=backend, step=step["step"], value=value
+                        ):
+                            req = request(backend)
+                            req.context["apiextensions.crossplane.io/environment"][
+                                "storage"
+                            ].update({"responseTTL": value})
+                            rsp = compose(backend, step["step"], req)
+                            self.assertTrue(
+                                any(
+                                    result.severity == fnv1.SEVERITY_FATAL
+                                    and "storage.responseTTL" in result.message
+                                    for result in rsp.results
+                                ),
+                                rsp.results,
+                            )
+                            self.assertFalse(rsp.desired.resources)
 
         def test_backend_resources_use_selected_provider_config_or_existing_default(
             self,

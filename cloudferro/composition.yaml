@@ -61,7 +61,7 @@ spec:
               key: storages.pkg.internal/name
               valueFromFieldPath: metadata.name
               fromFieldPathPolicy: Optional
-      ttl: 60s
+      ttl: 10m
   - step: set-credential-time
     functionRef:
       name: crossplane-contrib-function-python
@@ -69,9 +69,34 @@ spec:
       apiVersion: python.fn.crossplane.io/v1beta1
       kind: Script
       script: |
+        import re
+
         from datetime import datetime, timedelta
 
+        from crossplane.function import request, response
+
         from google.protobuf import json_format
+
+        def set_response_ttl(req, rsp, default_seconds):
+            rsp.meta.ttl.FromSeconds(default_seconds)
+            environment = (
+                to_dict(req.context).get("apiextensions.crossplane.io/environment") or {}
+            )
+            storage = environment.get("storage") or {}
+            if "responseTTL" not in storage:
+                return True
+            match = re.fullmatch(r"([1-9][0-9]*)(s|m|h)", str(storage["responseTTL"]))
+            if match:
+                seconds = int(match[1]) * {"s": 1, "m": 60, "h": 3600}[match[2]]
+                if seconds <= (2**63 - 1) // 1_000_000_000:
+                    rsp.meta.ttl.FromSeconds(seconds)
+                    return True
+            response.fatal(
+                rsp,
+                "storage.responseTTL must be a positive whole duration, such as 30s, 5m, "
+                "or 1h, within the signed 64-bit nanosecond limit.",
+            )
+            return False
 
         def rollover_suffixes(spec, now: datetime) -> list[str]:
             cfg = spec.get("credentialsRollover") or {}
@@ -116,6 +141,7 @@ spec:
                 return value
             return json_format.MessageToDict(value, preserving_proto_field_name=True)
 
+
         # Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
         # SPDX-License-Identifier: Apache-2.0
 
@@ -127,7 +153,8 @@ spec:
 
 
         def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
-            rsp.meta.ttl.FromSeconds(60)
+            if not set_response_ttl(req, rsp, 60):
+                return
             xr = to_dict(req.observed.composite.resource)
             context = to_dict(req.context)
             time_key = "storages.pkg.internal/credential-time"
@@ -146,7 +173,32 @@ spec:
       apiVersion: python.fn.crossplane.io/v1beta1
       kind: Script
       script: |
+        import re
+
+        from crossplane.function import request, response
+
         from google.protobuf import json_format
+
+        def set_response_ttl(req, rsp, default_seconds):
+            rsp.meta.ttl.FromSeconds(default_seconds)
+            environment = (
+                to_dict(req.context).get("apiextensions.crossplane.io/environment") or {}
+            )
+            storage = environment.get("storage") or {}
+            if "responseTTL" not in storage:
+                return True
+            match = re.fullmatch(r"([1-9][0-9]*)(s|m|h)", str(storage["responseTTL"]))
+            if match:
+                seconds = int(match[1]) * {"s": 1, "m": 60, "h": 3600}[match[2]]
+                if seconds <= (2**63 - 1) // 1_000_000_000:
+                    rsp.meta.ttl.FromSeconds(seconds)
+                    return True
+            response.fatal(
+                rsp,
+                "storage.responseTTL must be a positive whole duration, such as 30s, 5m, "
+                "or 1h, within the signed 64-bit nanosecond limit.",
+            )
+            return False
 
         def storage_provider_config_name(req, default=""):
             environment = (
@@ -196,6 +248,7 @@ spec:
                 return value
             return json_format.MessageToDict(value, preserving_proto_field_name=True)
 
+
         # Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
         # SPDX-License-Identifier: Apache-2.0
 
@@ -209,7 +262,8 @@ spec:
 
 
         def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
-            rsp.meta.ttl.FromSeconds(60)
+            if not set_response_ttl(req, rsp, 60):
+                return
             xr = to_dict(req.observed.composite.resource)
             metadata = xr.get("metadata") or {}
             spec = xr.get("spec") or {}
@@ -289,11 +343,34 @@ spec:
       script: |
         import base64
 
+        import re
+
         from crossplane.function import request, response
 
         from crossplane.function.proto.v1 import run_function_pb2 as fnv1
 
         from google.protobuf import json_format
+
+        def set_response_ttl(req, rsp, default_seconds):
+            rsp.meta.ttl.FromSeconds(default_seconds)
+            environment = (
+                to_dict(req.context).get("apiextensions.crossplane.io/environment") or {}
+            )
+            storage = environment.get("storage") or {}
+            if "responseTTL" not in storage:
+                return True
+            match = re.fullmatch(r"([1-9][0-9]*)(s|m|h)", str(storage["responseTTL"]))
+            if match:
+                seconds = int(match[1]) * {"s": 1, "m": 60, "h": 3600}[match[2]]
+                if seconds <= (2**63 - 1) // 1_000_000_000:
+                    rsp.meta.ttl.FromSeconds(seconds)
+                    return True
+            response.fatal(
+                rsp,
+                "storage.responseTTL must be a positive whole duration, such as 30s, 5m, "
+                "or 1h, within the signed 64-bit nanosecond limit.",
+            )
+            return False
 
         def retain_resources(req, rsp, keys):
             # Omitted resources are deleted, so keep the last output during rollover.
@@ -402,6 +479,7 @@ spec:
                 return value
             return json_format.MessageToDict(value, preserving_proto_field_name=True)
 
+
         # Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
         # SPDX-License-Identifier: Apache-2.0
 
@@ -412,7 +490,8 @@ spec:
 
 
         def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
-            rsp.meta.ttl.FromSeconds(60)
+            if not set_response_ttl(req, rsp, 60):
+                return
             xr = to_dict(req.observed.composite.resource)
             metadata = xr.get("metadata") or {}
             spec = xr.get("spec") or {}
@@ -558,7 +637,32 @@ spec:
       apiVersion: python.fn.crossplane.io/v1beta1
       kind: Script
       script: |
+        import re
+
+        from crossplane.function import request, response
+
         from google.protobuf import json_format
+
+        def set_response_ttl(req, rsp, default_seconds):
+            rsp.meta.ttl.FromSeconds(default_seconds)
+            environment = (
+                to_dict(req.context).get("apiextensions.crossplane.io/environment") or {}
+            )
+            storage = environment.get("storage") or {}
+            if "responseTTL" not in storage:
+                return True
+            match = re.fullmatch(r"([1-9][0-9]*)(s|m|h)", str(storage["responseTTL"]))
+            if match:
+                seconds = int(match[1]) * {"s": 1, "m": 60, "h": 3600}[match[2]]
+                if seconds <= (2**63 - 1) // 1_000_000_000:
+                    rsp.meta.ttl.FromSeconds(seconds)
+                    return True
+            response.fatal(
+                rsp,
+                "storage.responseTTL must be a positive whole duration, such as 30s, 5m, "
+                "or 1h, within the signed 64-bit nanosecond limit.",
+            )
+            return False
 
         def credential_suffixes(req):
             return to_dict(req.context)["storages.pkg.internal/credential-generations"]
@@ -569,6 +673,7 @@ spec:
             if isinstance(value, dict):
                 return value
             return json_format.MessageToDict(value, preserving_proto_field_name=True)
+
 
         # Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
         # SPDX-License-Identifier: Apache-2.0
@@ -612,7 +717,8 @@ spec:
 
 
         def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
-            rsp.meta.ttl.FromSeconds(60)
+            if not set_response_ttl(req, rsp, 60):
+                return
             xr = to_dict(req.observed.composite.resource)
             metadata = xr.get("metadata") or {}
             spec = xr.get("spec") or {}
@@ -825,7 +931,32 @@ spec:
       kind: Script
       backend: cloudferro
       script: |
+        import re
+
+        from crossplane.function import request, response
+
         from google.protobuf import json_format
+
+        def set_response_ttl(req, rsp, default_seconds):
+            rsp.meta.ttl.FromSeconds(default_seconds)
+            environment = (
+                to_dict(req.context).get("apiextensions.crossplane.io/environment") or {}
+            )
+            storage = environment.get("storage") or {}
+            if "responseTTL" not in storage:
+                return True
+            match = re.fullmatch(r"([1-9][0-9]*)(s|m|h)", str(storage["responseTTL"]))
+            if match:
+                seconds = int(match[1]) * {"s": 1, "m": 60, "h": 3600}[match[2]]
+                if seconds <= (2**63 - 1) // 1_000_000_000:
+                    rsp.meta.ttl.FromSeconds(seconds)
+                    return True
+            response.fatal(
+                rsp,
+                "storage.responseTTL must be a positive whole duration, such as 30s, 5m, "
+                "or 1h, within the signed 64-bit nanosecond limit.",
+            )
+            return False
 
         def kubernetes_object(key, namespace, manifest, *, name=None, **spec_fields):
             return {
@@ -852,6 +983,7 @@ spec:
             if isinstance(value, dict):
                 return value
             return json_format.MessageToDict(value, preserving_proto_field_name=True)
+
 
         # Copyright 2026, EOX (https://eox.at) and Versioneer (https://versioneer.at)
         # SPDX-License-Identifier: Apache-2.0
@@ -957,7 +1089,8 @@ spec:
 
 
         def compose(req: fnv1.RunFunctionRequest, rsp: fnv1.RunFunctionResponse):
-            rsp.meta.ttl.FromSeconds(60)
+            if not set_response_ttl(req, rsp, 60):
+                return
             xr = to_dict(req.observed.composite.resource)
             meta = xr.get("metadata", {}) or {}
             spec = xr.get("spec", {}) or {}
@@ -1208,4 +1341,4 @@ spec:
     input:
       apiVersion: autoready.fn.crossplane.io/v1beta1
       kind: Input
-      ttl: 60s
+      ttl: 10m

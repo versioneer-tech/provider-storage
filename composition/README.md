@@ -30,10 +30,11 @@ Do not edit generated files. Check them with:
 python3 scripts/build-composition.py --check
 ```
 
-`settings.yaml` sets `responseTTL` for all steps. Use a positive whole number
-of seconds (`30s`), minutes (`5m`), or hours (`1h`). The default is `60s`.
-A longer cache duration can delay time-based credential rollover. Rebuild
-after changing the setting. Use `--response-ttl` with a separate
-`--output-dir` for a temporary build.
+`settings.yaml` sets the Python `responseTTL` default to `1m` and the
+`environmentConfigsTTL` and `autoReadyTTL` values to `10m`. Operators can
+override the Python TTL through
+[environment settings](../docs/how-to-guides/installation.md#environment-settings).
+Rebuild after changing the build settings. Use `--response-ttl` with a separate
+`--output-dir` to override the Python default for a temporary build.
 
 Run the [unit suite](../tests/README.md) after source changes.

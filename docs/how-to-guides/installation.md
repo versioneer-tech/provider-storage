@@ -167,6 +167,7 @@ metadata:
 data:
   storage:
     providerConfigName: team-minio
+    responseTTL: 5m
 ```
 
 Select this config on a Storage with:

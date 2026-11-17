@@ -103,16 +103,18 @@ def set_response_ttl(script, seconds):
     first = function.body[0]
     if first.lineno == function.lineno:
         raise ValueError("The compose function body must start on a separate line.")
-    response_name = function.args.args[1].arg
+    request_name, response_name = (arg.arg for arg in function.args.args)
     lines = script.splitlines(keepends=True)
     index = first.lineno - 1
     if ast.get_docstring(function) is not None:
         index = first.end_lineno
     lines.insert(
         index,
-        f"{' ' * first.col_offset}{response_name}.meta.ttl.FromSeconds({seconds})\n",
+        f"{' ' * first.col_offset}if not set_response_ttl("
+        f"{request_name}, {response_name}, {seconds}):\n"
+        f"{' ' * (first.col_offset + 4)}return\n",
     )
-    return "".join(lines)
+    return "from composition.helpers import set_response_ttl\n\n" + "".join(lines)
 
 
 def build(backend, root=ROOT, response_ttl=None):
@@ -120,6 +122,8 @@ def build(backend, root=ROOT, response_ttl=None):
     settings = yaml.safe_load((source / "settings.yaml").read_text())
     ttl = settings["responseTTL"] if response_ttl is None else response_ttl
     seconds = response_ttl_seconds(ttl)
+    for key in ("environmentConfigsTTL", "autoReadyTTL"):
+        response_ttl_seconds(settings[key])
     composition = yaml.safe_load((source / backend / "pipeline.yaml").read_text())
     steps = [step["step"] for step in composition["spec"]["pipeline"]]
     if len(steps) != len(set(steps)):
@@ -130,15 +134,17 @@ def build(backend, root=ROOT, response_ttl=None):
         function = step["functionRef"]["name"]
         if function == "crossplane-contrib-function-auto-ready":
             data.update(
-                apiVersion="autoready.fn.crossplane.io/v1beta1", kind="Input", ttl=ttl
+                apiVersion="autoready.fn.crossplane.io/v1beta1",
+                kind="Input",
+                ttl=settings["autoReadyTTL"],
             )
         elif function == "function-environment-configs":
-            data["ttl"] = ttl
+            data["ttl"] = settings["environmentConfigsTTL"]
         elif function == "crossplane-contrib-function-python":
             path = (source / data.pop("scriptFile")).resolve()
             path.relative_to(source.resolve())
-            script = inline_helpers(path.read_text(), helpers)
-            data["script"] = set_response_ttl(script, seconds)
+            script = set_response_ttl(path.read_text(), seconds)
+            data["script"] = inline_helpers(script, helpers)
             compile(data["script"], str(path), "exec")
         else:
             raise ValueError(f"No response TTL configuration for function: {function}")

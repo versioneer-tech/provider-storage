@@ -8,7 +8,8 @@ Provider Storage provisions S3 buckets and consumer credentials on MinIO,
 AWS, Open Telekom Cloud (OTC), OVHcloud, and CloudFerro. Install the backends
 you need in the same cluster. Declare buckets, access grants, and lifecycle
 rules in a namespaced `Storage`.
-Crossplane creates the provider resources from the platform's backend settings.
+Crossplane creates the provider resources from the platform's
+[backend settings](docs/how-to-guides/installation.md#environment-settings).
 
 Use Crossplane 2.4.3 or later in the v2 series. The
 [installation guide](docs/how-to-guides/installation.md#dependency-baseline)
